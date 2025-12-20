@@ -59,57 +59,62 @@ export default function Admin({ onAccessClient }) {
       setMonthlyStats(monthlyArray);
   };
 
-// --- LE BOUTON MAGIQUE : GÉNÉRATEUR DE DÉMO (CORRIGÉ) ---
-  const generateDemoData = async () => {
-    if(!window.confirm("Créer un nouveau compte de DÉMO complet ?")) return;
+// ... le reste du code ...
 
-    // Utilisation d'un ID très aléatoire pour éviter les conflits
-    const uniqueSuffix = Date.now().toString().slice(-6);
-    const fakeUserId = `user_demo_${uniqueSuffix}`;
-    const demoEmail = `demo.${uniqueSuffix}@localboost.test`;
+  const generateDemoData = async () => {
+    if(!window.confirm("Créer un nouveau compte de DÉMO complet ?")) return;
 
-    // 1. Création du Profil Business
-    const newProfile = {
-        user_id: fakeUserId,
-        name: `Boulangerie Démo ${uniqueSuffix}`,
-        email: demoEmail,
-        city: "Paris",
-        address: "10 Rue de la Paix",
-        phone: "01 02 03 04 05",
-        subscription_tier: "premium",
-        created_at: new Date().toISOString(),
-        discount_percent: 100,
-        is_active: true
-    };
+    const uniqueSuffix = Date.now().toString().slice(-6);
+    // ASTUCE : On ne met pas de user_id fictif qui ferait planter Supabase
+    // On espère que votre colonne user_id accepte les NULL, sinon on met l'ID de l'admin actuel
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const demoEmail = `demo.${uniqueSuffix}@localboost.test`;
 
-    const { data: profileData, error: profileError } = await supabase.from("business_profile").insert([newProfile]).select().single();
+    // 1. Création du Profil Business
+    const newProfile = {
+        // Si votre BDD oblige un user_id, on met celui de l'admin, 
+        // sinon on laisse cette ligne commentée pour envoyer NULL
+        user_id: user?.id, 
+        name: `Boulangerie Démo ${uniqueSuffix}`,
+        email: demoEmail,
+        city: "Paris",
+        address: "10 Rue de la Paix",
+        phone: "01 02 03 04 05",
+        subscription_tier: "premium",
+        created_at: new Date().toISOString(),
+        discount_percent: 100,
+        is_active: true
+    };
 
-    if (profileError) {
-        alert("Erreur lors de la création : " + profileError.message);
-        console.error(profileError);
-        return;
-    }
+    const { data: profileData, error: profileError } = await supabase.from("business_profile").insert([newProfile]).select().single();
 
-    const businessId = profileData.id;
+    if (profileError) {
+        console.error("Détail erreur:", profileError);
+        alert("Erreur BDD : " + profileError.message + "\n\n(Vérifiez que la colonne user_id n'est pas unique ou liée strictement à auth.users)");
+        return;
+    }
 
-    // 2. Ajout de faux avis (Données liées au bon businessId)
-    const fakeReviews = [
-        { business_id: businessId, author_name: "Thomas R.", rating: 5, comment: "Super service !", date: new Date().toISOString() },
-        { business_id: businessId, author_name: "Sarah L.", rating: 4, comment: "Très bon accueil.", date: new Date().toISOString() }
-    ];
-    // On ignore les erreurs sur les avis pour ne pas bloquer
-    await supabase.from("reviews").insert(fakeReviews).catch(err => console.log("Info: reviews skipped"));
+    const businessId = profileData.id;
 
-    // 3. Ajout de faux clients
-    const fakeCustomers = [
-        { business_id: businessId, name: "Client Test 1", email: "client1@test.com" },
-        { business_id: businessId, name: "Client Test 2", email: "client2@test.com" }
-    ];
-    await supabase.from("customers").insert(fakeCustomers).catch(err => console.log("Info: customers skipped"));
+    // 2. Ajout de faux avis
+    const fakeReviews = [
+        { business_id: businessId, author_name: "Thomas R.", rating: 5, comment: "Super service !", date: new Date().toISOString() },
+        { business_id: businessId, author_name: "Sarah L.", rating: 4, comment: "Très bon accueil.", date: new Date().toISOString() }
+    ];
+    // On utilise .then() pour ne pas bloquer si ça échoue
+    await supabase.from("reviews").insert(fakeReviews).then(() => console.log("Avis créés"));
 
-    alert(`✅ Compte de DÉMO généré !\nEmail: ${demoEmail}`);
-    fetchBusinesses(); // Rafraichir la liste
-  };
+    // 3. Ajout de faux clients
+    const fakeCustomers = [
+        { business_id: businessId, name: "Client Test 1", email: "client1@test.com" },
+        { business_id: businessId, name: "Client Test 2", email: "client2@test.com" }
+    ];
+    await supabase.from("customers").insert(fakeCustomers).then(() => console.log("Clients créés"));
+
+    alert(`✅ Compte de DÉMO généré !\nEmail: ${demoEmail}`);
+    fetchBusinesses(); 
+  };
 
   const handleSwitchPlan = async (clientId, currentTier) => {
     const newTier = currentTier === 'basic' ? 'premium' : 'basic';

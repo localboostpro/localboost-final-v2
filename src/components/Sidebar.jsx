@@ -32,7 +32,7 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
   ];
 
   return (
-    <div className="w-72 bg-white h-screen flex flex-col border-r border-slate-100 shadow-sm fixed left-0 top-0 z-40">
+    <div className="w-72 bg-white h-screen flex flex-col border-r border-slate-100 shadow-sm fixed left-0 top-0 z-40 hidden md:flex">
       {/* SECTION LOGO & NOM DYNAMIQUE */}
       <div className="p-8">
         <div className="flex items-center gap-3 mb-8">

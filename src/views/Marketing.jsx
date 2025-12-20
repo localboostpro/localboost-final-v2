@@ -5,7 +5,7 @@ import canvasConfetti from "canvas-confetti";
 import {
   Wand2, Upload, Instagram, Facebook, Linkedin,
   Save, Sparkles, Smartphone, History, Trash2,
-  Lock, ArrowRight // Ajout des icônes pour l'écran de verrouillage
+  Lock, ArrowRight, X // J'ai ajouté X ici
 } from "lucide-react";
 
 export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
@@ -19,19 +19,15 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   const fileInputRef = useRef(null);
 
   // --- 1. PROTECTION BASIC (Point #6) ---
-  // Si l'utilisateur est en Basic, on retourne l'écran de verrouillage AVANT tout le reste.
   if (profile?.subscription_tier === 'basic') {
     return (
       <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl relative overflow-hidden animate-in fade-in duration-700">
-         {/* Fond d'ambiance */}
          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-600/20 to-purple-600/20 z-0"></div>
          <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/30 rounded-full blur-3xl"></div>
-         
          <div className="relative z-10 max-w-lg mx-auto">
             <div className="bg-white/10 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-md border border-white/10 shadow-2xl shadow-indigo-500/20">
                 <Lock size={48} className="text-indigo-400"/>
             </div>
-            
             <h2 className="text-4xl font-black mb-4 tracking-tight">Studio Marketing IA</h2>
             <p className="text-slate-300 mb-8 text-lg leading-relaxed">
                 Débloquez la puissance de l'Intelligence Artificielle pour générer vos posts et visuels en un clic.
@@ -40,11 +36,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                   Fonctionnalité réservée aux membres Premium
                 </span>
             </p>
-            
-            <button 
-                onClick={() => alert("Rendez-vous dans l'onglet 'Mon Profil' pour passer en Premium !")}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all hover:scale-105 shadow-lg shadow-indigo-900/50"
-            >
+            <button onClick={() => alert("Rendez-vous dans l'onglet 'Mon Profil' pour passer en Premium !")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all hover:scale-105 shadow-lg shadow-indigo-900/50">
                 Débloquer maintenant <ArrowRight size={20}/>
             </button>
          </div>
@@ -52,7 +44,21 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
     );
   }
 
-  // --- 2. LOGIQUE STANDARD (Pour les Premium) ---
+  // --- NOUVELLE FONCTION SUPPRESSION ---
+  const handleDeletePost = async (e, postId) => {
+      e.stopPropagation(); // Empêche de cliquer sur le post pour l'ouvrir
+      if(!window.confirm("Voulez-vous vraiment supprimer ce post de l'historique ?")) return;
+      
+      const { error } = await supabase.from("posts").delete().eq("id", postId);
+      if(!error) {
+          // On recharge la page pour mettre à jour la liste simplement
+          window.location.reload(); 
+      } else {
+          alert("Erreur lors de la suppression");
+      }
+  };
+
+  // --- 2. LOGIQUE STANDARD ---
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -131,19 +137,27 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   return (
     <div className="h-[calc(100vh-100px)] flex gap-6 pb-6 animate-in fade-in duration-500">
       
-      {/* Historique */}
+      {/* Historique AVEC SUPPRESSION */}
       <div className="w-64 flex flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden shrink-0 hidden lg:flex">
         <div className="p-4 border-b bg-slate-50 font-bold text-xs uppercase text-slate-400 flex items-center gap-2">
           <History size={14}/> Historique
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
           {posts.map(post => (
-             <div key={post.id} onClick={() => setCurrentPost(post)} className="flex gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 transition">
+             <div key={post.id} onClick={() => setCurrentPost(post)} className="flex gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 transition group relative">
                <img src={post.image_url} className="w-10 h-10 rounded-lg object-cover bg-slate-200" alt="mini"/>
-               <div className="overflow-hidden">
+               <div className="overflow-hidden flex-1">
                  <div className="font-bold text-xs truncate text-slate-800">{post.title || "Post"}</div>
                  <div className="text-[10px] text-slate-400">{new Date(post.created_at).toLocaleDateString()}</div>
                </div>
+               {/* BOUTON SUPPRESSION AJOUTÉ ICI */}
+               <button 
+                  onClick={(e) => handleDeletePost(e, post.id)} 
+                  className="absolute top-1 right-1 bg-white rounded-full p-1 text-slate-300 hover:text-rose-500 shadow-sm opacity-0 group-hover:opacity-100 transition"
+                  title="Supprimer"
+               >
+                   <X size={12}/>
+               </button>
              </div>
           ))}
         </div>

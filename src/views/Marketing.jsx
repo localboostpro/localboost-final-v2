@@ -1,21 +1,58 @@
 import React, { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { generatePostContent } from "../lib/openai"; 
-import canvasConfetti from "canvas-confetti"; 
+import { generatePostContent } from "../lib/openai";
+import canvasConfetti from "canvas-confetti";
 import {
-  Wand2, Upload, Instagram, Facebook, Linkedin, 
-  Save, Sparkles, Smartphone, History, Trash2
+  Wand2, Upload, Instagram, Facebook, Linkedin,
+  Save, Sparkles, Smartphone, History, Trash2,
+  Lock, ArrowRight // Ajout des icônes pour l'écran de verrouillage
 } from "lucide-react";
 
 export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [activeNetwork, setActiveNetwork] = useState("Instagram"); 
+  const [activeNetwork, setActiveNetwork] = useState("Instagram");
   const [imageSource, setImageSource] = useState("AI");
   const [style, setStyle] = useState("Professionnel");
   const [hashtags, setHashtags] = useState([]);
   
   const fileInputRef = useRef(null);
+
+  // --- 1. PROTECTION BASIC (Point #6) ---
+  // Si l'utilisateur est en Basic, on retourne l'écran de verrouillage AVANT tout le reste.
+  if (profile?.subscription_tier === 'basic') {
+    return (
+      <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl relative overflow-hidden animate-in fade-in duration-700">
+         {/* Fond d'ambiance */}
+         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-600/20 to-purple-600/20 z-0"></div>
+         <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/30 rounded-full blur-3xl"></div>
+         
+         <div className="relative z-10 max-w-lg mx-auto">
+            <div className="bg-white/10 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-md border border-white/10 shadow-2xl shadow-indigo-500/20">
+                <Lock size={48} className="text-indigo-400"/>
+            </div>
+            
+            <h2 className="text-4xl font-black mb-4 tracking-tight">Studio Marketing IA</h2>
+            <p className="text-slate-300 mb-8 text-lg leading-relaxed">
+                Débloquez la puissance de l'Intelligence Artificielle pour générer vos posts et visuels en un clic.
+                <br/><br/>
+                <span className="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-lg text-sm font-bold border border-indigo-500/30">
+                  Fonctionnalité réservée aux membres Premium
+                </span>
+            </p>
+            
+            <button 
+                onClick={() => alert("Rendez-vous dans l'onglet 'Mon Profil' pour passer en Premium !")}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all hover:scale-105 shadow-lg shadow-indigo-900/50"
+            >
+                Débloquer maintenant <ArrowRight size={20}/>
+            </button>
+         </div>
+      </div>
+    );
+  }
+
+  // --- 2. LOGIQUE STANDARD (Pour les Premium) ---
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -92,10 +129,10 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   };
 
   return (
-    <div className="h-[calc(100vh-100px)] flex gap-6 pb-6">
+    <div className="h-[calc(100vh-100px)] flex gap-6 pb-6 animate-in fade-in duration-500">
       
       {/* Historique */}
-      <div className="w-64 flex flex-col bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden shrink-0 hidden lg:flex">
+      <div className="w-64 flex flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden shrink-0 hidden lg:flex">
         <div className="p-4 border-b bg-slate-50 font-bold text-xs uppercase text-slate-400 flex items-center gap-2">
           <History size={14}/> Historique
         </div>
@@ -114,58 +151,58 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
 
       {/* Éditeur */}
       <div className="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-        <div className="flex justify-between items-center bg-white p-4 rounded-2xl border shadow-sm">
+        <div className="flex justify-between items-center bg-white p-4 rounded-[2rem] border shadow-sm">
           <h2 className="font-black text-slate-900 text-lg flex items-center gap-2"><Sparkles className="text-indigo-600"/> Studio Créatif</h2>
           <button onClick={() => {setCurrentPost(null); setPrompt("");}} className="text-xs font-bold text-slate-400 hover:text-red-500 flex gap-1 items-center"><Trash2 size={12}/> Réinitialiser</button>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border shadow-sm">
+        <div className="bg-white p-6 rounded-[2rem] border shadow-sm">
            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Destination</label>
            <div className="grid grid-cols-3 gap-2">
              {['Instagram', 'Facebook', 'LinkedIn'].map(net => (
-               <button key={net} onClick={() => setActiveNetwork(net)} className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${activeNetwork === net ? "bg-slate-900 text-white border-slate-900" : "text-slate-500 border-slate-100"}`}>
+               <button key={net} onClick={() => setActiveNetwork(net)} className={`py-3 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${activeNetwork === net ? "bg-slate-900 text-white border-slate-900 shadow-md" : "text-slate-500 border-slate-100 hover:bg-slate-50"}`}>
                  {net === 'Instagram' ? <Instagram size={14}/> : net === 'Facebook' ? <Facebook size={14}/> : <Linkedin size={14}/>} {net}
                </button>
              ))}
            </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border shadow-sm flex-1">
-           <div className="flex gap-2 mb-3 bg-slate-100 p-1 rounded-lg w-fit">
-              <button onClick={() => setImageSource("AI")} className={`px-3 py-1 text-xs font-bold rounded-md ${imageSource === 'AI' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Image IA</button>
-              <button onClick={() => document.getElementById('uploadInput').click()} className={`px-3 py-1 text-xs font-bold rounded-md ${imageSource === 'UPLOAD' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Importer</button>
+        <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex-1 flex flex-col">
+           <div className="flex gap-2 mb-4 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
+              <button onClick={() => setImageSource("AI")} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'AI' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Image IA</button>
+              <button onClick={() => document.getElementById('uploadInput').click()} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'UPLOAD' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Importer</button>
               <input id="uploadInput" type="file" className="hidden" onChange={handleFileUpload} accept="image/*"/>
            </div>
 
-           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Sujet du post..." className="w-full h-32 bg-slate-50 rounded-xl p-4 text-sm outline-none resize-none mb-4" />
+           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Décrivez votre idée de post (ex: Promo spéciale été sur les croissants...)" className="w-full h-32 bg-slate-50 rounded-2xl p-4 text-sm outline-none resize-none mb-4 focus:ring-2 ring-indigo-100 transition border border-slate-100" />
            
-           <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2">
-             {isLoading ? "Génération..." : <><Wand2 size={16}/> Générer le post</>}
+           <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 flex justify-center items-center gap-2 transition mt-auto">
+             {isLoading ? "L'IA travaille..." : <><Wand2 size={16}/> Générer le post</>}
            </button>
         </div>
       </div>
 
       {/* Preview */}
-      <div className="w-[400px] bg-slate-100 rounded-[3rem] border p-6 flex flex-col items-center justify-center shrink-0">
+      <div className="w-[400px] bg-slate-100 rounded-[2rem] border p-6 flex flex-col items-center justify-center shrink-0">
         {currentPost ? (
-          <div className="w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 animate-in zoom-in-95">
+          <div className="w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
              <div className="p-3 border-b flex items-center gap-2">
-               <div className="w-6 h-6 bg-indigo-600 rounded-full text-white text-[8px] font-black flex items-center justify-center">{profile?.name?.[0]}</div>
-               <span className="text-[10px] font-bold">{profile?.name}</span>
+               <div className="w-8 h-8 bg-indigo-600 rounded-full text-white text-[10px] font-black flex items-center justify-center shadow-md">{profile?.name?.[0]}</div>
+               <span className="text-xs font-bold text-slate-900">{profile?.name}</span>
              </div>
              <div className={`w-full bg-slate-100 relative ${activeNetwork === 'Facebook' ? 'aspect-video' : 'aspect-square'}`}>
                <img src={currentPost.image_url} className="w-full h-full object-cover" alt="Visuel"/>
              </div>
-             <div className="p-3">
-               <div className="text-[10px] text-slate-600 leading-relaxed mb-2 whitespace-pre-wrap">{currentPost.content}</div>
-               <div className="flex flex-wrap gap-1">{hashtags.map(tag => <span key={tag} className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1.5 rounded">{tag}</span>)}</div>
+             <div className="p-4">
+               <div className="text-xs text-slate-600 leading-relaxed mb-3 whitespace-pre-wrap">{currentPost.content}</div>
+               <div className="flex flex-wrap gap-1">{hashtags.map(tag => <span key={tag} className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{tag}</span>)}</div>
              </div>
-             <button onClick={handleSave} className="w-full bg-slate-900 text-white py-3 font-bold text-xs hover:bg-slate-800 transition">ENREGISTRER</button>
+             <button onClick={handleSave} className="w-full bg-slate-900 text-white py-4 font-bold text-xs hover:bg-slate-800 transition">ENREGISTRER</button>
           </div>
         ) : (
           <div className="text-center text-slate-400">
-            <Smartphone size={48} className="mx-auto mb-2 opacity-50"/>
-            <p className="text-xs font-bold">Aperçu en attente</p>
+            <Smartphone size={64} className="mx-auto mb-4 opacity-20"/>
+            <p className="text-sm font-bold opacity-50">Aperçu en attente</p>
           </div>
         )}
       </div>

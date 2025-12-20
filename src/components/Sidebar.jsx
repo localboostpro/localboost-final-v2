@@ -1,119 +1,99 @@
 import React from "react";
-import {
-  LayoutDashboard,
-  Star,
-  Image,
-  Users,
-  UserCircle,
-  LogOut,
-  Megaphone,
-  X,
+import { 
+  LayoutDashboard, 
+  Send, 
+  Calendar, 
+  User, 
+  LogOut, 
+  Sparkles,
+  Building2 
 } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
-export default function Sidebar({
-  activeTab,
-  setActiveTab,
-  isOpen,
-  onClose,
-  profile,
-}) {
+export default function Sidebar({ activeTab, setActiveTab, profile }) {
+  
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error("Erreur déconnexion:", error.message);
+  };
+
   const menuItems = [
     { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-    { id: "reviews", label: "Avis clients", icon: Star },
-    { id: "marketing", label: "Studio IA", icon: Image },
-    { id: "promotions", label: "Promotions", icon: Megaphone },
-    { id: "customers", label: "Clients", icon: Users },
-    { id: "settings", label: "Profil", icon: UserCircle },
+    { id: "generator", label: "Générateur IA", icon: Sparkles },
+    { id: "planner", label: "Planificateur", icon: Calendar },
+    { id: "profile", label: "Mon Profil", icon: User },
   ];
 
-  // Sécurité pour l'initiale du nom (évite le crash si name est vide)
-  const initial = profile?.name ? profile.name.charAt(0).toUpperCase() : "L";
-  const companyName = profile?.name || "LocalBoost";
-
   return (
-    <>
-      {/* Overlay Mobile */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-100 flex flex-col justify-between h-full transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      >
-        <div className="p-6">
-          {/* EN-TÊTE : Nom de l'entreprise */}
-          <div className="flex items-center justify-between mb-10 px-2">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="bg-indigo-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-xl shadow-lg shadow-indigo-200 shrink-0">
-                {initial}
-              </div>
-              <h1 className="font-black text-lg text-slate-900 tracking-tight truncate">
-                {companyName}
-              </h1>
-            </div>
-            {/* Bouton Fermer (Mobile seulement) */}
-            <button
-              onClick={onClose}
-              className="md:hidden text-slate-400 hover:text-slate-600 p-1"
-              aria-label="Fermer le menu"
-            >
-              <X size={24} />
-            </button>
+    <div className="w-72 bg-white h-screen flex flex-col border-r border-slate-100 shadow-sm fixed left-0 top-0">
+      {/* SECTION LOGO & NOM DYNAMIQUE */}
+      <div className="p-8">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+            <Send size={20} />
           </div>
-
-          {/* NAVIGATION */}
-          <nav className="space-y-2 px-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-
-              // Classes conditionnelles propres
-              const buttonClass = `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group font-bold text-sm ${
-                isActive
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`;
-
-              const iconClass = `transition-colors ${
-                isActive
-                  ? "text-white"
-                  : "text-slate-400 group-hover:text-indigo-500"
-              }`;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    onClose();
-                  }}
-                  className={buttonClass}
-                >
-                  <Icon size={20} className={iconClass} strokeWidth={2} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <span className="text-xl font-black text-slate-900 tracking-tight">LocalBoost</span>
         </div>
 
-        {/* PIED DE PAGE : Déconnexion */}
-        <div className="p-6 border-t border-slate-50">
-          <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-500 transition-colors text-sm font-bold w-full rounded-xl hover:bg-red-50"
-          >
-            <LogOut size={18} /> Déconnexion
-          </button>
+        {/* Badge Entreprise Dynamique */}
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-indigo-600 border border-slate-200 shadow-sm">
+              <Building2 size={16} />
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Compte Pro</span>
+              <span className="text-sm font-black text-slate-700 truncate">
+                {profile?.name || "Chargement..."}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
-    </>
+
+      {/* NAVIGATION */}
+      <nav className="flex-1 px-4 space-y-2">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold transition-all duration-200 ${
+              activeTab === item.id
+                ? "bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-50"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            <item.icon size={20} className={activeTab === item.id ? "text-indigo-600" : "text-slate-400"} />
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* PIED DE LA SIDEBAR : DÉCONNEXION */}
+      <div className="p-4 border-t border-slate-50">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50 transition-colors"
+        >
+          <LogOut size={20} />
+          Déconnexion
+        </button>
+        
+        {/* Statut de l'abonnement */}
+        <div className="mt-4 px-4 py-3 bg-indigo-600 rounded-2xl text-white">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">Abonnement</span>
+            <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase">
+              {profile?.subscription_tier || "Basic"}
+            </span>
+          </div>
+          <p className="text-[11px] font-medium leading-tight">
+            {profile?.subscription_tier === 'premium' 
+              ? "Accès illimité activé" 
+              : "Passez au Premium pour l'IA"}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -6,7 +6,6 @@ import {
 import { supabase } from "../lib/supabase";
 
 export default function Sidebar({ activeTab, setActiveTab, profile }) {
-  
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.reload();
@@ -25,8 +24,7 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
     <div className="w-72 bg-white h-screen flex flex-col border-r border-slate-100 shadow-sm fixed left-0 top-0 z-40 hidden md:flex">
       <div className="p-8">
         <div className="flex items-center gap-3 mb-8">
-          {/* 🚨 REMPLACEMENT DE L'IMAGE PAR UNE ICONE POUR ÉVITER LE CRASH */}
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
             <Send size={20} />
           </div>
           <span className="text-xl font-black text-slate-900 tracking-tight">LocalBoost</span>
@@ -34,11 +32,11 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
 
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-indigo-600 border border-slate-200 shadow-sm">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-indigo-600 border border-slate-200">
               <Building2 size={16} />
             </div>
             <div className="flex flex-col overflow-hidden">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Compte Pro</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">Compte Pro</span>
               <span className="text-sm font-black text-slate-700 truncate">
                 {profile?.name || "Chargement..."}
               </span>
@@ -52,20 +50,20 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${
               activeTab === item.id
                 ? "bg-indigo-50 text-indigo-600 shadow-sm"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                : "text-slate-500 hover:bg-slate-50"
             }`}
           >
-            <item.icon size={20} className={activeTab === item.id ? "text-indigo-600" : "text-slate-400"} />
+            <item.icon size={20} />
             {item.label}
           </button>
         ))}
       </nav>
 
       <div className="p-4 border-t border-slate-50">
-        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50 transition-colors">
+        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50">
           <LogOut size={20} /> Déconnexion
         </button>
       </div>

@@ -59,80 +59,57 @@ export default function AdminView({ onAccessClient }) {
       setMonthlyStats(monthlyArray);
   };
 
-  // --- LE BOUTON MAGIQUE : GÉNÉRATEUR DE DÉMO ---
+// --- LE BOUTON MAGIQUE : GÉNÉRATEUR DE DÉMO (CORRIGÉ) ---
   const generateDemoData = async () => {
     if(!window.confirm("Créer un nouveau compte de DÉMO complet ?")) return;
 
-    const demoId = `demo_${Date.now()}`; // ID unique fictif
-    const fakeUserId = `user_${demoId}`;
+    // Utilisation d'un ID très aléatoire pour éviter les conflits
+    const uniqueSuffix = Date.now().toString().slice(-6);
+    const fakeUserId = `user_demo_${uniqueSuffix}`;
+    const demoEmail = `demo.${uniqueSuffix}@localboost.test`;
 
     // 1. Création du Profil Business
     const newProfile = {
         user_id: fakeUserId,
-        name: "L'Atelier du Pain (DÉMO)",
-        email: `demo.${Date.now()}@localboost.app`,
-        city: "Bordeaux",
-        address: "12 Place de la Bourse",
-        phone: "05 56 00 00 00",
+        name: `Boulangerie Démo ${uniqueSuffix}`,
+        email: demoEmail,
+        city: "Paris",
+        address: "10 Rue de la Paix",
+        phone: "01 02 03 04 05",
         subscription_tier: "premium",
         created_at: new Date().toISOString(),
-        discount_percent: 100, // Gratuit pour la démo
+        discount_percent: 100,
         is_active: true
     };
 
     const { data: profileData, error: profileError } = await supabase.from("business_profile").insert([newProfile]).select().single();
 
     if (profileError) {
-        alert("Erreur création profil démo");
+        alert("Erreur lors de la création : " + profileError.message);
         console.error(profileError);
         return;
     }
 
     const businessId = profileData.id;
 
-    // 2. Ajout de faux avis
+    // 2. Ajout de faux avis (Données liées au bon businessId)
     const fakeReviews = [
-        { business_id: businessId, author_name: "Julie M.", rating: 5, comment: "Le meilleur pain de la ville ! Je recommande le levain.", date: new Date().toISOString() },
-        { business_id: businessId, author_name: "Marc Dubos", rating: 4, comment: "Très bon mais un peu d'attente le dimanche.", date: new Date().toISOString() },
-        { business_id: businessId, author_name: "Sophie L.", rating: 5, comment: "Les croissants sont incroyables. Service au top avec LocalBoost !", date: new Date().toISOString() }
+        { business_id: businessId, author_name: "Thomas R.", rating: 5, comment: "Super service !", date: new Date().toISOString() },
+        { business_id: businessId, author_name: "Sarah L.", rating: 4, comment: "Très bon accueil.", date: new Date().toISOString() }
     ];
-    await supabase.from("reviews").insert(fakeReviews);
+    // On ignore les erreurs sur les avis pour ne pas bloquer
+    await supabase.from("reviews").insert(fakeReviews).catch(err => console.log("Info: reviews skipped"));
 
     // 3. Ajout de faux clients
     const fakeCustomers = [
-        { business_id: businessId, name: "Jean Dupont", email: "jean.dupont@email.com" },
-        { business_id: businessId, name: "Marie Curie", email: "marie.c@science.fr" },
-        { business_id: businessId, name: "Paul Martin", email: "paul.m@orange.fr" },
-        { business_id: businessId, name: "Lucas Bernard", email: "lucas.b@gmail.com" },
-        { business_id: businessId, name: "Emma Petit", email: "emma.p@outlook.com" }
+        { business_id: businessId, name: "Client Test 1", email: "client1@test.com" },
+        { business_id: businessId, name: "Client Test 2", email: "client2@test.com" }
     ];
-    await supabase.from("customers").insert(fakeCustomers);
+    await supabase.from("customers").insert(fakeCustomers).catch(err => console.log("Info: customers skipped"));
 
-    // 4. Ajout de faux posts
-    const fakePosts = [
-        { 
-            business_id: businessId, 
-            title: "Promo Croissants", 
-            content: "🥐 Spécial petit-déjeuner ! 3 croissants achetés = 1 offert ce matin. Venez vite !", 
-            image_url: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=800&q=80", 
-            networks: ["Instagram"], 
-            created_at: new Date().toISOString() 
-        },
-        { 
-            business_id: businessId, 
-            title: "Nouveau Pain Bio", 
-            content: "Découvrez notre nouveau pain complet aux graines bio. Parfait pour la santé ! 🥖 #Bio #Bordeaux", 
-            image_url: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80", 
-            networks: ["Facebook"], 
-            created_at: new Date(Date.now() - 86400000).toISOString() 
-        }
-    ];
-    await supabase.from("posts").insert(fakePosts);
-
-    alert("✅ Compte de DÉMO généré avec succès !");
+    alert(`✅ Compte de DÉMO généré !\nEmail: ${demoEmail}`);
     fetchBusinesses(); // Rafraichir la liste
   };
-  // ----------------------------------------------
 
   const handleSwitchPlan = async (clientId, currentTier) => {
     const newTier = currentTier === 'basic' ? 'premium' : 'basic';

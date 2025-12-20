@@ -1,30 +1,24 @@
-// src/lib/plans.js
-
 export const PLANS = {
   basic: {
-    label: "Basic",
-    price: 29,
+    label: "Starter",
+    price: 0,
     features: {
-      max_customers: 50, // Limite le nombre de clients affichés
-      can_access_marketing: false, // Bloque l'onglet marketing
-      can_export_data: false,
-      support_priority: "standard",
-    },
+      can_access_marketing: true,
+      max_customers: 20,
+      ai_generations: 5
+    }
   },
   premium: {
     label: "Premium",
-    price: 99,
+    price: 29,
     features: {
-      max_customers: 99999, // Illimité
-      can_access_marketing: true, // Autorise l'onglet marketing
-      can_export_data: true,
-      support_priority: "vip",
-    },
-  },
+      can_access_marketing: true,
+      max_customers: 1000,
+      ai_generations: 100
+    }
+  }
 };
 
-// Fonction utilitaire pour récupérer la config (sécurisée)
-// Si le tier n'existe pas ou est null, on renvoie 'basic' par défaut
-export const getPlanConfig = (tier) => {
+export function getPlanConfig(tier) {
   return PLANS[tier] || PLANS.basic;
-};
+}

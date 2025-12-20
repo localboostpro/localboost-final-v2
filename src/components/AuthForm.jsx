@@ -1,5 +1,9 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase"; 
+
+// --- IMPORTATION LOCALE DU LOGO ---
+import logo from "../assets/logo.png"; 
+
 import { 
   Building2, Globe, Phone, Fingerprint, ChevronRight, 
   ChevronLeft, CheckCircle2, Star, Sparkles, Rocket, Lock, Mail 
@@ -17,8 +21,6 @@ export default function AuthForm() {
   const [siret, setSiret] = useState("");
   const [website, setWebsite] = useState("");
   const [phone, setPhone] = useState("");
-
-  const LOGO_URL = "http://googleusercontent.com/image_collection/image_retrieval/16398694994091061220_0";
 
   // --- LOGIQUE DE CONNEXION ---
   const handleLogin = async () => {
@@ -96,7 +98,8 @@ export default function AuthForm() {
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-16">
              <div className="bg-white p-2 rounded-2xl shadow-lg">
-               <img src={LOGO_URL} alt="Logo" className="h-10 w-10 object-contain" />
+               {/* UTILISATION DU LOGO IMPORTÉ */}
+               <img src={logo} alt="Logo" className="h-10 w-10 object-contain" />
              </div>
              <span className="text-2xl font-black tracking-tight text-white">LocalBoost Pro</span>
           </div>
@@ -145,7 +148,7 @@ export default function AuthForm() {
           
           {/* LOGO MOBILE UNIQUEMENT */}
           <div className="flex justify-center mb-8 md:hidden">
-            <img src={LOGO_URL} alt="Logo" className="h-16 w-16" />
+            <img src={logo} alt="Logo" className="h-16 w-16 object-contain" />
           </div>
 
           <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 border border-slate-100">

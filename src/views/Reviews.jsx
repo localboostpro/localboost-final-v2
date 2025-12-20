@@ -1,306 +1,80 @@
 import React, { useState } from "react";
-import {
-  Star,
-  Check,
-  Trash2,
-  Filter,
-  ExternalLink,
-  ThumbsUp,
-  AlertCircle,
-  Globe,
-  Facebook,
-  Plus,
-  X,
-} from "lucide-react";
+import { MessageSquare, Star, Plus, X } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
-export default function Reviews({ reviews, onAdd, onDelete, onApprove }) {
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [showPendingOnly, setShowPendingOnly] = useState(false);
+export default function Reviews({ reviews }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [newReview, setNewReview] = useState({ author_name: "", rating: 5, comment: "" });
 
-  // États du formulaire
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newReview, setNewReview] = useState({
-    author: "",
-    text: "",
-    rating: 5,
-    platform: "Google",
-    status: "approved",
-  });
+  const handleAddReview = async (e) => {
+    e.preventDefault();
+    try {
+        // Récupération de l'ID business via session ou props
+        const { data: { user } } = await supabase.auth.getUser();
+        if(!user) throw new Error("Non connecté");
 
-  // Calculs
-  const averageRating =
-    reviews.length > 0
-      ? (
-          reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length
-        ).toFixed(1)
-      : "0.0";
-
-  // On ne compte pas les archivés dans les "à traiter"
-  const pendingCount = reviews.filter(
-    (r) => r.status !== "approved" && r.status !== "archived"
-  ).length;
-
-  // Filtrage
-  const filteredReviews = reviews.filter((r) => {
-    // 1. IMPORTANT : On masque les avis archivés (supprimés)
-    if (r.status === "archived") return false;
-
-    // 2. Filtre par source
-    const platform = r.platform ? r.platform.toLowerCase() : "website";
-    const matchSource =
-      activeFilter === "all" || platform === activeFilter.toLowerCase();
-
-    // 3. Filtre par statut (En attente)
-    const matchStatus = showPendingOnly ? r.status !== "approved" : true;
-
-    return matchSource && matchStatus;
-  });
-
-  // Soumission du formulaire
-  const handleSubmit = () => {
-    if (!newReview.author || !newReview.text)
-      return alert("Nom et message obligatoires");
-    onAdd(newReview);
-    setIsModalOpen(false);
-    setNewReview({
-      author: "",
-      text: "",
-      rating: 5,
-      platform: "Google",
-      status: "approved",
-    });
-  };
-
-  const getSourceBadge = (platform) => {
-    const p = platform ? platform.toLowerCase() : "website";
-    if (p.includes("google"))
-      return (
-        <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-[10px] font-black uppercase border border-blue-100">
-          G Google
-        </span>
-      );
-    if (p.includes("facebook"))
-      return (
-        <span className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-black uppercase border border-indigo-100">
-          <Facebook size={10} /> Facebook
-        </span>
-      );
-    return (
-      <span className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-black uppercase border border-emerald-100">
-        <Globe size={10} /> Site Web
-      </span>
-    );
+        // On cherche le business_id associé au user
+        const { data: profile } = await supabase.from("business_profile").select("id").eq("user_id", user.id).single();
+        
+        if(profile) {
+            await supabase.from("reviews").insert([{
+                business_id: profile.id,
+                ...newReview,
+                date: new Date().toISOString()
+            }]);
+            alert("Avis ajouté !");
+            window.location.reload(); // Simple reload pour rafraichir
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Erreur lors de l'ajout (Vérifiez la connexion)");
+    }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in">
-      {/* En-tête */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-100 pb-6">
-        <div>
-          <h2 className="text-3xl font-black text-slate-900 mb-2">
-            Gestion des Avis
-          </h2>
-          <div className="flex items-center gap-3 text-sm text-slate-500 font-bold">
-            <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md flex items-center gap-1">
-              <Star size={14} className="fill-yellow-700" /> {averageRating} / 5
-            </span>
-            <span>
-              • {reviews.filter((r) => r.status !== "archived").length} avis
-              total
-            </span>
-            {pendingCount > 0 && (
-              <span className="text-orange-600 bg-orange-50 px-2 py-1 rounded-md">
-                • {pendingCount} à traiter
-              </span>
-            )}
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+         <div>
+            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2"><MessageSquare className="text-indigo-600"/> Avis Clients</h3>
+            <p className="text-sm text-slate-500">Gérez votre e-réputation.</p>
+         </div>
+         <button onClick={() => setShowAdd(true)} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition">
+            <Plus size={18}/> Ajouter un Avis
+         </button>
+      </div>
+
+      {showAdd && (
+          <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+              <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-black text-lg">Saisir un avis manuellement</h3>
+                      <button onClick={() => setShowAdd(false)}><X size={20} className="text-slate-400"/></button>
+                  </div>
+                  <form onSubmit={handleAddReview} className="space-y-4">
+                      <input required placeholder="Nom du client" className="w-full p-3 bg-slate-50 rounded-xl font-bold" value={newReview.author_name} onChange={e => setNewReview({...newReview, author_name: e.target.value})}/>
+                      <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-500">Note :</span>
+                          <input type="number" min="1" max="5" className="w-20 p-3 bg-slate-50 rounded-xl font-bold" value={newReview.rating} onChange={e => setNewReview({...newReview, rating: e.target.value})}/>
+                          <Star className="text-yellow-400 fill-yellow-400" size={20}/>
+                      </div>
+                      <textarea placeholder="Commentaire..." className="w-full p-3 bg-slate-50 rounded-xl font-bold" rows="3" value={newReview.comment} onChange={e => setNewReview({...newReview, comment: e.target.value})}/>
+                      <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Enregistrer</button>
+                  </form>
+              </div>
           </div>
-        </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2 text-sm"
-        >
-          <Plus size={18} /> Ajouter un Avis
-        </button>
-      </div>
+      )}
 
-      {/* Filtres */}
-      <div className="flex flex-wrap items-center gap-3 bg-white p-2 rounded-2xl border shadow-sm">
-        <Filter size={16} className="text-slate-400 ml-2" />
-        {["All", "Google", "Facebook", "Website"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setActiveFilter(f.toLowerCase())}
-            className={`px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all ${
-              activeFilter === f.toLowerCase()
-                ? "bg-slate-900 text-white"
-                : "text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-        <div className="w-px h-6 bg-slate-200 mx-2"></div>
-        <button
-          onClick={() => setShowPendingOnly(!showPendingOnly)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-            showPendingOnly
-              ? "bg-orange-100 text-orange-700"
-              : "bg-slate-50 text-slate-500 hover:bg-slate-100"
-          }`}
-        >
-          <AlertCircle size={16} /> En attente
-        </button>
-      </div>
-
-      {/* Liste */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredReviews.map((r) => (
-          <div
-            key={r.id}
-            className={`bg-white p-6 rounded-[28px] border shadow-sm relative group overflow-hidden ${
-              r.status !== "approved"
-                ? "border-orange-200 bg-orange-50/10"
-                : "border-slate-100"
-            }`}
-          >
-            {r.status !== "approved" && (
-              <div className="absolute top-0 right-0 bg-orange-100 text-orange-700 text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl">
-                En attente
-              </div>
-            )}
-
-            <div className="flex justify-between items-start mb-3 mt-1">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500">
-                  {r.author ? r.author[0].toUpperCase() : "?"}
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 text-sm">
-                    {r.author}
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase">
-                    {getSourceBadge(r.platform)}
-                  </div>
-                </div>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {reviews.map((review, i) => (
+          <div key={review.id || i} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+            <div className="flex justify-between items-start mb-2">
+                <span className="font-bold text-slate-900">{review.author_name}</span>
+                <div className="flex text-yellow-400"><Star size={16} fill="currentColor"/> <span className="text-slate-900 ml-1 text-xs font-black">{review.rating}</span></div>
             </div>
-
-            <div className="mb-4">
-              <div className="flex gap-1 mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    size={14}
-                    className={`${
-                      i < (r.rating || 5)
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "fill-slate-200 text-slate-200"
-                    }`}
-                  />
-                ))}
-              </div>
-              <p className="text-slate-600 text-sm font-medium leading-relaxed italic">
-                "{r.text}"
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 pt-4 border-t border-slate-100/50">
-              {r.status !== "approved" && (
-                <button
-                  onClick={() => onApprove(r.id)}
-                  className="flex-1 bg-green-500 text-white py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 hover:bg-green-600 transition shadow-sm"
-                >
-                  <Check size={14} /> Valider
-                </button>
-              )}
-              <button
-                onClick={() => onDelete(r.id)}
-                className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+            <p className="text-slate-500 text-sm italic">"{review.comment}"</p>
           </div>
         ))}
       </div>
-
-      {filteredReviews.length === 0 && (
-        <div className="p-16 text-center text-slate-400 font-bold bg-slate-50 rounded-[32px] border-2 border-dashed">
-          Aucun avis trouvé.
-        </div>
-      )}
-
-      {/* Modal Ajout */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-[32px] w-full max-w-lg p-8 shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-black text-slate-900">
-                Nouvel Avis
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <input
-                className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"
-                placeholder="Nom du client"
-                value={newReview.author}
-                onChange={(e) =>
-                  setNewReview({ ...newReview, author: e.target.value })
-                }
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <select
-                  className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-none outline-none cursor-pointer"
-                  value={newReview.platform}
-                  onChange={(e) =>
-                    setNewReview({ ...newReview, platform: e.target.value })
-                  }
-                >
-                  <option value="Google">Google</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="Website">Site Web</option>
-                </select>
-                <div className="flex gap-1 p-4 bg-slate-50 rounded-2xl justify-center cursor-pointer">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      size={20}
-                      className={`${
-                        star <= newReview.rating
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "fill-slate-200 text-slate-200"
-                      }`}
-                      onClick={() =>
-                        setNewReview({ ...newReview, rating: star })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-              <textarea
-                className="w-full p-4 bg-slate-50 rounded-2xl font-medium border-2 border-transparent focus:border-indigo-500 outline-none resize-none h-32"
-                placeholder="Message..."
-                value={newReview.text}
-                onChange={(e) =>
-                  setNewReview({ ...newReview, text: e.target.value })
-                }
-              />
-              <button
-                onClick={handleSubmit}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg hover:bg-indigo-700 transition"
-              >
-                Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

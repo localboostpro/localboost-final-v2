@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
+import { getPlanConfig } from "./lib/plans";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import Marketing from "./views/Marketing";
@@ -10,81 +11,71 @@ import Promotions from "./views/Promotions";
 import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
 
-// 🚨 ON DÉFINIT LA CONFIGURATION ICI POUR ÉVITER LES ERREURS D'IMPORT
-const PLANS = {
-  basic: { label: "Starter", features: { can_access_marketing: true } },
-  premium: { label: "Premium", features: { can_access_marketing: true } }
-};
-
 export default function App() {
   const [session, setSession] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   
-  // États de données
-  const [profile, setProfile] = useState({ name: "Chargement...", subscription_tier: "basic" });
+  // Données
+  const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
   const [currentPost, setCurrentPost] = useState(null);
 
   useEffect(() => {
-    // Vérification de la session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) safeFetchData(session.user.id);
+      if (session) fetchAllData(session.user.id);
       else setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) safeFetchData(session.user.id);
+      if (session) fetchAllData(session.user.id);
       else setLoading(false);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fonction de chargement sécurisée (qui ne plante pas l'appli)
-  const safeFetchData = async (userId) => {
+  const fetchAllData = async (userId) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      // 1. Récupération Profil
+      // 1. Profil
       let { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
       
-      // Si pas de profil, on met des données par défaut pour éviter l'écran blanc
+      // Données par défaut si nouveau compte pour éviter écran blanc
       if (!profileData) {
-        console.warn("Profil introuvable, utilisation données par défaut");
-        profileData = { id: null, name: "Mon Entreprise", subscription_tier: "basic", city: "Ma Ville" };
+        profileData = { name: "Mon Entreprise", subscription_tier: "basic", city: "Ma Ville" };
       }
       setProfile(profileData);
 
-      // 2. Récupération des données annexes (seulement si on a un ID business)
+      // 2. Données liées (si le profil existe en base)
       if (profileData.id) {
-        const p = await supabase.from("posts").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false });
-        if (p.data) setPosts(p.data);
-
-        const r = await supabase.from("reviews").select("*").eq("business_id", profileData.id);
+        const [r, c, p] = await Promise.all([
+          supabase.from("reviews").select("*").eq("business_id", profileData.id),
+          supabase.from("customers").select("*").eq("business_id", profileData.id),
+          supabase.from("posts").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false })
+        ]);
         if (r.data) setReviews(r.data);
-        
-        const c = await supabase.from("customers").select("*").eq("business_id", profileData.id);
         if (c.data) setCustomers(c.data);
+        if (p.data) setPosts(p.data);
       }
-
     } catch (error) {
-      console.error("Erreur non bloquante:", error);
+      console.error("Erreur chargement:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Mise à jour locale des posts après création
   const handlePostUpdate = (newPost) => {
     setPosts([newPost, ...posts]);
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center text-indigo-600 font-bold">Chargement...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-indigo-600">Chargement LocalBoost...</div>;
   if (!session) return <AuthForm />;
+
+  const currentPlan = getPlanConfig(profile?.subscription_tier || "basic");
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
@@ -94,7 +85,7 @@ export default function App() {
         <header className="px-8 pb-8 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 z-30">
           <h2 className="text-3xl font-black text-slate-900 capitalize">{activeTab}</h2>
           <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase">
-             {PLANS[profile.subscription_tier]?.label || "Starter"}
+             {currentPlan.label}
           </span>
         </header>
 

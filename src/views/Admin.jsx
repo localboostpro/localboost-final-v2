@@ -1,8 +1,8 @@
 import React from "react";
+// Assurez-vous qu'aucun de ces imports ne s'appelle "Admin"
 import { Shield, Database, Users, Settings, AlertTriangle } from "lucide-react";
-import Admin from "./views/Admin";
 
-export default function Admin() {
+export default function AdminView() { // On renomme la fonction interne en AdminView
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="bg-slate-900 text-white p-8 rounded-[2rem] shadow-xl">

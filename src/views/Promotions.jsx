@@ -1,127 +1,61 @@
-import React, { useState } from "react";
-import { Megaphone, Send, AlertTriangle, Users } from "lucide-react";
+import React from "react";
+import { Ticket, Plus, Calendar, Tag, Trash2 } from "lucide-react";
 
-export default function Promotions({ customers, profile }) {
-  const [activeTab, setActiveTab] = useState("promo");
-  const [target, setTarget] = useState("all"); // 'all', 'VIP', 'Nouveau'
-  const [message, setMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-
-  // Calcul du nombre de destinataires
-  const targetCount =
-    target === "all"
-      ? customers.length
-      : customers.filter((c) => c.tags && c.tags.includes(target)).length;
-
-  const templates = {
-    promo: `🔥 Promo Flash chez ${
-      profile.name || "Nous"
-    } !\n-20% pour nos clients ${
-      target === "all" ? "fidèles" : target
-    } !\nVenez vite !`,
-    closure: `⚠️ Info : Fermeture exceptionnelle demain.\nMerci de votre compréhension.`,
-  };
-
-  const handleSend = () => {
-    if (!message) return alert("Message vide !");
-    if (targetCount === 0) return alert("Aucun client dans cette catégorie.");
-    setIsSending(true);
-    // Simulation API
-    setTimeout(() => {
-      setIsSending(false);
-      alert(`🚀 Envoyé à ${targetCount} clients (${target}) !`);
-      setMessage("");
-    }, 1500);
-  };
+export default function Promotions() {
+  // Données de démonstration pour éviter l'écran blanc si la BDD est vide
+  const demoPromos = [
+    { id: 1, title: "Offre de Bienvenue", discount: "-20%", code: "WELCOME20", status: "Actif" },
+    { id: 2, title: "Happy Hour", discount: "1 acheté = 1 offert", code: "HAPPY", status: "Actif" }
+  ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
-      <h2 className="text-3xl font-black text-slate-900">
-        Campagnes Marketing
-      </h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="space-y-4">
-          {/* Choix du Type */}
-          <button
-            onClick={() => setActiveTab("promo")}
-            className={`w-full text-left p-4 rounded-2xl border-2 transition ${
-              activeTab === "promo"
-                ? "border-indigo-600 bg-indigo-50"
-                : "bg-white border-transparent"
-            }`}
-          >
-            <div className="flex items-center gap-3 font-bold text-slate-900">
-              <Megaphone className="text-indigo-600" /> Offre Promo
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab("closure")}
-            className={`w-full text-left p-4 rounded-2xl border-2 transition ${
-              activeTab === "closure"
-                ? "border-orange-500 bg-orange-50"
-                : "bg-white border-transparent"
-            }`}
-          >
-            <div className="flex items-center gap-3 font-bold text-slate-900">
-              <AlertTriangle className="text-orange-500" /> Alerte Info
-            </div>
-          </button>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+        <div>
+          <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+            <Ticket className="text-indigo-600" /> Vos Offres Spéciales
+          </h3>
+          <p className="text-sm text-slate-500">Créez des coupons pour fidéliser vos clients.</p>
         </div>
+        <button className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">
+          <Plus size={18} /> Nouvelle Promo
+        </button>
+      </div>
 
-        <div className="md:col-span-2 bg-white p-6 rounded-[32px] border shadow-sm flex flex-col gap-4">
-          {/* CIBLAGE */}
-          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl">
-            <Users className="text-slate-400" />
-            <div className="flex-1">
-              <label className="text-xs font-bold text-slate-400 uppercase">
-                Ciblage
-              </label>
-              <select
-                className="w-full bg-transparent font-bold outline-none"
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-              >
-                <option value="all">Tous les clients</option>
-                <option value="VIP">Clients VIP uniquement</option>
-                <option value="Nouveau">Nouveaux clients</option>
-                <option value="Fidèle">Clients Fidèles</option>
-              </select>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {demoPromos.map((promo) => (
+          <div key={promo.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4">
+              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase">
+                {promo.status}
+              </span>
             </div>
-            <div className="bg-white px-3 py-1 rounded-lg font-bold text-sm shadow-sm">
-              {targetCount} contacts
+            
+            <div className="flex items-start gap-4">
+              <div className="p-4 bg-indigo-50 rounded-2xl text-indigo-600">
+                <Tag size={24} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-black text-slate-900 text-lg">{promo.title}</h4>
+                <div className="text-2xl font-black text-indigo-600 mt-1">{promo.discount}</div>
+                
+                <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex justify-between items-center">
+                  <code className="font-mono font-bold text-slate-700">{promo.code}</code>
+                  <button className="text-[10px] font-black text-indigo-600 uppercase">Copier</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center">
+              <div className="flex items-center gap-2 text-slate-400 text-xs">
+                <Calendar size={14} /> Expire dans 12 jours
+              </div>
+              <button className="text-slate-300 hover:text-rose-500 transition">
+                <Trash2 size={18} />
+              </button>
             </div>
           </div>
-
-          <textarea
-            className="flex-1 w-full p-4 bg-slate-50 rounded-2xl font-medium outline-none resize-none min-h-[150px]"
-            placeholder="Votre message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-          />
-
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => setMessage(templates[activeTab])}
-              className="text-xs font-bold text-indigo-600 underline"
-            >
-              Utiliser un modèle
-            </button>
-            <button
-              onClick={handleSend}
-              disabled={isSending || targetCount === 0}
-              className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              {isSending ? (
-                "Envoi..."
-              ) : (
-                <>
-                  <Send size={18} /> Envoyer
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

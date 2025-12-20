@@ -165,7 +165,7 @@ export default function App() {
       ) : (
         <>
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} profile={profile} />
-          <main className="flex-1 overflow-y-auto w-full pt-8">
+          <main className="flex-1 overflow-y-auto w-full pt-8 md:ml-72 transition-all">
             <header className="px-4 md:px-12 pb-6 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 backdrop-blur-sm z-30">
               <h2 className="text-xl md:text-3xl font-black text-indigo-950 truncate">{profile?.name || "Bienvenue"} 👋</h2>
               <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold uppercase">{currentPlan.label} Plan</span>

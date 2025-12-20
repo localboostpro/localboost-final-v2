@@ -5,7 +5,8 @@ import canvasConfetti from "canvas-confetti";
 import {
   Wand2, Upload, Instagram, Facebook, Linkedin,
   Save, Sparkles, Smartphone, History, Trash2,
-  Lock, ArrowRight, X, LayoutList, Calendar as CalendarIcon, Eye, PenTool
+  Lock, ArrowRight, X, LayoutList, Calendar as CalendarIcon, Eye, PenTool,
+  Megaphone // Nouvelle icône pour le Ton
 } from "lucide-react";
 
 export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
@@ -13,21 +14,24 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   const [isLoading, setIsLoading] = useState(false);
   const [activeNetwork, setActiveNetwork] = useState("Instagram");
   const [imageSource, setImageSource] = useState("AI");
-  const [style, setStyle] = useState("Professionnel");
-  const [hashtags, setHashtags] = useState([]);
   
+  // NOUVEAU : État pour le Ton (par défaut "Professionnel")
+  const [style, setStyle] = useState("Professionnel");
+  
+  const [hashtags, setHashtags] = useState([]);
   const [viewMode, setViewMode] = useState("list"); 
   const [mobileTab, setMobileTab] = useState("editor");
-
   const fileInputRef = useRef(null);
 
-  // STYLE POUR CACHER LA SCROLLBAR (BUG FIX)
+  // Liste des tons disponibles
+  const availableTones = ["Professionnel", "Amical", "Drôle", "Urgent", "Luxe"];
+
   const hideScrollbarStyle = {
-    scrollbarWidth: 'none',  /* Firefox */
-    msOverflowStyle: 'none'  /* IE and Edge */
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none'
   };
 
-  // --- 1. PROTECTION BASIC ---
+  // --- PROTECTION BASIC ---
   if (profile?.subscription_tier === 'basic') {
     return (
       <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl relative overflow-hidden animate-in fade-in duration-700">
@@ -75,6 +79,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
     setIsLoading(true);
     if(window.innerWidth < 1024) setMobileTab("preview"); 
     try {
+      // L'IA utilise maintenant la variable 'style' sélectionnée
       const fullPrompt = `Rédige un post pour ${activeNetwork}. Ton: ${style}. Sujet: ${prompt}. Ville: ${profile?.city}.`;
       const aiResult = await generatePostContent(fullPrompt, profile);
       if (aiResult) {
@@ -188,6 +193,8 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
           <h2 className="font-black text-slate-900 text-lg flex items-center gap-2"><Sparkles className="text-indigo-600"/> Studio Créatif</h2>
           <button onClick={() => {setCurrentPost(null); setPrompt("");}} className="text-xs font-bold text-slate-400 hover:text-red-500 flex gap-1 items-center"><Trash2 size={12}/> Réinitialiser</button>
         </div>
+
+        {/* SÉLECTEUR DE RÉSEAU */}
         <div className="bg-white p-6 rounded-[2rem] border shadow-sm">
            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Réseau Social</label>
            <div className="grid grid-cols-3 gap-2">
@@ -198,34 +205,52 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
              ))}
            </div>
         </div>
+
+        {/* NOUVEAU : SÉLECTEUR DE TON */}
+        <div className="bg-white p-6 rounded-[2rem] border shadow-sm">
+           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+             <Megaphone size={14} className="text-indigo-600"/> Ton de la communication
+           </label>
+           <div className="flex flex-wrap gap-2">
+             {availableTones.map(ton => (
+               <button key={ton} onClick={() => setStyle(ton)} className={`py-2 px-4 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${style === ton ? "bg-indigo-100 text-indigo-700 border-indigo-200" : "text-slate-500 border-slate-100 hover:bg-slate-50"}`}>
+                 {ton}
+               </button>
+             ))}
+           </div>
+        </div>
+
+        {/* ZONE DE TEXTE ET IMAGE */}
         <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex-1 flex flex-col">
            <div className="flex flex-wrap gap-2 mb-4 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
               <button onClick={() => setImageSource("AI")} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'AI' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Image IA</button>
               <button onClick={() => document.getElementById('uploadInput').click()} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'UPLOAD' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Importer</button>
               <input id="uploadInput" type="file" className="hidden" onChange={handleFileUpload} accept="image/*"/>
            </div>
+
            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Décrivez votre idée (ex: Promotion -20% sur toute la boutique ce week-end...)" className="w-full h-32 md:h-full bg-slate-50 rounded-2xl p-4 text-sm outline-none resize-none mb-4 focus:ring-2 ring-indigo-100 transition border border-slate-100" />
+           
            <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 flex justify-center items-center gap-2 transition mt-auto">
              {isLoading ? "L'IA réfléchit..." : <><Wand2 size={16}/> Générer avec l'IA</>}
            </button>
         </div>
       </div>
 
-      {/* PRÉVISUALISATION SMARTPHONE CORRIGÉE */}
+      {/* PRÉVISUALISATION SMARTPHONE */}
       <div className={`${mobileTab === 'preview' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[420px] bg-slate-100 rounded-[2.5rem] border p-4 lg:p-8 flex-col items-center justify-center shrink-0 overflow-hidden relative min-h-[500px]`}>
          <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none" style={{backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
+         
          <div className="text-center mb-6 z-10">
             <h3 className="font-black text-slate-900 text-lg">Aperçu {activeNetwork}</h3>
             <p className="text-xs text-slate-500">Tel que vos clients le verront.</p>
          </div>
 
-         {/* --- CORRECTION ICI : Masquage scrollbar et clipping --- */}
          <div className="relative w-full max-w-[300px] h-[550px] lg:h-[600px] bg-white rounded-[3rem] border-8 border-slate-900 shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-500 mx-auto">
             {/* Notch */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-20"></div>
             
-            {/* Contenu Écran - Ajout de style inline pour cacher scrollbar et arrondi pour l'image */}
-            <div className="flex-1 overflow-y-auto bg-white" style={hideScrollbarStyle}>
+            {/* Contenu Écran - CORRECTION BUG ARRONDI : ajout de rounded-t-[2.5rem] */}
+            <div className="flex-1 overflow-y-auto bg-white rounded-t-[2.5rem]" style={hideScrollbarStyle}>
                 {currentPost ? (
                    <>
                       <div className="h-14 border-b flex items-center px-4 gap-3 pt-6 bg-white/90 backdrop-blur sticky top-0 z-10">
@@ -233,7 +258,6 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                           <div className="text-xs font-bold truncate">{profile?.name}</div>
                       </div>
                       
-                      {/* Image corrigée : on s'assure qu'elle ne déborde pas */}
                       <div className="w-full aspect-square bg-slate-100 overflow-hidden">
                           <img src={currentPost.image_url} className="w-full h-full object-cover" alt="Post"/>
                       </div>

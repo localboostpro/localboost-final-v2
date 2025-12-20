@@ -27,17 +27,16 @@ export default function AuthForm() {
 
     setLoading(true);
     
-    // 1. Création du compte utilisateur
+// 1. Création du compte avec métadonnées
     const { data: authData, error: authError } = await supabase.auth.signUp({ 
       email, 
-      password 
+      password,
+      options: {
+        data: {
+          business_name: businessName // On stocke le nom ici aussi
+        }
+      }
     });
-
-    if (authError) {
-      alert("Erreur inscription : " + authError.message);
-      setLoading(false);
-      return;
-    }
 
     // 2. Création immédiate du profil business si l'utilisateur est créé
     if (authData?.user) {

@@ -339,3 +339,14 @@ export default function App() {
     </div>
   );
 }
+// --- LANCEMENT DE L'APPLICATION ---
+import ReactDOM from "react-dom/client";
+
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}

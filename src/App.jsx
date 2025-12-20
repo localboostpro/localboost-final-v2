@@ -90,7 +90,12 @@ export default function App() {
       }
 
       if (!profileData) {
-        setProfile({ name: "Nouveau compte en attente", subscription_tier: "basic" });
+        // Au lieu de mettre un nom fixe, on attend un peu ou on laisse l'utilisateur 
+        // remplir son profil lui-même dans l'onglet Profil.
+        setProfile({ 
+          name: session?.user?.user_metadata?.business_name || "Chargement du profil...", 
+          subscription_tier: "basic" 
+        });
         setLoading(false);
         return;
       }

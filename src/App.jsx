@@ -42,6 +42,12 @@ export default function App() {
   const checkUser = (session) => {
     const isDemoAdmin = session.user.email === "admin@demo.fr";
     setIsAdmin(isDemoAdmin);
+    
+    // REDIRECTION AUTOMATIQUE SI ADMIN
+    if (isDemoAdmin) {
+      setActiveTab("admin");
+    }
+    
     fetchAllData(session.user.id, session.user.email);
   };
 
@@ -80,21 +86,21 @@ export default function App() {
 
   const currentPlan = getPlanConfig(profile?.subscription_tier || "basic");
   
-  // LOGIQUE POUR CACHER LA SIDEBAR EN ADMIN
+  // Si l'onglet est 'admin', on passe en mode plein écran
   const isFullPage = activeTab === "admin";
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
       
-      {/* ON NE MONTRE LA SIDEBAR QUE SI ON N'EST PAS EN ADMIN */}
+      {/* LA SIDEBAR DISPARAIT SI ON EST SUR LA PAGE ADMIN */}
       {!isFullPage && (
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} profile={profile} />
       )}
       
-      {/* AJUSTEMENT MARGE: Si admin (isFullPage), pas de marge à gauche, sinon marge de 72 */}
+      {/* LE MAIN PREND TOUTE LA LARGEUR SI ADMIN */}
       <main className={`flex-1 overflow-y-auto w-full pt-8 ${!isFullPage ? 'md:ml-72' : ''}`}>
         
-        {/* Header conditionnel : On le cache en Admin car l'Admin a son propre header */}
+        {/* Header standard (caché en admin car l'admin a son propre header) */}
         {!isFullPage && (
           <header className="px-8 pb-8 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 z-30">
             <h2 className="text-3xl font-black text-slate-900 capitalize">{activeTab}</h2>
@@ -115,7 +121,7 @@ export default function App() {
           {activeTab === "profile" && <Profile profile={profile} setProfile={setProfile} />}
           {activeTab === "promotions" && <Promotions />}
           
-          {/* On passe la fonction pour quitter l'admin */}
+          {/* Passage d'une fonction pour revenir au Dashboard si besoin */}
           {activeTab === "admin" && <Admin onExit={() => setActiveTab("dashboard")} />}
         </div>
       </main>

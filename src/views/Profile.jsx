@@ -1,114 +1,135 @@
-import React, { useState, useEffect } from "react";
-import { User, MapPin, Save, Globe, Facebook, Instagram, LayoutTemplate, CreditCard, CheckCircle } from "lucide-react";
+import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
+import { User, MapPin, Save, Upload, Image as ImageIcon } from "lucide-react";
 
 export default function Profile({ profile, setProfile }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: "", city: "", address: "", phone: "",
-    google_url: "", facebook_url: "", instagram_url: "",
-    ...profile
+    name: profile?.name || "",
+    city: profile?.city || "",
+    email: profile?.email || "",
   });
 
-  useEffect(() => {
-    if (profile) setFormData(prev => ({ ...prev, ...profile }));
-  }, [profile]);
-
-  const handleSave = async () => {
+  const handleUpdate = async (e) => {
+    e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.from("business_profile").update({
-          name: formData.name, city: formData.city, address: formData.address, phone: formData.phone,
-          google_url: formData.google_url, facebook_url: formData.facebook_url, instagram_url: formData.instagram_url
+        const { error } = await supabase.from("business_profile").update({
+            name: formData.name,
+            city: formData.city
         }).eq("id", profile.id);
 
-      if (error) throw error;
-      setProfile({ ...profile, ...formData });
-      alert("✅ Profil sauvegardé !");
+        if (error) throw error;
+        
+        // Mise à jour locale immédiate
+        setProfile({ ...profile, ...formData });
+        alert("✅ Profil mis à jour !");
     } catch (error) {
-      console.error(error); alert("Erreur sauvegarde.");
+        alert("Erreur : " + error.message);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
-  // --- FONCTION DE CHANGEMENT DE FORFAIT CÔTÉ CLIENT CORRIGÉE ---
-  const handleChangePlan = async (targetTier) => {
-      if (profile.subscription_tier === targetTier) return; // Déjà sur ce plan
-
-      const confirmMessage = targetTier === 'premium' 
-        ? "Confirmer le passage en PREMIUM (99€/mois) ?" 
-        : "Voulez-vous vraiment repasser en BASIC (Fonctions limitées) ?";
-      
-      if (!window.confirm(confirmMessage)) return;
+  // Fonction spécifique pour l'upload du LOGO
+  const handleLogoUpload = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
       try {
-          const { error } = await supabase.from("business_profile").update({ subscription_tier: targetTier }).eq("id", profile.id);
+          setLoading(true);
+          const fileName = `logos/${profile.id}_${Date.now()}`;
+          const { error: uploadError } = await supabase.storage.from("user_uploads").upload(fileName, file);
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage.from("user_uploads").getPublicUrl(fileName);
+
+          // Sauvegarde de l'URL dans le profil
+          await supabase.from("business_profile").update({ logo_url: publicUrl }).eq("id", profile.id);
           
-          if (error) throw error;
-          
-          setProfile({ ...profile, subscription_tier: targetTier });
-          alert(`🎉 Félicitations ! Vous êtes maintenant ${targetTier.toUpperCase()}.`);
-          
-      } catch (err) {
-          console.error("Erreur plan:", err);
-          alert("Impossible de changer le forfait. Veuillez contacter le support.");
+          setProfile({ ...profile, logo_url: publicUrl });
+          alert("✅ Logo ajouté avec succès !");
+      } catch (error) {
+          console.error(error);
+          alert("Erreur lors de l'upload du logo.");
+      } finally {
+          setLoading(false);
       }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-500">
       
-      <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm sticky top-0 z-10">
-        <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-            <User className="text-indigo-600"/> Mon Profil
-        </h3>
-        <button onClick={handleSave} disabled={loading} className="px-6 py-3 rounded-xl font-bold transition bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-2 shadow-lg shadow-indigo-200">
-            <Save size={18} /> {loading ? "..." : "Enregistrer"}
-        </button>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Formulaire Infos */}
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
-            <h4 className="font-black text-slate-900 mb-4 flex items-center gap-2"><MapPin size={18}/> Coordonnées</h4>
-            <div className="space-y-1"><label className="text-xs font-bold text-slate-400 uppercase">Nom</label><input value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"/></div>
-            <div className="space-y-1"><label className="text-xs font-bold text-slate-400 uppercase">Adresse</label><input value={formData.address || ''} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"/></div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><label className="text-xs font-bold text-slate-400 uppercase">Ville</label><input value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"/></div>
-                <div className="space-y-1"><label className="text-xs font-bold text-slate-400 uppercase">Tél</label><input value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"/></div>
-            </div>
-          </div>
-
-          {/* Liens Sociaux */}
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
-             <h4 className="font-black text-slate-900 mb-4 flex items-center gap-2"><Globe size={18}/> Réseaux</h4>
-             <div className="space-y-1"><label className="text-xs font-bold text-slate-400 uppercase flex gap-2"><LayoutTemplate size={12}/> Google</label><input value={formData.google_url || ''} onChange={e => setFormData({...formData, google_url: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"/></div>
-             <div className="space-y-1"><label className="text-xs font-bold text-slate-400 uppercase flex gap-2"><Facebook size={12}/> Facebook</label><input value={formData.facebook_url || ''} onChange={e => setFormData({...formData, facebook_url: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"/></div>
-             <div className="space-y-1"><label className="text-xs font-bold text-slate-400 uppercase flex gap-2"><Instagram size={12}/> Instagram</label><input value={formData.instagram_url || ''} onChange={e => setFormData({...formData, instagram_url: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none"/></div>
-          </div>
+      {/* HEADER */}
+      <div className="flex items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+         <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-2xl border-4 border-white shadow-lg">
+             {profile?.logo_url ? <img src={profile.logo_url} className="w-full h-full object-cover rounded-full"/> : profile?.name?.[0]}
+         </div>
+         <div>
+             <h2 className="text-2xl font-black text-slate-900">Mon Profil</h2>
+             <p className="text-slate-500">Gérez les informations de votre entreprise.</p>
+         </div>
+         <div className="ml-auto px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full font-bold text-xs uppercase tracking-wide">
+             {profile?.subscription_tier}
+         </div>
       </div>
 
-      {/* SECTION ABONNEMENT */}
-      <div className="bg-slate-900 text-white p-8 rounded-[2rem] shadow-xl">
-        <h3 className="text-xl font-black flex items-center gap-2 mb-6"><CreditCard className="text-indigo-400"/> Mon Abonnement</h3>
-        <div className="flex flex-col md:flex-row gap-6 items-center">
-            {/* CARTE BASIC */}
-            <div className={`flex-1 p-6 rounded-2xl border-2 transition ${profile.subscription_tier === 'basic' ? 'border-indigo-500 bg-white/10' : 'border-white/10 opacity-70 hover:opacity-100'}`}>
-                <div className="flex justify-between items-center mb-2"><span className="font-black text-lg">BASIC</span>{profile.subscription_tier === 'basic' && <CheckCircle className="text-green-400"/>}</div>
-                <p className="text-slate-400 text-sm mb-4">Essentiel.</p>
-                <div className="text-2xl font-black mb-4">29€</div>
-                {profile.subscription_tier !== 'basic' && <button onClick={() => handleChangePlan('basic')} className="w-full py-2 bg-white/10 rounded-xl font-bold text-sm hover:bg-white/20">Choisir Basic</button>}
-            </div>
+      {/* FORMULAIRE */}
+      <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+          <form onSubmit={handleUpdate} className="space-y-6">
+              
+              {/* SECTION LOGO */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                      <div className="p-3 bg-white rounded-xl shadow-sm text-indigo-600"><ImageIcon size={20}/></div>
+                      <div>
+                          <div className="font-bold text-slate-900 text-sm">Logo de l'entreprise</div>
+                          <div className="text-xs text-slate-400">Affiché dans le menu latéral</div>
+                      </div>
+                  </div>
+                  <div className="relative">
+                      <input type="file" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*"/>
+                      <button type="button" className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm flex items-center gap-2">
+                          <Upload size={14}/> {profile?.logo_url ? "Changer" : "Importer"}
+                      </button>
+                  </div>
+              </div>
 
-            {/* CARTE PREMIUM */}
-            <div className={`flex-1 p-6 rounded-2xl border-2 transition ${profile.subscription_tier === 'premium' ? 'border-indigo-500 bg-indigo-600/20' : 'border-white/10 opacity-70 hover:opacity-100'}`}>
-                <div className="flex justify-between items-center mb-2"><span className="font-black text-lg text-indigo-400">PREMIUM</span>{profile.subscription_tier === 'premium' && <CheckCircle className="text-green-400"/>}</div>
-                <p className="text-slate-400 text-sm mb-4">Illimité + IA.</p>
-                <div className="text-2xl font-black mb-4">99€</div>
-                {profile.subscription_tier !== 'premium' && <button onClick={() => handleChangePlan('premium')} className="w-full py-2 bg-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-500 shadow-lg">Choisir Premium</button>}
-            </div>
-        </div>
+              <div className="space-y-4">
+                  <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase ml-1 block mb-2">Nom de l'entreprise</label>
+                      <div className="relative">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                          <input 
+                            value={formData.name} 
+                            onChange={e => setFormData({...formData, name: e.target.value})}
+                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 ring-indigo-500 transition"
+                          />
+                      </div>
+                  </div>
+
+                  <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase ml-1 block mb-2">Ville (pour l'IA)</label>
+                      <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                          <input 
+                            value={formData.city} 
+                            onChange={e => setFormData({...formData, city: e.target.value})}
+                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 ring-indigo-500 transition"
+                          />
+                      </div>
+                  </div>
+
+                  <div className="opacity-50 pointer-events-none">
+                      <label className="text-xs font-bold text-slate-400 uppercase ml-1 block mb-2">Email (Non modifiable)</label>
+                      <input disabled value={formData.email} className="w-full px-4 py-4 bg-slate-100 border border-slate-100 rounded-xl font-bold text-slate-500"/>
+                  </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-lg">
+                  {loading ? "Enregistrement..." : <><Save size={18}/> Enregistrer les modifications</>}
+              </button>
+          </form>
       </div>
     </div>
   );

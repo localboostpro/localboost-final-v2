@@ -1,208 +1,196 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { PLANS } from "../lib/plans"; // On lit le fichier plans.js
 import { 
-  Shield, Users, CreditCard, Key, Search, 
-  TrendingUp, CheckCircle, AlertCircle 
+  Shield, Users, Save, ArrowLeft, Search, 
+  Key, Database, LayoutTemplate, DollarSign 
 } from "lucide-react";
 
-export default function AdminView() {
+export default function AdminView({ onExit }) {
   const [businesses, setBusinesses] = useState([]);
-  const [stats, setStats] = useState({ total: 0, basic: 0, premium: 0, revenue: 0 });
+  const [plansConfig, setPlansConfig] = useState(PLANS); // État local pour modifier les plans
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Ajout de prix fictifs pour l'interface car plans.js ne contient souvent que les features
+  const [prices, setPrices] = useState({ basic: 0, premium: 29 });
 
   useEffect(() => {
-    fetchData();
+    fetchBusinesses();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      // Récupération de tous les clients
-      const { data, error } = await supabase
-        .from("business_profile")
-        .select("*")
-        .order("created_at", { ascending: false });
+  const fetchBusinesses = async () => {
+    const { data } = await supabase.from("business_profile").select("*").order("created_at", { ascending: false });
+    if (data) setBusinesses(data);
+  };
 
-      if (data) {
-        setBusinesses(data);
-        
-        // Calcul des stats en temps réel
-        const basicCount = data.filter(b => b.subscription_tier === 'basic').length;
-        const premiumCount = data.filter(b => b.subscription_tier === 'premium').length;
-        // Simulation du revenu (ex: Premium à 29€)
-        const estimatedRevenue = premiumCount * 29; 
-
-        setStats({
-          total: data.length,
-          basic: basicCount,
-          premium: premiumCount,
-          revenue: estimatedRevenue
-        });
+  const handlePlanChange = (tier, field, value) => {
+    setPlansConfig(prev => ({
+      ...prev,
+      [tier]: {
+        ...prev[tier],
+        [field]: value,
+        // Si on modifie les features (ex: max_customers)
+        features: field === 'max_customers' 
+          ? { ...prev[tier].features, max_customers: parseInt(value) } 
+          : prev[tier].features
       }
-    } catch (err) {
-      console.error("Erreur admin:", err);
-    }
+    }));
   };
 
-  const handleResetPassword = (email) => {
-    // Simulation d'envoi
-    alert(`📧 Email de réinitialisation envoyé à ${email}`);
+  const handleSavePlans = () => {
+    // Note: On ne peut pas écrire physiquement dans plans.js depuis le navigateur
+    // Ici on simulerait une sauvegarde en Base de Données "app_config"
+    alert("Configuration des plans mise à jour (Simulation) !");
   };
 
-  const filteredList = businesses.filter(b => 
+  const filteredBusinesses = businesses.filter(b => 
     b.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     b.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="min-h-screen bg-slate-100 p-8 animate-in fade-in zoom-in-95 duration-300">
       
-      {/* 1. HEADER & STATS GLOBALES */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl flex flex-col justify-between">
+      {/* HEADER ADMIN AVEC BOUTON RETOUR */}
+      <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+        <div className="flex items-center gap-4">
+          <button onClick={onExit} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-xl transition text-slate-600">
+            <ArrowLeft size={24} />
+          </button>
           <div>
-            <p className="text-slate-400 font-bold text-xs uppercase mb-1">Revenu Mensuel Est.</p>
-            <h3 className="text-3xl font-black">{stats.revenue} €</h3>
-          </div>
-          <div className="flex items-center gap-2 mt-4 text-emerald-400 text-sm font-bold">
-            <TrendingUp size={16}/> +12% ce mois
+            <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
+              <Shield className="text-rose-600" size={32}/> Master Admin
+            </h1>
+            <p className="text-slate-500 font-medium">Configuration globale & Gestion Clients</p>
           </div>
         </div>
-
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 font-bold text-xs uppercase">Total Clients</p>
-            <h3 className="text-3xl font-black text-slate-900">{stats.total}</h3>
-          </div>
-          <div className="bg-slate-50 p-3 rounded-2xl text-slate-600"><Users size={24}/></div>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 font-bold text-xs uppercase">Forfaits Basic</p>
-            <h3 className="text-3xl font-black text-slate-600">{stats.basic}</h3>
-          </div>
-          <div className="bg-slate-50 p-3 rounded-2xl text-slate-400"><CheckCircle size={24}/></div>
-        </div>
-
-        <div className="bg-indigo-600 text-white p-6 rounded-3xl shadow-lg shadow-indigo-200 flex items-center justify-between">
-          <div>
-            <p className="text-indigo-200 font-bold text-xs uppercase">Forfaits Premium</p>
-            <h3 className="text-3xl font-black">{stats.premium}</h3>
-          </div>
-          <div className="bg-white/20 p-3 rounded-2xl text-white"><Shield size={24}/></div>
+        <div className="bg-rose-50 text-rose-700 px-6 py-3 rounded-2xl font-black text-xl flex items-center gap-3 border border-rose-100">
+          <Database size={20}/> {businesses.length} Clients
         </div>
       </div>
 
-      {/* 2. VUE DÉTAILLÉE DES FORFAITS (Ce que vous demandiez) */}
-      <h3 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-8">
-        <CreditCard className="text-indigo-600"/> Offres & Tarifs
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* CARTE BASIC */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><CheckCircle size={100}/></div>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-black uppercase">Starter</span>
-              <h4 className="text-2xl font-black text-slate-900 mt-2">Gratuit / Basic</h4>
-              <p className="text-slate-500 text-sm mt-1">Accès limité (20 clients max)</p>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-black text-slate-900">0 €</div>
-              <div className="text-xs text-slate-400 font-bold">/mois</div>
-            </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* COLONNE GAUCHE : ÉDITEUR DE PLANS (Ce que vous avez demandé) */}
+        <div className="xl:col-span-1 space-y-6">
+          <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl">
+             <h3 className="text-xl font-black flex items-center gap-2 mb-4">
+               <LayoutTemplate className="text-indigo-400"/> Éditeur de Forfaits
+             </h3>
+             <p className="text-slate-400 text-sm mb-6">Modifiez les caractéristiques des offres lues depuis le système.</p>
+
+             {/* BOUCLE SUR LES PLANS CHARGÉS DEPUIS PLANS.JS */}
+             {Object.entries(plansConfig).map(([key, plan]) => (
+               <div key={key} className="bg-white/5 p-5 rounded-2xl border border-white/10 mb-4">
+                 <div className="flex justify-between items-center mb-3">
+                   <span className="uppercase text-xs font-black tracking-widest text-indigo-400">{key}</span>
+                   {key === 'premium' && <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded">POPULAIRE</span>}
+                 </div>
+                 
+                 <div className="space-y-3">
+                   {/* Input Nom */}
+                   <div>
+                     <label className="text-[10px] text-slate-500 uppercase font-bold">Nom de l'offre</label>
+                     <input 
+                        type="text" 
+                        value={plan.label} 
+                        onChange={(e) => handlePlanChange(key, 'label', e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-white focus:border-indigo-500 outline-none"
+                     />
+                   </div>
+
+                   {/* Input Prix (Simulé via state local 'prices') */}
+                   <div>
+                     <label className="text-[10px] text-slate-500 uppercase font-bold">Prix Mensuel (€)</label>
+                     <div className="relative">
+                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
+                        <input 
+                          type="number" 
+                          value={prices[key]} 
+                          onChange={(e) => setPrices({...prices, [key]: e.target.value})}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-sm font-bold text-white focus:border-indigo-500 outline-none"
+                        />
+                     </div>
+                   </div>
+
+                   {/* Input Max Customers (Features) */}
+                   <div>
+                     <label className="text-[10px] text-slate-500 uppercase font-bold">Limite Clients</label>
+                     <input 
+                        type="number" 
+                        value={plan.features.max_customers} 
+                        onChange={(e) => handlePlanChange(key, 'max_customers', e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-white focus:border-indigo-500 outline-none"
+                     />
+                   </div>
+                 </div>
+               </div>
+             ))}
+
+             <button onClick={handleSavePlans} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 transition shadow-lg shadow-indigo-900/50 mt-4">
+               <Save size={18}/> SAUVEGARDER LES PLANS
+             </button>
           </div>
-          <div className="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center relative z-10">
-            <span className="text-sm font-bold text-slate-600">{stats.basic} utilisateurs actifs</span>
-            <div className="h-2 w-24 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-slate-400" style={{ width: `${(stats.basic / stats.total) * 100}%` }}></div>
+        </div>
+
+        {/* COLONNE DROITE : LISTE CLIENTS */}
+        <div className="xl:col-span-2 flex flex-col h-full">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex-1 overflow-hidden flex flex-col">
+            
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-black text-lg text-slate-800 flex items-center gap-2"><Users size={20}/> Base Utilisateurs</h3>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+                <input 
+                  type="text" 
+                  placeholder="Chercher client..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 ring-indigo-100"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto custom-scrollbar flex-1">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="p-4 text-xs font-black text-slate-400 uppercase">Entreprise</th>
+                    <th className="p-4 text-xs font-black text-slate-400 uppercase">Abonnement</th>
+                    <th className="p-4 text-xs font-black text-slate-400 uppercase text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredBusinesses.map((b) => (
+                    <tr key={b.id} className="hover:bg-indigo-50/30 transition group">
+                      <td className="p-4">
+                        <div className="font-bold text-slate-900">{b.name}</div>
+                        <div className="text-xs text-slate-500">{b.email}</div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                          b.subscription_tier === 'premium' 
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-100' 
+                            : 'bg-slate-100 text-slate-500 border-slate-200'
+                        }`}>
+                          {b.subscription_tier}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                         <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                           <button onClick={() => alert("MDP envoyé à " + b.email)} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-xl shadow-sm" title="Réinitialiser MDP">
+                             <Key size={16}/>
+                           </button>
+                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
 
-        {/* CARTE PREMIUM */}
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><Shield size={100}/></div>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <span className="bg-white/20 text-white px-3 py-1 rounded-full text-xs font-black uppercase">Pro</span>
-              <h4 className="text-2xl font-black mt-2">Premium</h4>
-              <p className="text-indigo-100 text-sm mt-1">Illimité + IA avancée</p>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-black">29 €</div>
-              <div className="text-xs text-indigo-200 font-bold">/mois</div>
-            </div>
-          </div>
-          <div className="mt-6 pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
-            <span className="text-sm font-bold text-indigo-100">{stats.premium} utilisateurs actifs</span>
-            <div className="h-2 w-24 bg-black/20 rounded-full overflow-hidden">
-              <div className="h-full bg-white" style={{ width: `${(stats.premium / stats.total) * 100}%` }}></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. GESTION DES CLIENTS (Tableau) */}
-      <div className="flex justify-between items-center mt-8 mb-4">
-        <h3 className="text-xl font-black text-slate-900">Base Clients</h3>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input 
-            type="text" 
-            placeholder="Rechercher..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500"
-          />
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-100">
-            <tr>
-              <th className="p-4 text-xs font-black text-slate-400 uppercase">Entreprise</th>
-              <th className="p-4 text-xs font-black text-slate-400 uppercase">Contact</th>
-              <th className="p-4 text-xs font-black text-slate-400 uppercase">Offre</th>
-              <th className="p-4 text-xs font-black text-slate-400 uppercase text-right">Admin</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filteredList.map((client) => (
-              <tr key={client.id} className="hover:bg-slate-50/50 transition">
-                <td className="p-4">
-                  <div className="font-bold text-slate-900">{client.name}</div>
-                  <div className="text-xs text-slate-400">{client.city || "Ville inconnue"}</div>
-                </td>
-                <td className="p-4 text-sm text-slate-600 font-medium">
-                  {client.email}
-                </td>
-                <td className="p-4">
-                  {client.subscription_tier === 'premium' ? (
-                    <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase border border-indigo-100">Premium</span>
-                  ) : (
-                    <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase">Basic</span>
-                  )}
-                </td>
-                <td className="p-4 text-right">
-                  <button 
-                    onClick={() => handleResetPassword(client.email)}
-                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
-                    title="Envoyer mot de passe"
-                  >
-                    <Key size={18}/>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filteredList.length === 0 && (
-          <div className="p-8 text-center text-slate-400 font-bold text-sm">
-            Aucun client trouvé pour "{searchTerm}"
-          </div>
-        )}
       </div>
     </div>
   );

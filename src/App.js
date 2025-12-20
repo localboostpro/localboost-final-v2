@@ -185,8 +185,7 @@ export default function App() {
       {impersonatedClient && (
         <div className="absolute top-0 left-0 right-0 bg-amber-400 text-amber-900 text-xs font-bold py-1 z-50 text-center flex justify-center items-center gap-4 shadow-sm">
           <span>
-            ⚠️ MODE ADMIN : Vous voyez le compte de {impersonatedClient.name} (
-            {profile.subscription_tier})
+            ⚠️ MODE ADMIN : Vous voyez le compte de {impersonatedClient.name} ({profile?.subscription_tier})
           </span>
           <button
             onClick={exitImpersonation}

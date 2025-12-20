@@ -14,7 +14,7 @@
     "@supabase/supabase-js": "latest",
     "lucide-react": "latest",
     "recharts": "latest",
-    "@stripe/stripe-js": "^4.0.0",
+    "@stripe/stripe-js": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

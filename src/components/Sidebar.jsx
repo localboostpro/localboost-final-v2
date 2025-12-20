@@ -1,7 +1,7 @@
 import React from "react";
 import { 
   LayoutDashboard, Wand2, MessageSquare, Users, 
-  Ticket, User, LogOut, X, Zap 
+  Ticket, User, LogOut, X, Zap, PlusCircle
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -39,33 +39,56 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
         ${isOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0 md:static 
         shadow-2xl md:shadow-none
-        
-        /* CORRECTION IPHONE ICI : On utilise dvh au lieu de screen */
         h-[100dvh] md:h-screen
       `}>
         
-        {/* LOGO */}
-        <div className="p-8 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 p-2 rounded-xl text-white">
-              <Zap size={24} fill="currentColor"/>
+        {/* EN-TÊTE : LOGO LOCALBOOST PRO + LOGO CLIENT */}
+        <div className="p-8 flex flex-col gap-6 shrink-0 border-b border-slate-50">
+          
+          {/* 1. Logo LocalBoost Pro */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-slate-900 p-2 rounded-xl text-white shadow-lg shadow-slate-200">
+                <Zap size={24} fill="currentColor"/>
+              </div>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                LocalBoost <span className="text-indigo-600">Pro</span>
+              </h1>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">LocalBoost</h1>
+            <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-rose-500 transition">
+              <X size={24} />
+            </button>
           </div>
-          <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-rose-500 transition">
-            <X size={24} />
-          </button>
+
+          {/* 2. Logo Client (Zone personnalisable) */}
+          <div className="w-full">
+             {profile?.logo_url ? (
+                 <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <img src={profile.logo_url} className="w-10 h-10 rounded-lg object-cover bg-white border border-slate-200" alt="Logo"/>
+                    <div className="overflow-hidden">
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Espace Client</div>
+                        <div className="font-bold text-sm text-slate-900 truncate">{profile.name}</div>
+                    </div>
+                 </div>
+             ) : (
+                 <button onClick={() => { setActiveTab("profile"); onClose(); }} className="w-full border-2 border-dashed border-slate-200 rounded-2xl p-3 flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition group">
+                    <PlusCircle size={16} className="group-hover:scale-110 transition"/>
+                    Ajouter votre logo
+                 </button>
+             )}
+          </div>
+
         </div>
 
-        {/* NAVIGATION (Scrollable) */}
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+        {/* NAVIGATION */}
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => { setActiveTab(item.id); onClose(); }}
               className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-200 font-bold text-sm ${
                 activeTab === item.id
-                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20 translate-x-2"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 translate-x-2"
                   : "text-slate-500 hover:bg-slate-50 hover:text-indigo-600 hover:pl-8"
               }`}
             >
@@ -75,24 +98,11 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
           ))}
         </nav>
 
-        {/* PIED DE PAGE : PROFIL & DÉCONNEXION */}
-        {/* CORRECTION IPHONE : Ajout de pb-20 (padding bottom) pour remonter le bouton au-dessus de la barre Safari */}
+        {/* PIED DE PAGE */}
         <div className="p-6 border-t border-slate-50 bg-slate-50/50 shrink-0 pb-24 md:pb-6">
-           {profile && (
-               <div className="flex items-center gap-3 mb-4 px-2">
-                   <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-sm border-2 border-white shadow-sm">
-                       {profile.name?.[0] || "P"}
-                   </div>
-                   <div className="overflow-hidden">
-                       <div className="font-bold text-sm text-slate-900 truncate">{profile.name}</div>
-                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{profile.subscription_tier}</div>
-                   </div>
-               </div>
-           )}
-           
            <button 
              onClick={handleLogout}
-             className="w-full flex items-center justify-center gap-2 text-rose-500 font-bold text-sm bg-rose-50 py-3 rounded-xl hover:bg-rose-100 transition"
+             className="w-full flex items-center justify-center gap-2 text-rose-500 font-bold text-sm bg-white border border-rose-100 py-3 rounded-xl hover:bg-rose-50 transition shadow-sm"
            >
              <LogOut size={18} /> Déconnexion
            </button>

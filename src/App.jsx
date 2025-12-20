@@ -10,13 +10,17 @@ import Profile from "./views/Profile";
 import Promotions from "./views/Promotions";
 import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
+import { Eye, LogOut } from "lucide-react"; // Nouvelle icône pour le mode espion
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   
+  // États de sécurité
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [impersonatedUserId, setImpersonatedUserId] = useState(null); // ID du client qu'on espionne
+
   // Données
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -43,22 +47,29 @@ export default function App() {
     const isDemoAdmin = session.user.email === "admin@demo.fr";
     setIsAdmin(isDemoAdmin);
     
-    // REDIRECTION AUTOMATIQUE SI ADMIN
-    if (isDemoAdmin) {
+    // Si Admin pur, on va sur l'onglet Admin, sinon Dashboard
+    if (isDemoAdmin && !impersonatedUserId) {
       setActiveTab("admin");
+    } else {
+      setActiveTab("dashboard");
     }
     
+    // On charge les données de l'utilisateur connecté par défaut
     fetchAllData(session.user.id, session.user.email);
   };
 
-  const fetchAllData = async (userId, userEmail) => {
+  // FONCTION MAGIQUE : Charger les données de n'importe quel client
+  const fetchAllData = async (targetUserId, targetUserEmail) => {
     setLoading(true);
     try {
-      let { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
+      let { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", targetUserId).maybeSingle();
+      
+      // Si on est admin connecté, on enrichit le profil
+      const isActualAdmin = session?.user?.email === "admin@demo.fr";
       
       const enrichedProfile = profileData 
-        ? { ...profileData, email: userEmail, is_admin: userEmail === "admin@demo.fr" }
-        : { name: "Admin", email: userEmail, is_admin: true, subscription_tier: "premium" };
+        ? { ...profileData, email: targetUserEmail, is_admin: isActualAdmin }
+        : { name: "Nouveau Compte", email: targetUserEmail, is_admin: isActualAdmin, subscription_tier: "basic" };
 
       setProfile(enrichedProfile);
 
@@ -79,33 +90,59 @@ export default function App() {
     }
   };
 
+  // ACTION : L'admin clique sur "Accéder" depuis la liste
+  const handleAdminAccessClient = (clientId, clientEmail) => {
+    setImpersonatedUserId(clientId); // On active le mode espion
+    setActiveTab("dashboard"); // On bascule sur la vue Dashboard
+    fetchAllData(clientId, clientEmail); // On charge SES données
+  };
+
+  // ACTION : Quitter le mode client pour revenir à l'admin
+  const handleExitImpersonation = () => {
+    setImpersonatedUserId(null);
+    setActiveTab("admin");
+    // On recharge les données de l'admin (qui sont vides mais c'est pas grave pour la vue admin)
+    fetchAllData(session.user.id, session.user.email);
+  };
+
   const handlePostUpdate = (newPost) => setPosts([newPost, ...posts]);
 
   if (loading) return <div className="h-screen flex items-center justify-center font-bold text-indigo-600">Chargement...</div>;
   if (!session) return <AuthForm />;
 
   const currentPlan = getPlanConfig(profile?.subscription_tier || "basic");
-  
-  // Si l'onglet est 'admin', on passe en mode plein écran
   const isFullPage = activeTab === "admin";
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
       
-      {/* LA SIDEBAR DISPARAIT SI ON EST SUR LA PAGE ADMIN */}
+      {/* Sidebar cachée en mode Admin pur */}
       {!isFullPage && (
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} profile={profile} />
       )}
       
-      {/* LE MAIN PREND TOUTE LA LARGEUR SI ADMIN */}
       <main className={`flex-1 overflow-y-auto w-full pt-8 ${!isFullPage ? 'md:ml-72' : ''}`}>
         
-        {/* Header standard (caché en admin car l'admin a son propre header) */}
-        {!isFullPage && (
+        {/* BANDEAU ROUGE : MODE ACCÈS CLIENT */}
+        {impersonatedUserId && (
+          <div className="bg-rose-600 text-white px-8 py-3 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+             <div className="flex items-center gap-2 font-bold animate-pulse">
+               <Eye size={20}/> MODIFICATION DU COMPTE : {profile?.name}
+             </div>
+             <button 
+               onClick={handleExitImpersonation}
+               className="bg-white text-rose-600 px-4 py-1 rounded-full text-xs font-black uppercase flex items-center gap-2 hover:bg-rose-50"
+             >
+               <LogOut size={14}/> Revenir à l'Admin
+             </button>
+          </div>
+        )}
+
+        {/* Header standard (masqué en plein écran admin) */}
+        {!isFullPage && !impersonatedUserId && (
           <header className="px-8 pb-8 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 z-30">
             <h2 className="text-3xl font-black text-slate-900 capitalize">{activeTab}</h2>
             <div className="flex items-center gap-3">
-              {isAdmin && <span className="px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-[10px] font-black uppercase">ADMIN</span>}
               <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase">
                  {currentPlan.label}
               </span>
@@ -121,8 +158,13 @@ export default function App() {
           {activeTab === "profile" && <Profile profile={profile} setProfile={setProfile} />}
           {activeTab === "promotions" && <Promotions />}
           
-          {/* Passage d'une fonction pour revenir au Dashboard si besoin */}
-          {activeTab === "admin" && <Admin onExit={() => setActiveTab("dashboard")} />}
+          {/* On passe la fonction d'accès client au composant Admin */}
+          {activeTab === "admin" && (
+            <Admin 
+              onExit={() => setActiveTab("dashboard")} 
+              onAccessClient={handleAdminAccessClient} 
+            />
+          )}
         </div>
       </main>
     </div>

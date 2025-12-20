@@ -37,7 +37,8 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="text-xs font-bold text-slate-400 uppercase">
-                {profile?.is_admin ? "Administrateur" : "Compte Pro"}
+                 {/* Affichage dynamique du rôle */}
+                 {profile?.email === "admin@demo.fr" ? "Administrateur" : "Compte Pro"}
               </span>
               <span className="text-sm font-black text-slate-700 truncate">
                 {profile?.name || "Chargement..."}
@@ -48,6 +49,7 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
       </div>
 
       <nav className="flex-1 px-4 space-y-2">
+        {/* Menu standard */}
         {menuItems.map((item) => (
           <button
             key={item.id}
@@ -61,7 +63,22 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
             <item.icon size={20} />
             {item.label}
           </button>
-        ))
+        ))}
+
+        {/* BOUTON ADMIN SÉCURISÉ */}
+        {/* S'affiche uniquement si l'email est admin@demo.fr */}
+        {profile?.email === "admin@demo.fr" && (
+          <button
+            onClick={() => setActiveTab("admin")}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all mt-4 border-2 ${
+              activeTab === "admin" 
+                ? "bg-rose-50 text-rose-600 border-rose-100" 
+                : "text-rose-500 border-transparent hover:bg-rose-50"
+            }`}
+          >
+            <Shield size={20} /> Panel Admin
+          </button>
+        )}
       </nav>
 
       <div className="p-4 border-t border-slate-50">

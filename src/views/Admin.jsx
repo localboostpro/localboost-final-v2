@@ -2,15 +2,13 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { 
   Shield, Users, LogOut, Search, ExternalLink, 
-  Key, Eye, Phone, Calendar, Power, TrendingUp, Mail 
+  Key, Eye, Phone, Calendar, Power, TrendingUp, Mail, Zap 
 } from "lucide-react";
 
 export default function AdminView({ onAccessClient }) {
   const [businesses, setBusinesses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  // Stats globales
   const [stats, setStats] = useState({ revenue: 0, total: 0, premium: 0 });
-  // Stats détaillées mois par mois
   const [monthlyStats, setMonthlyStats] = useState([]);
 
   useEffect(() => { fetchBusinesses(); }, []);
@@ -18,7 +16,6 @@ export default function AdminView({ onAccessClient }) {
   const fetchBusinesses = async () => {
     const { data } = await supabase.from("business_profile").select("*").order("created_at", { ascending: false });
     if (data) {
-        // Nettoyage des données
         const cleanData = data.map(b => ({ 
             ...b, 
             is_active: b.is_active !== false,
@@ -30,10 +27,8 @@ export default function AdminView({ onAccessClient }) {
   };
 
   const calculateStats = (data) => {
-      // 1. Stats Globales
       const premiumCount = data.filter(b => b.subscription_tier === 'premium').length;
       
-      // Calcul du Revenu Réel (en tenant compte des remises)
       const currentRevenue = data.reduce((acc, b) => {
           if (!b.is_active) return acc;
           const price = b.subscription_tier === 'premium' ? 99 : 29;
@@ -47,7 +42,6 @@ export default function AdminView({ onAccessClient }) {
           revenue: Math.round(currentRevenue) 
       });
 
-      // 2. Stats Mensuelles (Réintégrées)
       const months = {};
       data.forEach(b => {
           if (!b.is_active) return;
@@ -55,33 +49,97 @@ export default function AdminView({ onAccessClient }) {
           const key = `${date.getMonth() + 1}/${date.getFullYear()}`;
           const price = b.subscription_tier === 'premium' ? 99 : 29;
           const finalPrice = price * (1 - (b.discount_percent || 0) / 100);
-          
           if (!months[key]) months[key] = 0;
           months[key] += finalPrice;
       });
 
-      // Transformation en tableau trié
       const monthlyArray = Object.entries(months)
         .map(([date, amount]) => ({ date, amount: Math.round(amount) }))
-        .slice(0, 6); // On garde les 6 derniers mois
-      
+        .slice(0, 6);
       setMonthlyStats(monthlyArray);
   };
 
+  // --- LE BOUTON MAGIQUE : GÉNÉRATEUR DE DÉMO ---
+  const generateDemoData = async () => {
+    if(!window.confirm("Créer un nouveau compte de DÉMO complet ?")) return;
+
+    const demoId = `demo_${Date.now()}`; // ID unique fictif
+    const fakeUserId = `user_${demoId}`;
+
+    // 1. Création du Profil Business
+    const newProfile = {
+        user_id: fakeUserId,
+        name: "L'Atelier du Pain (DÉMO)",
+        email: `demo.${Date.now()}@localboost.app`,
+        city: "Bordeaux",
+        address: "12 Place de la Bourse",
+        phone: "05 56 00 00 00",
+        subscription_tier: "premium",
+        created_at: new Date().toISOString(),
+        discount_percent: 100, // Gratuit pour la démo
+        is_active: true
+    };
+
+    const { data: profileData, error: profileError } = await supabase.from("business_profile").insert([newProfile]).select().single();
+
+    if (profileError) {
+        alert("Erreur création profil démo");
+        console.error(profileError);
+        return;
+    }
+
+    const businessId = profileData.id;
+
+    // 2. Ajout de faux avis
+    const fakeReviews = [
+        { business_id: businessId, author_name: "Julie M.", rating: 5, comment: "Le meilleur pain de la ville ! Je recommande le levain.", date: new Date().toISOString() },
+        { business_id: businessId, author_name: "Marc Dubos", rating: 4, comment: "Très bon mais un peu d'attente le dimanche.", date: new Date().toISOString() },
+        { business_id: businessId, author_name: "Sophie L.", rating: 5, comment: "Les croissants sont incroyables. Service au top avec LocalBoost !", date: new Date().toISOString() }
+    ];
+    await supabase.from("reviews").insert(fakeReviews);
+
+    // 3. Ajout de faux clients
+    const fakeCustomers = [
+        { business_id: businessId, name: "Jean Dupont", email: "jean.dupont@email.com" },
+        { business_id: businessId, name: "Marie Curie", email: "marie.c@science.fr" },
+        { business_id: businessId, name: "Paul Martin", email: "paul.m@orange.fr" },
+        { business_id: businessId, name: "Lucas Bernard", email: "lucas.b@gmail.com" },
+        { business_id: businessId, name: "Emma Petit", email: "emma.p@outlook.com" }
+    ];
+    await supabase.from("customers").insert(fakeCustomers);
+
+    // 4. Ajout de faux posts
+    const fakePosts = [
+        { 
+            business_id: businessId, 
+            title: "Promo Croissants", 
+            content: "🥐 Spécial petit-déjeuner ! 3 croissants achetés = 1 offert ce matin. Venez vite !", 
+            image_url: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=800&q=80", 
+            networks: ["Instagram"], 
+            created_at: new Date().toISOString() 
+        },
+        { 
+            business_id: businessId, 
+            title: "Nouveau Pain Bio", 
+            content: "Découvrez notre nouveau pain complet aux graines bio. Parfait pour la santé ! 🥖 #Bio #Bordeaux", 
+            image_url: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80", 
+            networks: ["Facebook"], 
+            created_at: new Date(Date.now() - 86400000).toISOString() 
+        }
+    ];
+    await supabase.from("posts").insert(fakePosts);
+
+    alert("✅ Compte de DÉMO généré avec succès !");
+    fetchBusinesses(); // Rafraichir la liste
+  };
+  // ----------------------------------------------
+
   const handleSwitchPlan = async (clientId, currentTier) => {
     const newTier = currentTier === 'basic' ? 'premium' : 'basic';
-    // Update Optimiste
     const updatedList = businesses.map(b => b.id === clientId ? { ...b, subscription_tier: newTier } : b);
     setBusinesses(updatedList);
     calculateStats(updatedList);
-
-    // Update BDD
-    const { error } = await supabase.from("business_profile").update({ subscription_tier: newTier }).eq("id", clientId);
-    if (error) {
-        console.error(error);
-        alert("Erreur changement plan");
-        fetchBusinesses(); // Rollback si erreur
-    }
+    await supabase.from("business_profile").update({ subscription_tier: newTier }).eq("id", clientId);
   };
 
   const toggleClientStatus = async (client) => {
@@ -108,7 +166,6 @@ export default function AdminView({ onAccessClient }) {
   return (
     <div className="min-h-screen bg-slate-100 p-8 animate-in fade-in duration-300">
        
-       {/* HEADER ADMIN */}
        <div className="flex justify-between items-center mb-8 bg-slate-900 text-white p-6 rounded-3xl shadow-xl sticky top-4 z-20">
           <div className="flex items-center gap-4">
             <div className="bg-indigo-600 p-3 rounded-xl"><Shield size={28} className="text-white" /></div>
@@ -119,13 +176,17 @@ export default function AdminView({ onAccessClient }) {
           </div>
           
           <div className="flex items-center gap-6">
-              <div className="text-right hidden md:block">
-                  <div className="text-xs font-bold text-slate-400 uppercase">CA Mensuel (Est.)</div>
-                  <div className="text-2xl font-black text-emerald-400">{stats.revenue} €</div>
-              </div>
+              {/* BOUTON DÉMO */}
+              <button 
+                onClick={generateDemoData}
+                className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition animate-pulse"
+              >
+                <Zap size={18} fill="currentColor"/> Générer Démo
+              </button>
+
               <div className="text-right hidden md:block border-l border-white/10 pl-6">
-                  <div className="text-xs font-bold text-slate-400 uppercase">Clients Actifs</div>
-                  <div className="text-2xl font-black text-white">{stats.total}</div>
+                  <div className="text-xs font-bold text-slate-400 uppercase">CA Mensuel</div>
+                  <div className="text-2xl font-black text-emerald-400">{stats.revenue} €</div>
               </div>
               <button onClick={() => window.location.reload()} className="bg-white/10 hover:bg-white/20 p-3 rounded-xl transition"><LogOut size={20}/></button>
           </div>
@@ -133,9 +194,7 @@ export default function AdminView({ onAccessClient }) {
 
        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
-          {/* COLONNE GAUCHE : STATS DÉTAILLÉES (RÉINTÉGRÉES) */}
           <div className="lg:col-span-1 space-y-6">
-              {/* Carte Performance */}
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                   <h3 className="font-black text-slate-900 flex items-center gap-2 mb-6">
                       <TrendingUp className="text-indigo-600"/> Performance
@@ -146,9 +205,7 @@ export default function AdminView({ onAccessClient }) {
                               <span className="text-sm font-bold text-slate-500">{stat.date}</span>
                               <span className="text-sm font-black text-slate-900 bg-slate-50 px-2 py-1 rounded-lg">{stat.amount} €</span>
                           </div>
-                      )) : (
-                          <div className="text-sm text-slate-400 italic">Pas assez de données.</div>
-                      )}
+                      )) : ( <div className="text-sm text-slate-400 italic">Pas assez de données.</div> )}
                   </div>
                   <div className="mt-6 pt-4 border-t border-slate-50">
                       <div className="flex justify-between items-center">
@@ -163,7 +220,6 @@ export default function AdminView({ onAccessClient }) {
               </div>
           </div>
 
-          {/* COLONNE DROITE : TABLEAU CLIENTS */}
           <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
               <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
                   <h3 className="font-black text-xl text-slate-800">Gestion Base Clients</h3>

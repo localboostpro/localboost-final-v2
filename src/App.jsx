@@ -11,8 +11,13 @@ import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
 import ReactDOM from "react-dom/client";
 
+// Import de Stripe
+import { loadStripe } from "@stripe/stripe-js";
 import { Menu, LogIn, Lock, Zap, Shield, CreditCard } from "lucide-react";
 import { getPlanConfig } from "./lib/plans";
+
+// Initialisation de Stripe avec votre clé publique test
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 export default function App() {
   // --- ÉTATS D'AUTHENTIFICATION ---
@@ -110,6 +115,19 @@ export default function App() {
     }
   };
 
+  // --- FONCTION DE PAIEMENT STRIPE ---
+  const handlePayment = async () => {
+    const stripe = await stripePromise;
+    
+    // Dans une intégration réelle, vous appelleriez votre backend/Edge Function 
+    // pour créer une Checkout Session. Ici nous simulons la redirection Sandbox.
+    console.log("Préparation du paiement pour:", session.user.email);
+    alert("Simulation Mode Sandbox : Redirection vers Stripe Checkout...");
+    
+    // Exemple d'URL de test (à remplacer par votre lien de produit Stripe)
+    window.location.href = "https://buy.stripe.com/test_6oE7sC3pS38o6as9AA"; 
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setImpersonatedClient(null);
@@ -152,10 +170,10 @@ export default function App() {
               : "Votre période d'essai de 7 jours est terminée. Vos données sont conservées, choisissez un forfait pour continuer."}
           </p>
           <button 
-            onClick={() => alert("Redirection vers le paiement...")}
+            onClick={handlePayment}
             className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 flex items-center justify-center gap-3"
           >
-            <CreditCard size={22} /> Activer mon compte
+            <CreditCard size={22} /> Activer mon compte (Sandbox)
           </button>
           <button onClick={handleLogout} className="mt-6 text-slate-400 font-bold text-sm hover:text-slate-600 transition">
             Se déconnecter

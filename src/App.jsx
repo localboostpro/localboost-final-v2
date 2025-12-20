@@ -8,7 +8,7 @@ import Reviews from "./views/Reviews";
 import Customers from "./views/Customers";
 import Profile from "./views/Profile";
 import Promotions from "./views/Promotions";
-import Admin from "./views/Admin";
+import Admin from "./views/Admin"; // <--- Importé sous le nom "Admin"
 import AuthForm from "./components/AuthForm";
 import { Eye, LogOut } from "lucide-react";
 
@@ -29,10 +29,8 @@ export default function App() {
   const [currentPost, setCurrentPost] = useState(null);
 
   useEffect(() => {
-    // SÉCURITÉ ANTI-BLOCAGE : Force l'affichage après 3 secondes max
-    const safetyTimer = setTimeout(() => {
-      setLoading(false);
-    }, 3000);
+    // Sécurité : On force la fin du chargement après 3 secondes max
+    const safetyTimer = setTimeout(() => setLoading(false), 3000);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -56,9 +54,10 @@ export default function App() {
     const isDemoAdmin = session.user.email === "admin@demo.fr";
     setIsAdmin(isDemoAdmin);
     
+    // Redirection intelligente
     if (isDemoAdmin && !impersonatedUserId) {
       setActiveTab("admin");
-    } else if (!impersonatedUserId) {
+    } else if (!impersonatedUserId && activeTab === "admin") {
       setActiveTab("dashboard");
     }
     
@@ -66,7 +65,6 @@ export default function App() {
   };
 
   const fetchAllData = async (targetUserId, targetUserEmail) => {
-    // On ne remet pas setLoading(true) ici pour éviter le clignotement ou le blocage
     try {
       let { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", targetUserId).maybeSingle();
       
@@ -91,7 +89,7 @@ export default function App() {
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false); // On libère l'écran de chargement quoi qu'il arrive
+      setLoading(false);
     }
   };
 
@@ -109,7 +107,16 @@ export default function App() {
 
   const handlePostUpdate = (newPost) => setPosts([newPost, ...posts]);
 
-  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-indigo-600 animate-pulse">Chargement LocalBoost...</div>;
+  // ÉCRAN DE CHARGEMENT
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="font-bold text-indigo-600 animate-pulse">Chargement LocalBoost...</div>
+      </div>
+    </div>
+  );
+
   if (!session) return <AuthForm />;
 
   const currentPlan = getPlanConfig(profile?.subscription_tier || "basic");
@@ -124,6 +131,7 @@ export default function App() {
       
       <main className={`flex-1 overflow-y-auto w-full pt-8 ${!isFullPage ? 'md:ml-72' : ''}`}>
         
+        {/* BANDEAU ROUGE MODE ESPION */}
         {impersonatedUserId && (
           <div className="bg-rose-600 text-white px-8 py-3 sticky top-0 z-50 flex justify-between items-center shadow-lg animate-in slide-in-from-top">
              <div className="flex items-center gap-2 font-bold animate-pulse">
@@ -135,6 +143,7 @@ export default function App() {
           </div>
         )}
 
+        {/* HEADER CLASSIGUE (Sauf en admin plein écran) */}
         {!isFullPage && !impersonatedUserId && (
           <header className="px-8 pb-8 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 z-30">
             <h2 className="text-3xl font-black text-slate-900 capitalize">{activeTab}</h2>
@@ -154,8 +163,9 @@ export default function App() {
           {activeTab === "profile" && <Profile profile={profile} setProfile={setProfile} />}
           {activeTab === "promotions" && <Promotions />}
           
+          {/* C'EST ICI QUE C'ÉTAIT CASSÉ : on utilise <Admin /> */}
           {activeTab === "admin" && (
-            <AdminView 
+            <Admin 
               onExit={() => setActiveTab("dashboard")} 
               onAccessClient={handleAdminAccessClient} 
             />

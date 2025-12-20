@@ -5,7 +5,7 @@ import canvasConfetti from "canvas-confetti";
 import {
   Wand2, Upload, Instagram, Facebook, Linkedin,
   Save, Sparkles, Smartphone, History, Trash2,
-  Lock, ArrowRight, X, Calendar as CalendarIcon, LayoutList
+  Lock, ArrowRight, X, LayoutList, Calendar as CalendarIcon, Eye, PenTool
 } from "lucide-react";
 
 export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
@@ -16,12 +16,15 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   const [style, setStyle] = useState("Professionnel");
   const [hashtags, setHashtags] = useState([]);
   
-  // NOUVEAU : État pour basculer entre Liste et Calendrier
-  const [viewMode, setViewMode] = useState("list"); // 'list' ou 'calendar'
+  // États d'affichage
+  const [viewMode, setViewMode] = useState("list"); // 'list' ou 'calendar' (Pour l'historique)
   
+  // NOUVEAU : Gestion des onglets MOBILE ('history', 'editor', 'preview')
+  const [mobileTab, setMobileTab] = useState("editor");
+
   const fileInputRef = useRef(null);
 
-  // --- PROTECTION BASIC ---
+  // --- 1. PROTECTION BASIC ---
   if (profile?.subscription_tier === 'basic') {
     return (
       <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl relative overflow-hidden animate-in fade-in duration-700">
@@ -31,11 +34,11 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
             <div className="bg-white/10 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-md border border-white/10 shadow-2xl shadow-indigo-500/20">
                 <Lock size={48} className="text-indigo-400"/>
             </div>
-            <h2 className="text-4xl font-black mb-4 tracking-tight">Studio Marketing IA</h2>
-            <p className="text-slate-300 mb-8 text-lg leading-relaxed">
+            <h2 className="text-2xl md:text-4xl font-black mb-4 tracking-tight">Studio Marketing IA</h2>
+            <p className="text-slate-300 mb-8 text-sm md:text-lg leading-relaxed px-4">
                 Débloquez la puissance de l'Intelligence Artificielle pour générer vos posts et visuels en un clic.
             </p>
-            <button onClick={() => alert("Passez en Premium via 'Mon Profil'")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all shadow-lg shadow-indigo-900/50">
+            <button onClick={() => alert("Passez en Premium via 'Mon Profil'")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all shadow-lg shadow-indigo-900/50 text-sm md:text-base">
                 Débloquer maintenant <ArrowRight size={20}/>
             </button>
          </div>
@@ -69,6 +72,9 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   const handleGenerate = async () => {
     if (!prompt) return alert("Décrivez votre idée !");
     setIsLoading(true);
+    // Si on est sur mobile, on bascule vers l'aperçu pendant le chargement pour voir le résultat arriver
+    if(window.innerWidth < 1024) setMobileTab("preview"); 
+    
     try {
       const fullPrompt = `Rédige un post pour ${activeNetwork}. Ton: ${style}. Sujet: ${prompt}. Ville: ${profile?.city}.`;
       const aiResult = await generatePostContent(fullPrompt, profile);
@@ -105,26 +111,22 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
     } else { alert("Erreur sauvegarde"); }
   };
 
-  // --- CALENDRIER SIMPLIFIÉ ---
   const renderCalendar = () => {
     const today = new Date();
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
     return (
       <div className="grid grid-cols-5 gap-2 p-2">
         {days.map(day => {
-          // On cherche si un post existe ce jour-là
           const postsForDay = posts.filter(p => {
             const d = new Date(p.created_at);
             return d.getDate() === day && d.getMonth() === today.getMonth();
           });
-          
           return (
             <div key={day} className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-1 relative ${postsForDay.length > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}`}>
                 <span className={`text-[10px] font-bold ${postsForDay.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{day}</span>
                 {postsForDay.map(p => (
-                   <div key={p.id} onClick={() => setCurrentPost(p)} className="w-4 h-4 mt-1 rounded-full bg-indigo-500 border-2 border-white cursor-pointer hover:scale-110 transition" title={p.title}></div>
+                   <div key={p.id} onClick={() => { setCurrentPost(p); setMobileTab("preview"); }} className="w-3 h-3 md:w-4 md:h-4 mt-1 rounded-full bg-indigo-500 border-2 border-white cursor-pointer hover:scale-110 transition"></div>
                 ))}
             </div>
           );
@@ -134,11 +136,25 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   };
 
   return (
-    <div className="h-[calc(100vh-100px)] flex gap-6 pb-6 animate-in fade-in duration-500">
+    <div className="flex flex-col lg:flex-row h-full gap-6 pb-20 lg:pb-6 animate-in fade-in duration-500 relative">
       
-      {/* SECTION GAUCHE : HISTORIQUE / CALENDRIER */}
-      <div className="w-80 flex flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden shrink-0 hidden lg:flex">
-        <div className="p-4 border-b bg-slate-50 flex justify-between items-center">
+      {/* --- MENU NAVIGATION MOBILE (Visible uniquement sur mobile) --- */}
+      <div className="lg:hidden flex bg-white rounded-2xl p-1 mb-4 shadow-sm border border-slate-100 shrink-0 sticky top-0 z-20 mx-4 md:mx-0">
+          <button onClick={() => setMobileTab("history")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition ${mobileTab === 'history' ? 'bg-slate-900 text-white shadow' : 'text-slate-500'}`}>
+              <History size={14}/> Historique
+          </button>
+          <button onClick={() => setMobileTab("editor")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition ${mobileTab === 'editor' ? 'bg-slate-900 text-white shadow' : 'text-slate-500'}`}>
+              <PenTool size={14}/> Éditeur
+          </button>
+          <button onClick={() => setMobileTab("preview")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition ${mobileTab === 'preview' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500'}`}>
+              <Eye size={14}/> Aperçu
+          </button>
+      </div>
+
+      {/* --- SECTION 1 : HISTORIQUE / CALENDRIER --- */}
+      {/* Sur mobile : visible seulement si mobileTab === 'history' */}
+      <div className={`${mobileTab === 'history' ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden shrink-0 h-[60vh] lg:h-auto`}>
+        <div className="p-4 border-b bg-slate-50 flex justify-between items-center shrink-0">
             <div className="font-bold text-xs uppercase text-slate-400 flex items-center gap-2">
               {viewMode === 'list' ? <LayoutList size={14}/> : <CalendarIcon size={14}/>} 
               {viewMode === 'list' ? "Vos Créations" : "Ce mois-ci"}
@@ -153,7 +169,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
           {viewMode === 'list' ? (
              <div className="p-3 space-y-2">
                {posts.map(post => (
-                 <div key={post.id} onClick={() => setCurrentPost(post)} className="flex gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 transition group relative">
+                 <div key={post.id} onClick={() => { setCurrentPost(post); setMobileTab("preview"); }} className="flex gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 transition group relative">
                    <img src={post.image_url} className="w-12 h-12 rounded-lg object-cover bg-slate-200" alt="mini"/>
                    <div className="overflow-hidden flex-1">
                      <div className="font-bold text-xs truncate text-slate-800">{post.title || "Post"}</div>
@@ -171,8 +187,9 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
         </div>
       </div>
 
-      {/* SECTION CENTRALE : ÉDITEUR */}
-      <div className="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
+      {/* --- SECTION 2 : ÉDITEUR --- */}
+      {/* Sur mobile : visible seulement si mobileTab === 'editor' */}
+      <div className={`${mobileTab === 'editor' ? 'flex' : 'hidden'} lg:flex flex-1 flex-col gap-4 overflow-y-auto custom-scrollbar`}>
         <div className="flex justify-between items-center bg-white p-4 rounded-[2rem] border shadow-sm">
           <h2 className="font-black text-slate-900 text-lg flex items-center gap-2"><Sparkles className="text-indigo-600"/> Studio Créatif</h2>
           <button onClick={() => {setCurrentPost(null); setPrompt("");}} className="text-xs font-bold text-slate-400 hover:text-red-500 flex gap-1 items-center"><Trash2 size={12}/> Réinitialiser</button>
@@ -183,20 +200,20 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
            <div className="grid grid-cols-3 gap-2">
              {['Instagram', 'Facebook', 'LinkedIn'].map(net => (
                <button key={net} onClick={() => setActiveNetwork(net)} className={`py-3 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${activeNetwork === net ? "bg-slate-900 text-white border-slate-900 shadow-md" : "text-slate-500 border-slate-100 hover:bg-slate-50"}`}>
-                 {net === 'Instagram' ? <Instagram size={14}/> : net === 'Facebook' ? <Facebook size={14}/> : <Linkedin size={14}/>} {net}
+                 {net === 'Instagram' ? <Instagram size={14}/> : net === 'Facebook' ? <Facebook size={14}/> : <Linkedin size={14}/>} <span className="hidden md:inline">{net}</span>
                </button>
              ))}
            </div>
         </div>
 
         <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex-1 flex flex-col">
-           <div className="flex gap-2 mb-4 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
+           <div className="flex flex-wrap gap-2 mb-4 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
               <button onClick={() => setImageSource("AI")} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'AI' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Image IA</button>
               <button onClick={() => document.getElementById('uploadInput').click()} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'UPLOAD' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Importer</button>
               <input id="uploadInput" type="file" className="hidden" onChange={handleFileUpload} accept="image/*"/>
            </div>
 
-           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Décrivez votre idée (ex: Promotion -20% sur toute la boutique ce week-end...)" className="w-full h-32 bg-slate-50 rounded-2xl p-4 text-sm outline-none resize-none mb-4 focus:ring-2 ring-indigo-100 transition border border-slate-100" />
+           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Décrivez votre idée (ex: Promotion -20% sur toute la boutique ce week-end...)" className="w-full h-32 md:h-full bg-slate-50 rounded-2xl p-4 text-sm outline-none resize-none mb-4 focus:ring-2 ring-indigo-100 transition border border-slate-100" />
            
            <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 flex justify-center items-center gap-2 transition mt-auto">
              {isLoading ? "L'IA réfléchit..." : <><Wand2 size={16}/> Générer avec l'IA</>}
@@ -204,8 +221,9 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
         </div>
       </div>
 
-      {/* SECTION DROITE : PRÉVISUALISATION SMARTPHONE (NOUVEAU DESIGN) */}
-      <div className="w-[420px] bg-slate-100 rounded-[2.5rem] border p-8 flex flex-col items-center justify-center shrink-0 overflow-hidden relative">
+      {/* --- SECTION 3 : PRÉVISUALISATION SMARTPHONE --- */}
+      {/* Sur mobile : visible seulement si mobileTab === 'preview' */}
+      <div className={`${mobileTab === 'preview' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[420px] bg-slate-100 rounded-[2.5rem] border p-4 lg:p-8 flex-col items-center justify-center shrink-0 overflow-hidden relative min-h-[500px]`}>
          <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none" style={{backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
          
          <div className="text-center mb-6 z-10">
@@ -213,8 +231,8 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
             <p className="text-xs text-slate-500">Tel que vos clients le verront.</p>
          </div>
 
-         {/* CADRE SMARTPHONE */}
-         <div className="relative w-[300px] h-[600px] bg-white rounded-[3rem] border-8 border-slate-900 shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-500">
+         {/* CADRE SMARTPHONE RESPONSIVE */}
+         <div className="relative w-full max-w-[300px] h-[550px] lg:h-[600px] bg-white rounded-[3rem] border-8 border-slate-900 shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-500 mx-auto">
             {/* Notch */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-20"></div>
             
@@ -225,7 +243,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                       {/* En-tête Fake App */}
                       <div className="h-14 border-b flex items-center px-4 gap-3 pt-6 bg-white/90 backdrop-blur sticky top-0 z-10">
                           <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">{profile?.name?.[0]}</div>
-                          <div className="text-xs font-bold">{profile?.name}</div>
+                          <div className="text-xs font-bold truncate">{profile?.name}</div>
                       </div>
 
                       {/* Image */}
@@ -263,7 +281,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
             {currentPost && (
                 <div className="p-3 bg-white border-t z-20">
                     <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition">
-                        PUBLIER / SAUVEGARDER
+                        PUBLIER
                     </button>
                 </div>
             )}

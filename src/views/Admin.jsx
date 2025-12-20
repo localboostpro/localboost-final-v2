@@ -5,7 +5,7 @@ import {
   Key, Eye, Phone, Calendar, Power, TrendingUp, Mail, Zap 
 } from "lucide-react";
 
-export default function AdminView({ onAccessClient }) {
+export default function Admin({ onAccessClient }) {
   const [businesses, setBusinesses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [stats, setStats] = useState({ revenue: 0, total: 0, premium: 0 });

@@ -25,7 +25,7 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
 
   return (
     <>
-      {/* OMBRE ARRIÈRE-PLAN (MOBILE SEULEMENT) */}
+      {/* OMBRE ARRIÈRE-PLAN (MOBILE) */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-slate-900/60 z-40 md:hidden backdrop-blur-sm transition-opacity"
@@ -35,31 +35,34 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
 
       {/* LA SIDEBAR */}
       <aside className={`
-        fixed top-0 left-0 z-50 h-screen w-72 bg-white border-r border-slate-100 flex flex-col transition-transform duration-300 ease-in-out
+        fixed top-0 left-0 z-50 w-72 bg-white border-r border-slate-100 flex flex-col transition-transform duration-300 ease-in-out
         ${isOpen ? "translate-x-0" : "-translate-x-full"} 
-        md:translate-x-0 md:static md:h-screen shadow-2xl md:shadow-none
+        md:translate-x-0 md:static 
+        shadow-2xl md:shadow-none
+        
+        /* CORRECTION IPHONE ICI : On utilise dvh au lieu de screen */
+        h-[100dvh] md:h-screen
       `}>
         
-        {/* LOGO + BOUTON FERMER (MOBILE) */}
-        <div className="p-8 flex justify-between items-center">
+        {/* LOGO */}
+        <div className="p-8 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-600 p-2 rounded-xl text-white">
               <Zap size={24} fill="currentColor"/>
             </div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">LocalBoost</h1>
           </div>
-          {/* Croix de fermeture visible uniquement sur mobile */}
           <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-rose-500 transition">
             <X size={24} />
           </button>
         </div>
 
-        {/* NAVIGATION */}
+        {/* NAVIGATION (Scrollable) */}
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => { setActiveTab(item.id); onClose(); }} // onClose ferme le menu sur mobile après clic
+              onClick={() => { setActiveTab(item.id); onClose(); }}
               className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-200 font-bold text-sm ${
                 activeTab === item.id
                   ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20 translate-x-2"
@@ -73,7 +76,8 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
         </nav>
 
         {/* PIED DE PAGE : PROFIL & DÉCONNEXION */}
-        <div className="p-6 border-t border-slate-50 bg-slate-50/50">
+        {/* CORRECTION IPHONE : Ajout de pb-20 (padding bottom) pour remonter le bouton au-dessus de la barre Safari */}
+        <div className="p-6 border-t border-slate-50 bg-slate-50/50 shrink-0 pb-24 md:pb-6">
            {profile && (
                <div className="flex items-center gap-3 mb-4 px-2">
                    <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-sm border-2 border-white shadow-sm">

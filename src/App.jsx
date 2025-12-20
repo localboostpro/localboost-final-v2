@@ -11,7 +11,7 @@ import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
 import ReactDOM from "react-dom/client";
 
-import { Menu, LogIn, Lock, Zap, Shield } from "lucide-react";
+import { Menu, LogIn, Lock, Zap, Shield, CreditCard } from "lucide-react";
 import { getPlanConfig } from "./lib/plans";
 
 export default function App() {
@@ -34,7 +34,6 @@ export default function App() {
 
   // 1. INITIALISATION & AUTHENTIFICATION
   useEffect(() => {
-    // Détection du lien de réinitialisation de mot de passe
     if (window.location.hash.includes('type=recovery')) {
       setActiveTab("settings"); 
     }
@@ -72,29 +71,19 @@ export default function App() {
     }
   };
 
-  // 2. CHARGEMENT DES DONNÉES (Nettoyé : Pas de création automatique)
   const fetchClientData = async (userId, forceProfileId = null) => {
     setLoading(true);
     try {
       let profileData = null;
 
       if (forceProfileId) {
-        const { data } = await supabase
-          .from("business_profile")
-          .select("*")
-          .eq("id", forceProfileId)
-          .single();
+        const { data } = await supabase.from("business_profile").select("*").eq("id", forceProfileId).single();
         profileData = data;
       } else {
-        const { data } = await supabase
-          .from("business_profile")
-          .select("*")
-          .eq("user_id", userId)
-          .maybeSingle();
+        const { data } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
         profileData = data;
       }
 
-      // Si aucun profil n'existe, on s'arrête là (évite les doublons)
       if (!profileData) {
         setProfile({ name: "Nouveau compte en attente", subscription_tier: "basic" });
         setLoading(false);
@@ -142,7 +131,40 @@ export default function App() {
   };
 
   if (!session) return <AuthForm />;
-  
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-indigo-600 font-bold">Chargement...</div>;
+
+  // --- LOGIQUE DE VÉRIFICATION D'ACCÈS ---
+  const isTrialExpired = profile?.trial_ends_at && new Date(profile.trial_ends_at) < new Date();
+  const isAccountDisabled = profile?.is_active === false;
+  const hasNoAccess = (isTrialExpired || isAccountDisabled) && !isAdmin;
+
+  if (hasNoAccess) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#F8FAFC] px-4">
+        <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center border border-slate-100">
+          <div className="w-20 h-20 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 transform rotate-3">
+            <Lock size={40} />
+          </div>
+          <h2 className="text-3xl font-black text-slate-900 mb-4">Accès Limité 🛑</h2>
+          <p className="text-slate-500 mb-8 text-lg">
+            {isAccountDisabled 
+              ? "Votre compte a été suspendu par l'administrateur. Veuillez nous contacter." 
+              : "Votre période d'essai de 7 jours est terminée. Vos données sont conservées, choisissez un forfait pour continuer."}
+          </p>
+          <button 
+            onClick={() => alert("Redirection vers le paiement...")}
+            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 flex items-center justify-center gap-3"
+          >
+            <CreditCard size={22} /> Activer mon compte
+          </button>
+          <button onClick={handleLogout} className="mt-6 text-slate-400 font-bold text-sm hover:text-slate-600 transition">
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const currentPlan = getPlanConfig(profile?.subscription_tier || "basic");
 
   return (
@@ -204,7 +226,6 @@ export default function App() {
   );
 }
 
-// --- RENDU FINAL ---
 const rootElement = document.getElementById("root");
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(

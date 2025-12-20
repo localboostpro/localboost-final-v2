@@ -1,27 +1,10 @@
 import React from "react";
-import { 
-  LayoutDashboard, 
-  Sparkles, 
-  MessageSquare, // Pour les avis
-  Users,         // Pour les clients
-  Ticket,        // Pour les promotions
-  User, 
-  LogOut, 
-  Building2 
-} from "lucide-react";
+import { LayoutDashboard, Sparkles, MessageSquare, Users, Ticket, User, LogOut, Building2, Send } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-// Import du logo local pour éviter les bugs
-import logo from "../assets/logo.png";
-
 export default function Sidebar({ activeTab, setActiveTab, profile }) {
-  
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload();
-  };
+  const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
 
-  // Liste mise à jour pour correspondre à App.jsx
   const menuItems = [
     { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
     { id: "generator", label: "Générateur IA", icon: Sparkles },
@@ -33,74 +16,29 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
 
   return (
     <div className="w-72 bg-white h-screen flex flex-col border-r border-slate-100 shadow-sm fixed left-0 top-0 z-40 hidden md:flex">
-      {/* SECTION LOGO & NOM DYNAMIQUE */}
       <div className="p-8">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md border border-slate-50">
-            <img src={logo} alt="Logo" className="h-7 w-7 object-contain" />
+          {/* VERSION SANS IMAGE (Pour éviter le crash) */}
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
+            <Send size={20} />
           </div>
           <span className="text-xl font-black text-slate-900 tracking-tight">LocalBoost</span>
         </div>
-
-        {/* Badge Entreprise Dynamique */}
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-indigo-600 border border-slate-200">
-              <Building2 size={16} />
-            </div>
-            <div className="flex flex-col overflow-hidden text-ellipsis">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Compte Pro</span>
-              <span className="text-sm font-black text-slate-700 truncate">
-                {profile?.name || "Chargement..."}
-              </span>
-            </div>
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-indigo-600 border border-slate-200"><Building2 size={16} /></div>
+            <div className="flex flex-col overflow-hidden"><span className="text-[10px] font-bold text-slate-400 uppercase">Compte Pro</span><span className="text-sm font-black text-slate-700 truncate">{profile?.name || "Chargement..."}</span></div>
           </div>
         </div>
       </div>
-
-      {/* NAVIGATION DYNAMIQUE */}
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
         {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-200 ${
-              activeTab === item.id
-                ? "bg-indigo-50 text-indigo-600 shadow-sm"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-            }`}
-          >
-            <item.icon size={20} className={activeTab === item.id ? "text-indigo-600" : "text-slate-400"} />
-            {item.label}
+          <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === item.id ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-50"}`}>
+            <item.icon size={20} /> {item.label}
           </button>
         ))}
       </nav>
-
-      {/* PIED DE LA SIDEBAR */}
-      <div className="p-4 border-t border-slate-50">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50 transition-colors"
-        >
-          <LogOut size={20} />
-          Déconnexion
-        </button>
-        
-        {/* Statut de l'abonnement */}
-        <div className="mt-4 px-4 py-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] font-bold uppercase tracking-widest opacity-80">Offre Actuelle</span>
-            <span className="text-[9px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase">
-              {profile?.subscription_tier || "Basic"}
-            </span>
-          </div>
-          <p className="text-[11px] font-medium leading-tight">
-            {profile?.subscription_tier === 'premium' 
-              ? "🚀 Accès illimité" 
-              : "💎 Passez au Premium"}
-          </p>
-        </div>
-      </div>
+      <div className="p-4 border-t border-slate-50"><button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50"><LogOut size={20} /> Déconnexion</button></div>
     </div>
   );
 }

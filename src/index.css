@@ -1,0 +1,14 @@
+/* AJOUTER EN HAUT DU FICHIER */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    font-family: "Inter", sans-serif; /* [GEMINI] Uniformisation Police */
+    @apply antialiased text-slate-900;
+  }
+}

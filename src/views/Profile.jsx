@@ -1,29 +1,48 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { User, MapPin, Save, Upload, Image as ImageIcon } from "lucide-react";
+import { 
+  User, MapPin, Save, Upload, Image as ImageIcon, 
+  Phone, Globe, Building, Lock, Key 
+} from "lucide-react";
 
 export default function Profile({ profile, setProfile }) {
   const [loading, setLoading] = useState(false);
+  const [passLoading, setPassLoading] = useState(false);
+  
+  // Données du Profil
   const [formData, setFormData] = useState({
     name: profile?.name || "",
-    city: profile?.city || "",
     email: profile?.email || "",
+    phone: profile?.phone || "",
+    address: profile?.address || "",
+    city: profile?.city || "",
+    zip_code: profile?.zip_code || "",
+    website: profile?.website || "",
+    siret: profile?.siret || "",
   });
 
+  // Données du Mot de Passe
+  const [passData, setPassData] = useState({ newPassword: "", confirmPassword: "" });
+
+  // --- MISE À JOUR DU PROFIL ---
   const handleUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
         const { error } = await supabase.from("business_profile").update({
             name: formData.name,
-            city: formData.city
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            zip_code: formData.zip_code,
+            website: formData.website,
+            siret: formData.siret
         }).eq("id", profile.id);
 
         if (error) throw error;
         
-        // Mise à jour locale immédiate
         setProfile({ ...profile, ...formData });
-        alert("✅ Profil mis à jour !");
+        alert("✅ Informations mises à jour !");
     } catch (error) {
         alert("Erreur : " + error.message);
     } finally {
@@ -31,11 +50,29 @@ export default function Profile({ profile, setProfile }) {
     }
   };
 
-  // Fonction spécifique pour l'upload du LOGO
+  // --- CHANGEMENT DE MOT DE PASSE ---
+  const handleChangePassword = async (e) => {
+      e.preventDefault();
+      if (passData.newPassword.length < 6) return alert("Le mot de passe doit faire 6 caractères min.");
+      if (passData.newPassword !== passData.confirmPassword) return alert("Les mots de passe ne correspondent pas.");
+
+      setPassLoading(true);
+      try {
+          const { error } = await supabase.auth.updateUser({ password: passData.newPassword });
+          if (error) throw error;
+          alert("🔒 Mot de passe modifié avec succès !");
+          setPassData({ newPassword: "", confirmPassword: "" });
+      } catch (error) {
+          alert("Erreur : " + error.message);
+      } finally {
+          setPassLoading(false);
+      }
+  };
+
+  // --- UPLOAD LOGO ---
   const handleLogoUpload = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       try {
           setLoading(true);
           const fileName = `logos/${profile.id}_${Date.now()}`;
@@ -43,93 +80,153 @@ export default function Profile({ profile, setProfile }) {
           if (uploadError) throw uploadError;
 
           const { data: { publicUrl } } = supabase.storage.from("user_uploads").getPublicUrl(fileName);
-
-          // Sauvegarde de l'URL dans le profil
           await supabase.from("business_profile").update({ logo_url: publicUrl }).eq("id", profile.id);
           
           setProfile({ ...profile, logo_url: publicUrl });
-          alert("✅ Logo ajouté avec succès !");
+          alert("✅ Logo ajouté !");
       } catch (error) {
           console.error(error);
-          alert("Erreur lors de l'upload du logo.");
+          alert("Erreur lors de l'upload.");
       } finally {
           setLoading(false);
       }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       
       {/* HEADER */}
       <div className="flex items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-         <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-2xl border-4 border-white shadow-lg">
-             {profile?.logo_url ? <img src={profile.logo_url} className="w-full h-full object-cover rounded-full"/> : profile?.name?.[0]}
+         <div className="w-20 h-20 rounded-2xl bg-slate-50 text-indigo-600 flex items-center justify-center font-black text-3xl border border-slate-200 shadow-inner overflow-hidden">
+             {profile?.logo_url ? <img src={profile.logo_url} className="w-full h-full object-cover"/> : profile?.name?.[0]}
          </div>
          <div>
-             <h2 className="text-2xl font-black text-slate-900">Mon Profil</h2>
-             <p className="text-slate-500">Gérez les informations de votre entreprise.</p>
+             <h2 className="text-2xl font-black text-slate-900">Mon Établissement</h2>
+             <p className="text-slate-500 text-sm">Gérez votre identité commerciale et vos accès.</p>
          </div>
-         <div className="ml-auto px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full font-bold text-xs uppercase tracking-wide">
-             {profile?.subscription_tier}
+         <div className="ml-auto px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full font-bold text-xs uppercase tracking-wide border border-indigo-100 hidden md:block">
+             Compte {profile?.subscription_tier}
          </div>
       </div>
 
-      {/* FORMULAIRE */}
-      <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-          <form onSubmit={handleUpdate} className="space-y-6">
-              
-              {/* SECTION LOGO */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                      <div className="p-3 bg-white rounded-xl shadow-sm text-indigo-600"><ImageIcon size={20}/></div>
-                      <div>
-                          <div className="font-bold text-slate-900 text-sm">Logo de l'entreprise</div>
-                          <div className="text-xs text-slate-400">Affiché dans le menu latéral</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* COLONNE GAUCHE : INFOS GÉNÉRALES */}
+          <div className="lg:col-span-2 space-y-8">
+              <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                  <h3 className="font-black text-lg mb-6 flex items-center gap-2"><Building size={20} className="text-indigo-600"/> Informations Générales</h3>
+                  
+                  <form onSubmit={handleUpdate} className="space-y-6">
+                      
+                      {/* LOGO UPLOAD */}
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                              <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-600"><ImageIcon size={18}/></div>
+                              <div>
+                                  <div className="font-bold text-slate-900 text-xs uppercase">Logo</div>
+                                  <div className="text-[10px] text-slate-400">JPG, PNG (Max 2Mo)</div>
+                              </div>
+                          </div>
+                          <div className="relative">
+                              <input type="file" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*"/>
+                              <button type="button" className="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm flex items-center gap-2">
+                                  <Upload size={12}/> {profile?.logo_url ? "Modifier" : "Ajouter"}
+                              </button>
+                          </div>
                       </div>
-                  </div>
-                  <div className="relative">
-                      <input type="file" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*"/>
-                      <button type="button" className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm flex items-center gap-2">
-                          <Upload size={14}/> {profile?.logo_url ? "Changer" : "Importer"}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Nom de l'entreprise</label>
+                              <div className="relative">
+                                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+                                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
+                              </div>
+                          </div>
+                          
+                          <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">SIRET</label>
+                              <div className="relative">
+                                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+                                  <input value={formData.siret} onChange={e => setFormData({...formData, siret: e.target.value})} placeholder="14 chiffres" className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
+                              </div>
+                          </div>
+
+                          <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Site Web</label>
+                              <div className="relative">
+                                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+                                  <input value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} placeholder="www.monsite.fr" className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
+                              </div>
+                          </div>
+                      </div>
+
+                      <hr className="border-slate-100"/>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Adresse postale</label>
+                              <div className="relative">
+                                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+                                  <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="10 rue de la République" className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
+                              </div>
+                          </div>
+
+                          <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Code Postal</label>
+                              <input value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} placeholder="75001" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
+                          </div>
+
+                          <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Ville</label>
+                              <input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} placeholder="Paris" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Téléphone public</label>
+                              <div className="relative">
+                                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+                                  <input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="01 23 45 67 89" className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
+                              </div>
+                          </div>
+                      </div>
+
+                      <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-lg">
+                          {loading ? "Enregistrement..." : <><Save size={18}/> Enregistrer les modifications</>}
                       </button>
-                  </div>
+                  </form>
+              </div>
+          </div>
+
+          {/* COLONNE DROITE : SÉCURITÉ */}
+          <div className="space-y-6">
+              
+              {/* Carte Email (Lecture seule) */}
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm opacity-70">
+                  <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-500"><Lock size={16}/> Identifiant de connexion</h3>
+                  <input disabled value={formData.email} className="w-full p-3 bg-slate-100 border border-slate-100 rounded-xl font-bold text-sm text-slate-500 cursor-not-allowed"/>
+                  <p className="text-[10px] text-slate-400 mt-2">Contactez le support pour changer d'email.</p>
               </div>
 
-              <div className="space-y-4">
-                  <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase ml-1 block mb-2">Nom de l'entreprise</label>
-                      <div className="relative">
-                          <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                          <input 
-                            value={formData.name} 
-                            onChange={e => setFormData({...formData, name: e.target.value})}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 ring-indigo-500 transition"
-                          />
+              {/* Carte Changement de Mot de Passe */}
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                  <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-slate-900"><Key size={20} className="text-amber-500"/> Sécurité</h3>
+                  <form onSubmit={handleChangePassword} className="space-y-4">
+                      <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Nouveau mot de passe</label>
+                          <input type="password" required value={passData.newPassword} onChange={e => setPassData({...passData, newPassword: e.target.value})} placeholder="••••••••" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-amber-500"/>
                       </div>
-                  </div>
-
-                  <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase ml-1 block mb-2">Ville (pour l'IA)</label>
-                      <div className="relative">
-                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                          <input 
-                            value={formData.city} 
-                            onChange={e => setFormData({...formData, city: e.target.value})}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 ring-indigo-500 transition"
-                          />
+                      <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Confirmer</label>
+                          <input type="password" required value={passData.confirmPassword} onChange={e => setPassData({...passData, confirmPassword: e.target.value})} placeholder="••••••••" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-amber-500"/>
                       </div>
-                  </div>
-
-                  <div className="opacity-50 pointer-events-none">
-                      <label className="text-xs font-bold text-slate-400 uppercase ml-1 block mb-2">Email (Non modifiable)</label>
-                      <input disabled value={formData.email} className="w-full px-4 py-4 bg-slate-100 border border-slate-100 rounded-xl font-bold text-slate-500"/>
-                  </div>
+                      <button type="submit" disabled={passLoading} className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition shadow-lg shadow-amber-200">
+                          {passLoading ? "Modification..." : "Changer le mot de passe"}
+                      </button>
+                  </form>
               </div>
 
-              <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-lg">
-                  {loading ? "Enregistrement..." : <><Save size={18}/> Enregistrer les modifications</>}
-              </button>
-          </form>
+          </div>
       </div>
     </div>
   );

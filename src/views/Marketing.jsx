@@ -16,13 +16,16 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   const [style, setStyle] = useState("Professionnel");
   const [hashtags, setHashtags] = useState([]);
   
-  // États d'affichage
-  const [viewMode, setViewMode] = useState("list"); // 'list' ou 'calendar' (Pour l'historique)
-  
-  // NOUVEAU : Gestion des onglets MOBILE ('history', 'editor', 'preview')
+  const [viewMode, setViewMode] = useState("list"); 
   const [mobileTab, setMobileTab] = useState("editor");
 
   const fileInputRef = useRef(null);
+
+  // STYLE POUR CACHER LA SCROLLBAR (BUG FIX)
+  const hideScrollbarStyle = {
+    scrollbarWidth: 'none',  /* Firefox */
+    msOverflowStyle: 'none'  /* IE and Edge */
+  };
 
   // --- 1. PROTECTION BASIC ---
   if (profile?.subscription_tier === 'basic') {
@@ -46,7 +49,6 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
     );
   }
 
-  // --- SUPPRESSION ---
   const handleDeletePost = async (e, postId) => {
       e.stopPropagation(); 
       if(!window.confirm("Supprimer ce post ?")) return;
@@ -54,7 +56,6 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
       if(!error) window.location.reload(); 
   };
 
-  // --- FONCTIONS IA & SAVE ---
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -72,9 +73,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   const handleGenerate = async () => {
     if (!prompt) return alert("Décrivez votre idée !");
     setIsLoading(true);
-    // Si on est sur mobile, on bascule vers l'aperçu pendant le chargement pour voir le résultat arriver
     if(window.innerWidth < 1024) setMobileTab("preview"); 
-    
     try {
       const fullPrompt = `Rédige un post pour ${activeNetwork}. Ton: ${style}. Sujet: ${prompt}. Ville: ${profile?.city}.`;
       const aiResult = await generatePostContent(fullPrompt, profile);
@@ -138,7 +137,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   return (
     <div className="flex flex-col lg:flex-row h-full gap-6 pb-20 lg:pb-6 animate-in fade-in duration-500 relative">
       
-      {/* --- MENU NAVIGATION MOBILE (Visible uniquement sur mobile) --- */}
+      {/* MENU MOBILE */}
       <div className="lg:hidden flex bg-white rounded-2xl p-1 mb-4 shadow-sm border border-slate-100 shrink-0 sticky top-0 z-20 mx-4 md:mx-0">
           <button onClick={() => setMobileTab("history")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition ${mobileTab === 'history' ? 'bg-slate-900 text-white shadow' : 'text-slate-500'}`}>
               <History size={14}/> Historique
@@ -151,8 +150,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
           </button>
       </div>
 
-      {/* --- SECTION 1 : HISTORIQUE / CALENDRIER --- */}
-      {/* Sur mobile : visible seulement si mobileTab === 'history' */}
+      {/* HISTORIQUE */}
       <div className={`${mobileTab === 'history' ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden shrink-0 h-[60vh] lg:h-auto`}>
         <div className="p-4 border-b bg-slate-50 flex justify-between items-center shrink-0">
             <div className="font-bold text-xs uppercase text-slate-400 flex items-center gap-2">
@@ -164,7 +162,6 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                 <button onClick={() => setViewMode('calendar')} className={`p-1.5 rounded-md transition ${viewMode === 'calendar' ? 'bg-white text-indigo-600 shadow' : 'text-slate-500'}`}><CalendarIcon size={14}/></button>
             </div>
         </div>
-
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {viewMode === 'list' ? (
              <div className="p-3 space-y-2">
@@ -181,20 +178,16 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                ))}
                {posts.length === 0 && <div className="text-center text-slate-400 text-xs py-10">Aucun post.</div>}
              </div>
-          ) : (
-             renderCalendar()
-          )}
+          ) : renderCalendar()}
         </div>
       </div>
 
-      {/* --- SECTION 2 : ÉDITEUR --- */}
-      {/* Sur mobile : visible seulement si mobileTab === 'editor' */}
+      {/* ÉDITEUR */}
       <div className={`${mobileTab === 'editor' ? 'flex' : 'hidden'} lg:flex flex-1 flex-col gap-4 overflow-y-auto custom-scrollbar`}>
         <div className="flex justify-between items-center bg-white p-4 rounded-[2rem] border shadow-sm">
           <h2 className="font-black text-slate-900 text-lg flex items-center gap-2"><Sparkles className="text-indigo-600"/> Studio Créatif</h2>
           <button onClick={() => {setCurrentPost(null); setPrompt("");}} className="text-xs font-bold text-slate-400 hover:text-red-500 flex gap-1 items-center"><Trash2 size={12}/> Réinitialiser</button>
         </div>
-
         <div className="bg-white p-6 rounded-[2rem] border shadow-sm">
            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Réseau Social</label>
            <div className="grid grid-cols-3 gap-2">
@@ -205,60 +198,52 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
              ))}
            </div>
         </div>
-
         <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex-1 flex flex-col">
            <div className="flex flex-wrap gap-2 mb-4 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
               <button onClick={() => setImageSource("AI")} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'AI' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Image IA</button>
               <button onClick={() => document.getElementById('uploadInput').click()} className={`px-4 py-2 text-xs font-bold rounded-lg transition ${imageSource === 'UPLOAD' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Importer</button>
               <input id="uploadInput" type="file" className="hidden" onChange={handleFileUpload} accept="image/*"/>
            </div>
-
            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Décrivez votre idée (ex: Promotion -20% sur toute la boutique ce week-end...)" className="w-full h-32 md:h-full bg-slate-50 rounded-2xl p-4 text-sm outline-none resize-none mb-4 focus:ring-2 ring-indigo-100 transition border border-slate-100" />
-           
            <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 flex justify-center items-center gap-2 transition mt-auto">
              {isLoading ? "L'IA réfléchit..." : <><Wand2 size={16}/> Générer avec l'IA</>}
            </button>
         </div>
       </div>
 
-      {/* --- SECTION 3 : PRÉVISUALISATION SMARTPHONE --- */}
-      {/* Sur mobile : visible seulement si mobileTab === 'preview' */}
+      {/* PRÉVISUALISATION SMARTPHONE CORRIGÉE */}
       <div className={`${mobileTab === 'preview' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[420px] bg-slate-100 rounded-[2.5rem] border p-4 lg:p-8 flex-col items-center justify-center shrink-0 overflow-hidden relative min-h-[500px]`}>
          <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none" style={{backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
-         
          <div className="text-center mb-6 z-10">
             <h3 className="font-black text-slate-900 text-lg">Aperçu {activeNetwork}</h3>
             <p className="text-xs text-slate-500">Tel que vos clients le verront.</p>
          </div>
 
-         {/* CADRE SMARTPHONE RESPONSIVE */}
+         {/* --- CORRECTION ICI : Masquage scrollbar et clipping --- */}
          <div className="relative w-full max-w-[300px] h-[550px] lg:h-[600px] bg-white rounded-[3rem] border-8 border-slate-900 shadow-2xl overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-500 mx-auto">
             {/* Notch */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-20"></div>
             
-            {/* Contenu Écran */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+            {/* Contenu Écran - Ajout de style inline pour cacher scrollbar et arrondi pour l'image */}
+            <div className="flex-1 overflow-y-auto bg-white" style={hideScrollbarStyle}>
                 {currentPost ? (
                    <>
-                      {/* En-tête Fake App */}
                       <div className="h-14 border-b flex items-center px-4 gap-3 pt-6 bg-white/90 backdrop-blur sticky top-0 z-10">
                           <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">{profile?.name?.[0]}</div>
                           <div className="text-xs font-bold truncate">{profile?.name}</div>
                       </div>
-
-                      {/* Image */}
-                      <div className="w-full aspect-square bg-slate-100">
+                      
+                      {/* Image corrigée : on s'assure qu'elle ne déborde pas */}
+                      <div className="w-full aspect-square bg-slate-100 overflow-hidden">
                           <img src={currentPost.image_url} className="w-full h-full object-cover" alt="Post"/>
                       </div>
 
-                      {/* Actions Fake */}
                       <div className="px-4 py-3 flex gap-4 text-slate-800">
                           <div className="hover:text-red-500 cursor-pointer">♥</div>
                           <div>💬</div>
                           <div>✈️</div>
                       </div>
 
-                      {/* Description */}
                       <div className="px-4 pb-8">
                           <p className="text-[11px] text-slate-800 leading-relaxed">
                             <span className="font-bold mr-1">{profile?.name}</span>
@@ -277,7 +262,6 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                 )}
             </div>
 
-            {/* Bouton Action Fixe en bas du tel */}
             {currentPost && (
                 <div className="p-3 bg-white border-t z-20">
                     <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition">

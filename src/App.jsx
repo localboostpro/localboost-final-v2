@@ -8,15 +8,18 @@ import Reviews from "./views/Reviews";
 import Customers from "./views/Customers";
 import Profile from "./views/Profile";
 import Promotions from "./views/Promotions";
-import Admin from "./views/Admin"; // <--- Importé sous le nom "Admin"
+import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
-import { Eye, LogOut } from "lucide-react";
+import { Eye, LogOut, Menu } from "lucide-react"; // Ajout de l'icône Menu
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   
+  // NOUVEAU : État pour le menu mobile
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // États de sécurité
   const [isAdmin, setIsAdmin] = useState(false);
   const [impersonatedUserId, setImpersonatedUserId] = useState(null); 
@@ -126,37 +129,59 @@ export default function App() {
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
       
       {!isFullPage && (
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} profile={profile} />
+        <Sidebar 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            profile={profile} 
+            // Props pour le mobile
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+        />
       )}
       
-      <main className={`flex-1 overflow-y-auto w-full pt-8 ${!isFullPage ? 'md:ml-72' : ''}`}>
+      {/* Ajustement des marges pour le mobile (pt-4) et desktop (md:pt-8) */}
+      <main className={`flex-1 overflow-y-auto w-full pt-4 md:pt-8 transition-all ${!isFullPage ? 'md:ml-0' : ''}`}>
         
         {/* BANDEAU ROUGE MODE ESPION */}
         {impersonatedUserId && (
-          <div className="bg-rose-600 text-white px-8 py-3 sticky top-0 z-50 flex justify-between items-center shadow-lg animate-in slide-in-from-top">
-             <div className="flex items-center gap-2 font-bold animate-pulse">
+          <div className="bg-rose-600 text-white px-4 md:px-8 py-3 sticky top-0 z-50 flex justify-between items-center shadow-lg animate-in slide-in-from-top">
+             <div className="flex items-center gap-2 font-bold animate-pulse text-xs md:text-sm">
                <Eye size={20}/> MODIFICATION DU COMPTE : {profile?.name}
              </div>
-             <button onClick={handleExitImpersonation} className="bg-white text-rose-600 px-4 py-1 rounded-full text-xs font-black uppercase flex items-center gap-2 hover:bg-rose-50">
+             <button onClick={handleExitImpersonation} className="bg-white text-rose-600 px-3 md:px-4 py-1 rounded-full text-xs font-black uppercase flex items-center gap-2 hover:bg-rose-50">
                <LogOut size={14}/> Retour Admin
              </button>
           </div>
         )}
 
-        {/* HEADER CLASSIGUE (Sauf en admin plein écran) */}
+        {/* HEADER CLASSIQUE (Sauf en admin plein écran) */}
         {!isFullPage && !impersonatedUserId && (
-          <header className="px-8 pb-8 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 z-30">
-            <h2 className="text-3xl font-black text-slate-900 capitalize">{activeTab}</h2>
+          <header className="px-4 md:px-8 pb-6 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 z-30 pt-2">
             <div className="flex items-center gap-3">
-              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase">
+                {/* BOUTON HAMBURGER MOBILE */}
+                <button 
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="md:hidden p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-indigo-600 shadow-sm active:scale-95 transition"
+                >
+                    <Menu size={24}/>
+                </button>
+
+                <h2 className="text-2xl md:text-3xl font-black text-slate-900 capitalize truncate max-w-[200px] md:max-w-none">
+                    {activeTab === 'dashboard' ? 'Tableau de bord' : activeTab}
+                </h2>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="hidden md:inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase">
                  {currentPlan.label}
               </span>
+              {/* Pastille mobile simple */}
+              <span className={`md:hidden w-3 h-3 rounded-full ${profile?.subscription_tier === 'premium' ? 'bg-indigo-500' : 'bg-slate-300'}`}></span>
             </div>
           </header>
         )}
 
-        <div className={`pb-12 ${isFullPage ? 'px-0' : 'px-8'}`}>
-          {/* CORRECTION ICI : Ajout de profile={profile} */}
+        <div className={`pb-20 md:pb-12 ${isFullPage ? 'px-0' : 'px-4 md:px-8'}`}>
           {activeTab === "dashboard" && (
             <Dashboard 
                 stats={{ reviews: reviews.length, clients: customers.length, posts: posts.length }} 
@@ -172,7 +197,6 @@ export default function App() {
           {activeTab === "profile" && <Profile profile={profile} setProfile={setProfile} />}
           {activeTab === "promotions" && <Promotions />}
           
-          {/* C'EST ICI QUE C'ÉTAIT CASSÉ : on utilise <Admin /> */}
           {activeTab === "admin" && (
             <Admin 
               onExit={() => setActiveTab("dashboard")} 

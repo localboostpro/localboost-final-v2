@@ -156,7 +156,16 @@ export default function App() {
         )}
 
         <div className={`pb-12 ${isFullPage ? 'px-0' : 'px-8'}`}>
-          {activeTab === "dashboard" && <Dashboard stats={{ reviews: reviews.length, clients: customers.length, posts: posts.length }} posts={posts} onGenerate={() => setActiveTab("generator")} />}
+          {/* CORRECTION ICI : Ajout de profile={profile} */}
+          {activeTab === "dashboard" && (
+            <Dashboard 
+                stats={{ reviews: reviews.length, clients: customers.length, posts: posts.length }} 
+                posts={posts} 
+                profile={profile} 
+                onGenerate={() => setActiveTab("generator")} 
+            />
+          )}
+          
           {activeTab === "generator" && <Marketing posts={posts} currentPost={currentPost} setCurrentPost={setCurrentPost} profile={profile} onUpdate={handlePostUpdate} />}
           {activeTab === "reviews" && <Reviews reviews={reviews} />}
           {activeTab === "customers" && <Customers customers={customers} />}

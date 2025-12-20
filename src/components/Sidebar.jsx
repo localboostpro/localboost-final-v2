@@ -61,21 +61,7 @@ export default function Sidebar({ activeTab, setActiveTab, profile }) {
             <item.icon size={20} />
             {item.label}
           </button>
-        ))}
-
-        {/* BOUTON ADMIN CONDITIONNEL */}
-        {profile?.email === "admin@demo.fr" && (
-          <button
-            onClick={() => setActiveTab("admin")}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all mt-4 border-2 ${
-              activeTab === "admin" 
-                ? "bg-rose-50 text-rose-600 border-rose-100" 
-                : "text-rose-500 border-transparent hover:bg-rose-50"
-            }`}
-          >
-            <Shield size={20} /> Panel Admin
-          </button>
-        )}
+        ))
       </nav>
 
       <div className="p-4 border-t border-slate-50">

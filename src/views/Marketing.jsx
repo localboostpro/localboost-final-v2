@@ -94,30 +94,32 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile 
 
     const isCreation = typeof id === "number" && id > 1000000;
 
+// Dans Marketing.jsx, modifiez la fin de handleSave
+
     try {
       if (isCreation) {
-        const { error } = await supabase.from("posts").insert([cleanData]);
+        const { data, error } = await supabase.from("posts").insert([cleanData]).select();
         if (error) throw error;
         
-        // Effet Confettis !
-        canvasConfetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#4F46E5', '#818CF8', '#C7D2FE']
-        });
+        // Confettis !
+        canvasConfetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
 
+        // MISE À JOUR SANS RECHARGER LA PAGE
+        // On informe le parent (App.jsx) qu'un nouveau post existe
+        if (onUpdate) onUpdate(data[0]); 
+        
       } else {
         const { error } = await supabase.from("posts").update(cleanData).eq("id", id);
         if (error) throw error;
       }
       
-      setTimeout(() => window.location.reload(), 1500); // Laisse le temps aux confettis
+      alert("✅ Contenu sauvegardé dans votre historique.");
+      // SUPPRIMER window.location.reload() pour rester sur l'éditeur
+      
     } catch (err) {
       console.error(err);
       alert("Erreur : " + err.message);
     }
-  };
 
   const updateField = (field, value) => {
     if (!currentPost) return;

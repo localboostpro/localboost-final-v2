@@ -6,7 +6,7 @@ import {
   Wand2, Instagram, Facebook, Linkedin,
   Trash2, Lock, ArrowRight, Sparkles,
   Save, RefreshCw, Upload, LayoutList, Calendar as CalendarIcon, 
-  Type, Move, Palette, X, Image as ImageIcon, ChevronLeft, ChevronRight
+  Type, Image as ImageIcon, ChevronLeft, ChevronRight, XCircle
 } from "lucide-react";
 
 // Configuration Visuelle des Plateformes
@@ -24,8 +24,8 @@ const SUGGESTIONS = [
 
 export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
   // États Principaux
-  const [activeTab, setActiveTab] = useState("generator"); // 'generator', 'history', 'editor'
-  const [historyView, setHistoryView] = useState("list"); // 'list' ou 'calendar'
+  const [activeTab, setActiveTab] = useState("generator"); 
+  const [historyView, setHistoryView] = useState("list"); 
   
   // États Générateur
   const [prompt, setPrompt] = useState("");
@@ -41,7 +41,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
       color: "#FFFFFF",
       bg: "rgba(0,0,0,0.5)",
       position: "center", // center, top, bottom
-      fontSize: "normal" // small, normal, large
+      fontSize: "normal" 
   });
 
   // --- PROTECTION BASIC ---
@@ -70,58 +70,63 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
       return platform ? platform.ratio : 'aspect-square';
   };
 
-  // --- LOGIQUE CALENDRIER ---
+  // --- LOGIQUE CALENDRIER SÉCURISÉE ---
   const renderCalendar = () => {
-      const date = new Date();
-      const year = date.getFullYear();
-      const month = date.getMonth();
-      
-      const firstDay = new Date(year, month, 1).getDay(); // Jour de la semaine du 1er (0=Dimanche)
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      
-      // Ajustement pour commencer Lundi (Lundi=1 ... Dimanche=7)
-      const startOffset = firstDay === 0 ? 6 : firstDay - 1; 
-      
-      const days = [];
-      for (let i = 0; i < startOffset; i++) days.push(null); // Cases vides
-      for (let i = 1; i <= daysInMonth; i++) days.push(i);
+      try {
+          const date = new Date();
+          const year = date.getFullYear();
+          const month = date.getMonth();
+          
+          const firstDay = new Date(year, month, 1).getDay(); 
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          
+          const startOffset = firstDay === 0 ? 6 : firstDay - 1; 
+          
+          const days = [];
+          for (let i = 0; i < startOffset; i++) days.push(null); 
+          for (let i = 1; i <= daysInMonth; i++) days.push(i);
 
-      return (
-          <div className="space-y-4">
-              <div className="flex justify-between items-center px-2">
-                  <h3 className="font-bold text-slate-900 capitalize">{date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</h3>
-                  <div className="flex gap-1">
-                      <button className="p-1 hover:bg-slate-100 rounded"><ChevronLeft size={16}/></button>
-                      <button className="p-1 hover:bg-slate-100 rounded"><ChevronRight size={16}/></button>
+          return (
+              <div className="space-y-4">
+                  <div className="flex justify-between items-center px-2">
+                      <h3 className="font-bold text-slate-900 capitalize">{date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</h3>
+                      <div className="flex gap-1">
+                          <button className="p-1 hover:bg-slate-100 rounded"><ChevronLeft size={16}/></button>
+                          <button className="p-1 hover:bg-slate-100 rounded"><ChevronRight size={16}/></button>
+                      </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-2 text-center mb-2">
+                      {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => <div key={d} className="text-[10px] font-bold text-slate-400">{d}</div>)}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                      {days.map((day, idx) => {
+                          if (!day) return <div key={idx}></div>;
+                          
+                          // Filtrage sécurisé des posts
+                          const dayPosts = posts.filter(p => {
+                              if (!p.created_at) return false;
+                              const d = new Date(p.created_at);
+                              return !isNaN(d.getTime()) && d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
+                          });
+
+                          return (
+                              <div key={idx} className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-1 relative hover:border-indigo-300 transition cursor-pointer ${dayPosts.length > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100'}`}>
+                                  <span className={`text-[10px] font-bold ${dayPosts.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{day}</span>
+                                  <div className="flex gap-0.5 mt-1 flex-wrap justify-center px-1">
+                                      {dayPosts.map(p => (
+                                          <div key={p.id} onClick={() => setCurrentPost(p)} className="w-1.5 h-1.5 rounded-full bg-indigo-500" title={p.title || "Post"}></div>
+                                      ))}
+                                  </div>
+                              </div>
+                          );
+                      })}
                   </div>
               </div>
-              <div className="grid grid-cols-7 gap-2 text-center mb-2">
-                  {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => <div key={d} className="text-[10px] font-bold text-slate-400">{d}</div>)}
-              </div>
-              <div className="grid grid-cols-7 gap-2">
-                  {days.map((day, idx) => {
-                      if (!day) return <div key={idx}></div>;
-                      
-                      // Trouver les posts de ce jour
-                      const dayPosts = posts.filter(p => {
-                          const d = new Date(p.created_at);
-                          return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
-                      });
-
-                      return (
-                          <div key={idx} className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-1 relative hover:border-indigo-300 transition cursor-pointer ${dayPosts.length > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100'}`}>
-                              <span className={`text-[10px] font-bold ${dayPosts.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{day}</span>
-                              <div className="flex gap-0.5 mt-1 flex-wrap justify-center px-1">
-                                  {dayPosts.map(p => (
-                                      <div key={p.id} onClick={() => setCurrentPost(p)} className="w-1.5 h-1.5 rounded-full bg-indigo-500" title={p.title}></div>
-                                  ))}
-                              </div>
-                          </div>
-                      );
-                  })}
-              </div>
-          </div>
-      );
+          );
+      } catch (error) {
+          console.error("Erreur calendrier:", error);
+          return <div className="p-4 text-red-500 text-xs">Erreur d'affichage du calendrier.</div>;
+      }
   };
 
   // --- ACTIONS ---
@@ -159,11 +164,12 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
             networks: [activeNetwork],
             created_at: new Date().toISOString(),
             status: 'draft',
-            image_overlay: imageOverlay // On sauvegarde aussi la config de l'image
+            image_overlay: imageOverlay 
         };
         
         setCurrentPost(newPost);
         setGeneratedImage(finalImg);
+        setActiveTab("generator");
       }
     } catch (e) {
       console.error(e);
@@ -176,16 +182,24 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
   const handleSave = async () => {
     if (!currentPost || !profile?.id) return;
     try {
-        const { id, status, ...postData } = currentPost;
-        postData.business_id = profile.id;
-        // On sauvegarde l'overlay dans le contenu si besoin, ou dans une colonne JSON dédiée (ici simplifié)
+        // Préparation propre des données
+        const postData = {
+            business_id: profile.id,
+            title: currentPost.title,
+            content: currentPost.content,
+            image_url: currentPost.image_url,
+            networks: currentPost.networks,
+            status: 'draft',
+            image_overlay: imageOverlay // On sauvegarde l'overlay ici
+        };
         
         const { data, error } = await supabase.from("posts").insert([postData]).select();
+        
         if (error) throw error;
         
         if (onUpdate) onUpdate(data[0]);
         canvasConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        alert("✅ Post enregistré ! Retrouvez-le dans l'historique.");
+        alert("✅ Post enregistré !");
     } catch (err) { alert("Erreur sauvegarde : " + err.message); }
   };
 
@@ -274,7 +288,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                 </div>
             )}
 
-            {/* --- ONGLET ÉDITEUR D'IMAGE (STYLE CANVA SIMPLE) --- */}
+            {/* --- ONGLET ÉDITEUR D'IMAGE --- */}
             {activeTab === 'editor' && (
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
                     <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-4">
@@ -282,20 +296,17 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                         <p className="text-xs text-indigo-700 mt-1">Personnalisez l'image générée.</p>
                     </div>
 
-                    {/* Choix Image */}
                     <div className="flex gap-2 mb-4">
                         <button onClick={() => setImageSource("AI")} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${imageSource === 'AI' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500'}`}>IA</button>
                         <button onClick={() => document.getElementById('upload-input').click()} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${imageSource === 'UPLOAD' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500'}`}>Import</button>
                         <input id="upload-input" type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                     </div>
 
-                    {/* Texte Overlay */}
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Texte sur l'image</label>
                         <input value={imageOverlay.text} onChange={(e) => setImageOverlay({...imageOverlay, text: e.target.value})} placeholder="Ex: -50% CE SOIR !" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"/>
                     </div>
 
-                    {/* Couleur & Position */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Couleur</label>
@@ -319,7 +330,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                 </div>
             )}
 
-            {/* --- ONGLET HISTORIQUE & CALENDRIER --- */}
+            {/* --- ONGLET HISTORIQUE --- */}
             {activeTab === 'history' && (
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
                     <div className="flex justify-between items-center mb-2">
@@ -335,11 +346,11 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                             {posts.length === 0 ? <p className="text-center text-slate-400 text-xs py-8">Aucun post.</p> : 
                              posts.map(post => (
                                 <div key={post.id} onClick={() => setCurrentPost(post)} className="flex gap-3 p-3 rounded-xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 transition items-center">
-                                    <img src={post.image_url} className="w-12 h-12 rounded-lg object-cover bg-slate-100"/>
+                                    <img src={post.image_url} className="w-14 h-14 rounded-lg object-cover bg-slate-100"/>
                                     <div className="flex-1 overflow-hidden">
                                         <div className="font-bold text-sm truncate">{post.title || "Sans titre"}</div>
                                         <div className="text-xs text-slate-500 truncate">
-                                            {new Date(post.created_at).toLocaleDateString()} • {post.networks?.[0] || 'Réseau'}
+                                            {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'Date inconnue'} • {post.networks?.[0] || 'Réseau'}
                                         </div>
                                     </div>
                                     <ArrowRight size={14} className="text-slate-300"/>
@@ -377,11 +388,10 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
                             </div>
                         </div>
 
-                        {/* Image Post avec Overlay (Le fameux éditeur simple) */}
+                        {/* Image Post avec Overlay */}
                         <div className={`w-full bg-slate-100 relative ${getCurrentRatio()} transition-all duration-300 overflow-hidden flex items-center justify-center`}>
                             <img src={currentPost.image_url} className="w-full h-full object-cover" alt="Post"/>
                             
-                            {/* Overlay Texte (Si activé dans l'éditeur) */}
                             {imageOverlay.text && (
                                 <div 
                                     className="absolute w-full text-center p-4"

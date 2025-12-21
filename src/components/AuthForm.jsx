@@ -82,13 +82,14 @@ export default function AuthForm() {
       return;
     }
 
-    // 2. Création du profil
+// 2. Création du profil complet
     if (authData?.user) {
       const { error: profileError } = await supabase
         .from("business_profile")
         .insert([{
           user_id: authData.user.id,
           name: businessName,
+          email: email,
           siret: siret,
           website: website,
           phone: phone,

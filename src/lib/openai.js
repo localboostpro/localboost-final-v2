@@ -1,31 +1,26 @@
-// Fichier : src/lib/openai.js
-
+// src/lib/openai.js
 export async function generatePostContent(prompt, profile) {
-  // Récupération de la clé API
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
 
-  // SÉCURITÉ : Si pas de clé, on ne fait pas planter l'app, on retourne null
   if (!apiKey) {
-    console.warn("⚠️ Clé API OpenAI manquante dans le fichier .env");
-    return {
-      title: "Mode Démo",
-      content: "Impossible de générer le texte car la clé API OpenAI n'est pas configurée. Veuillez ajouter VITE_OPENAI_API_KEY dans votre fichier .env.",
-      image_keyword: "error 404 computer"
-    };
+    console.warn("⚠️ Clé API OpenAI manquante");
+    return createFallbackResponse("Clé API manquante");
   }
 
-  // Configuration du Prompt Système
-  const systemPrompt = `Tu es un expert en social media marketing.
-  Ton client est : ${profile?.name || "Une entreprise locale"}.
-  Ville : ${profile?.city || "France"}.
-  
-  Tâche : Rédige un post court, engageant et professionnel.
-  Format de réponse OBLIGATOIRE en JSON :
+  // System prompt amélioré pour les réseaux sociaux
+  const systemPrompt = `Tu es un expert en marketing digital pour les commerces locaux.
+  Règles strictes:
+  1. Toujours répondre en JSON valide avec cette structure:
   {
-    "title": "Titre interne",
-    "content": "Le texte du post ici avec des emojis",
-    "image_keyword": "Description visuelle en anglais pour générer une image"
-  }`;
+    "title": "Titre accrocheur (max 50 caractères)",
+    "content": "Contenu optimisé avec emojis (max 280 caractères)",
+    "hashtags": ["#Hashtag1", "#Hashtag2"],
+    "image_keyword": "Description visuelle en anglais (4-5 mots)",
+    "platform_tips": "Conseil spécifique à la plateforme"
+  }
+  2. Adapter le ton selon la plateforme (Instagram: décontracté, LinkedIn: professionnel)
+  3. Toujours inclure 2-3 hashtags pertinents en français
+  4. Pour ${profile?.name || "ce commerce"} à ${profile?.city || "votre ville"}`;
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -35,44 +30,51 @@ export async function generatePostContent(prompt, profile) {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo", 
+        model: "gpt-3.5-turbo",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt }
         ],
-        temperature: 0.7,
+        temperature: 0.8, // Légèrement plus créatif
       }),
     });
 
     const data = await response.json();
 
-    // Gestion des erreurs renvoyées par OpenAI (ex: quota dépassé)
     if (data.error) {
-      console.error("Erreur OpenAI API:", data.error);
-      throw new Error(data.error.message);
+      console.error("Erreur OpenAI:", data.error);
+      return createFallbackResponse(data.error.message);
     }
 
-    const jsonContent = data.choices[0].message.content;
-    
-    // Tentative de lecture du JSON
     try {
-      return JSON.parse(jsonContent);
+      return JSON.parse(data.choices[0].message.content);
     } catch (e) {
-      // Si l'IA n'a pas renvoyé du JSON propre, on renvoie le texte brut
+      console.warn("Réponse non-JSON:", data.choices[0].message.content);
       return {
         title: "Nouveau Post",
-        content: jsonContent,
-        image_keyword: "business success"
+        content: data.choices[0].message.content,
+        hashtags: ["#Local", "#Business"],
+        image_keyword: "business marketing",
+        platform_tips: "Vérifiez le format du contenu"
       };
     }
-
   } catch (error) {
-    console.error("Erreur critique OpenAI:", error);
-    // On retourne un objet par défaut pour ne pas faire crasher l'interface
-    return {
-      title: "Erreur IA",
-      content: "Une erreur est survenue lors de la génération. Vérifiez votre connexion ou votre clé API.",
-      image_keyword: "network error"
-    };
+    console.error("Erreur réseau:", error);
+    return createFallbackResponse(error.message);
   }
+}
+
+function createFallbackResponse(error) {
+  return {
+    title: "Mode Démo",
+    content: `Impossible de générer le contenu: ${error}. Voici un exemple:
+    🌟 Découvrez nos nouvelles collections été!
+    💥 -20% cette semaine seulement
+    📍 ${Math.random() > 0.5 ? 'En magasin' : 'En ligne'}
+
+    #Promo #Été2023`,
+    hashtags: ["#Promo", "#Été"],
+    image_keyword: "summer sale",
+    platform_tips: "Publiez entre 18h-20h pour plus d'engagement"
+  };
 }

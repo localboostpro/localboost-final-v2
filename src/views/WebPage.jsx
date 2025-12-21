@@ -1,34 +1,24 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { 
-  Globe, Save, Lock, ArrowRight, 
-  Clock, MapPin, Phone, Layout
-} from "lucide-react";
+import { Globe, Save, Lock, ArrowRight, Clock, MapPin, Phone, Layout, AlertCircle } from "lucide-react";
 
 export default function WebPage({ profile, setProfile }) {
   const [loading, setLoading] = useState(false);
   
-  // Config par défaut si vide
+  // On récupère les horaires du profil (ou un tableau vide par sécurité)
+  const hours = profile?.landing_config?.hours || [];
+
   const defaultConfig = {
     title: profile?.name || "",
     description: "Bienvenue dans notre établissement.",
     primaryColor: "#4F46E5",
     coverImage: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=800&q=80",
-    hours: [
-      { day: "Lundi", open: "09:00", close: "18:00", closed: false },
-      { day: "Mardi", open: "09:00", close: "18:00", closed: false },
-      { day: "Mercredi", open: "09:00", close: "18:00", closed: false },
-      { day: "Jeudi", open: "09:00", close: "18:00", closed: false },
-      { day: "Vendredi", open: "09:00", close: "18:00", closed: false },
-      { day: "Samedi", open: "10:00", close: "17:00", closed: false },
-      { day: "Dimanche", open: "", close: "", closed: true },
-    ]
+    // Plus besoin de "hours" ici, on lit celles du profil
   };
 
   const [config, setConfig] = useState({ ...defaultConfig, ...profile?.landing_config });
   const [isPublished, setIsPublished] = useState(profile?.is_published || false);
 
-  // PROTECTION BASIC
   if (profile?.subscription_tier === 'basic') {
     return (
       <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl relative overflow-hidden animate-in fade-in">
@@ -38,9 +28,7 @@ export default function WebPage({ profile, setProfile }) {
                 <Globe size={48} className="text-indigo-400"/>
             </div>
             <h2 className="text-3xl font-black mb-4">Votre Site Vitrine</h2>
-            <p className="text-slate-300 mb-8">
-                Activez votre page web optimisée pour le référencement local.
-            </p>
+            <p className="text-slate-300 mb-8">Activez votre page web optimisée pour le référencement local.</p>
             <button onClick={() => alert("Passez Premium via 'Mon Profil'")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all shadow-lg">
                 Activer ma Page <ArrowRight size={20}/>
             </button>
@@ -52,19 +40,20 @@ export default function WebPage({ profile, setProfile }) {
   const handleSave = async () => {
       setLoading(true);
       try {
-          const { error } = await supabase.from("business_profile")
-            .update({ landing_config: config, is_published: isPublished })
-            .eq("id", profile.id);
-          if(error) throw error;
-          setProfile({ ...profile, landing_config: config, is_published: isPublished });
-          alert("✅ Modifications enregistrées !");
-      } catch (err) { alert("Erreur: " + err.message); } finally { setLoading(false); }
-  };
+          // On sauvegarde la config (sans les horaires qui sont gérés ailleurs, mais on garde le reste)
+          const newLandingConfig = { 
+              ...profile.landing_config, // on garde les horaires s'ils y sont
+              ...config // on écrase avec les nouvelles couleurs/textes
+          };
 
-  const updateHour = (index, field, value) => {
-      const newHours = [...config.hours];
-      newHours[index][field] = value;
-      setConfig({ ...config, hours: newHours });
+          const { error } = await supabase.from("business_profile")
+            .update({ landing_config: newLandingConfig, is_published: isPublished })
+            .eq("id", profile.id);
+          
+          if(error) throw error;
+          setProfile({ ...profile, landing_config: newLandingConfig, is_published: isPublished });
+          alert("✅ Design enregistré !");
+      } catch (err) { alert("Erreur: " + err.message); } finally { setLoading(false); }
   };
 
   return (
@@ -75,7 +64,7 @@ export default function WebPage({ profile, setProfile }) {
           <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
              <div>
                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-2"><Layout className="text-indigo-600"/> Éditeur Web</h2>
-                 <p className="text-sm text-slate-500">Configurez votre vitrine digitale.</p>
+                 <p className="text-sm text-slate-500">Personnalisez l'apparence de votre site.</p>
              </div>
              <div className="flex items-center gap-3">
                  <button onClick={() => setIsPublished(!isPublished)} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${isPublished ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
@@ -88,21 +77,31 @@ export default function WebPage({ profile, setProfile }) {
           </div>
 
           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
-              <h3 className="font-bold text-lg border-b pb-4 mb-4">Contenu</h3>
+              <h3 className="font-bold text-lg border-b pb-4 mb-4">Design & Contenu</h3>
+              
+              {/* Note pour l'utilisateur */}
+              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
+                  <AlertCircle size={20} className="text-indigo-600 shrink-0 mt-0.5"/>
+                  <div>
+                      <p className="text-xs font-bold text-indigo-800 mb-1">Où sont les horaires ?</p>
+                      <p className="text-xs text-indigo-600">Les horaires d'ouverture se gèrent désormais directement dans la rubrique <strong>"Mon Profil"</strong>. Ils seront automatiquement affichés sur votre site web.</p>
+                  </div>
+              </div>
+
               <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Titre</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Titre du site</label>
                   <input value={config.title} onChange={e => setConfig({...config, title: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold outline-none focus:ring-2 ring-indigo-500"/>
               </div>
               <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Description</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Message d'accueil</label>
                   <textarea value={config.description} onChange={e => setConfig({...config, description: e.target.value})} rows={4} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
               </div>
               <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Image (URL)</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Image de couverture (Lien)</label>
                   <input value={config.coverImage} onChange={e => setConfig({...config, coverImage: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:ring-2 ring-indigo-500"/>
               </div>
               <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Couleur</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Thème couleur</label>
                   <div className="flex gap-3">
                       {["#4F46E5", "#059669", "#DC2626", "#D97706", "#000000"].map(color => (
                           <button key={color} onClick={() => setConfig({...config, primaryColor: color})} className={`w-8 h-8 rounded-full border-2 ${config.primaryColor === color ? "border-slate-900 scale-110" : "border-transparent"}`} style={{backgroundColor: color}}/>
@@ -110,30 +109,9 @@ export default function WebPage({ profile, setProfile }) {
                   </div>
               </div>
           </div>
-
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <h3 className="font-bold text-lg border-b pb-4 mb-4 flex items-center gap-2"><Clock size={18}/> Horaires</h3>
-              <div className="space-y-3">
-                  {config.hours.map((h, i) => (
-                      <div key={i} className="flex items-center gap-4 text-sm">
-                          <div className="w-24 font-bold text-slate-700">{h.day}</div>
-                          <div className="flex-1 flex gap-2 items-center">
-                              {!h.closed ? (
-                                  <>
-                                    <input type="time" value={h.open} onChange={e => updateHour(i, 'open', e.target.value)} className="bg-slate-50 border rounded-lg p-1 text-xs font-bold"/>
-                                    <span className="text-slate-400">-</span>
-                                    <input type="time" value={h.close} onChange={e => updateHour(i, 'close', e.target.value)} className="bg-slate-50 border rounded-lg p-1 text-xs font-bold"/>
-                                  </>
-                              ) : <span className="text-slate-400 text-xs italic bg-slate-50 px-3 py-1 rounded-lg w-full text-center">Fermé</span>}
-                          </div>
-                          <button onClick={() => updateHour(i, 'closed', !h.closed)} className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition ${h.closed ? "bg-rose-100 text-rose-600" : "bg-green-100 text-green-600"}`}>{h.closed ? "Fermé" : "Ouvert"}</button>
-                      </div>
-                  ))}
-              </div>
-          </div>
       </div>
 
-      {/* PRÉVISUALISATION MOBILE */}
+      {/* PRÉVISUALISATION */}
       <div className="w-full lg:w-[400px] bg-slate-100 rounded-[2.5rem] border p-8 flex flex-col items-center shrink-0 overflow-y-auto min-h-[600px] shadow-inner">
           <h3 className="font-black text-slate-900 mb-6 text-center">Aperçu Mobile</h3>
           <div className="w-full max-w-[320px] bg-white rounded-[2rem] border-8 border-slate-900 shadow-2xl overflow-hidden min-h-[600px] flex flex-col relative">
@@ -151,7 +129,19 @@ export default function WebPage({ profile, setProfile }) {
                       <button className="flex-1 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><MapPin size={12}/> Y aller</button>
                   </div>
                   <div className="mb-6"><h3 className="font-bold text-sm text-slate-900 mb-2">À propos</h3><p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{config.description}</p></div>
-                  <div className="bg-slate-50 rounded-xl p-4"><h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-2"><Clock size={14}/> Horaires</h3><div className="space-y-2">{config.hours.map((h, i) => (<div key={i} className="flex justify-between text-xs border-b border-slate-200 pb-1 last:border-0 last:pb-0"><span className="text-slate-500">{h.day.slice(0,3)}</span><span className="font-bold text-slate-800">{h.closed ? "Fermé" : `${h.open} - ${h.close}`}</span></div>))}</div></div>
+                  
+                  {/* AFFICHAGE DES HORAIRES DU PROFIL */}
+                  <div className="bg-slate-50 rounded-xl p-4">
+                      <h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-2"><Clock size={14}/> Horaires</h3>
+                      <div className="space-y-2">
+                        {hours.length > 0 ? hours.map((h, i) => (
+                           <div key={i} className="flex justify-between text-xs border-b border-slate-200 pb-1 last:border-0 last:pb-0">
+                               <span className="text-slate-500">{h.day.slice(0,3)}</span>
+                               <span className="font-bold text-slate-800">{h.closed ? "Fermé" : `${h.open} - ${h.close}`}</span>
+                           </div>
+                        )) : <div className="text-xs text-slate-400 italic">Aucun horaire défini.</div>}
+                      </div>
+                  </div>
               </div>
               <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-bold">Propulsé par LocalBoost Pro</div>
           </div>

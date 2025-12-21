@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { 
   User, MapPin, Save, Upload, Image as ImageIcon, 
-  Phone, Globe, Building, Lock, Key, Clock
+  Phone, Globe, Building, Lock, Key, Clock, 
+  CreditCard, CheckCircle, AlertTriangle
 } from "lucide-react";
 
 export default function Profile({ profile, setProfile }) {
   const [loading, setLoading] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
+  const [subLoading, setSubLoading] = useState(false); // Chargement pour l'abonnement
   
   // Données du Profil
   const [formData, setFormData] = useState({
@@ -22,7 +24,6 @@ export default function Profile({ profile, setProfile }) {
   });
 
   // Gestion des Horaires (Format JSON)
-  // Si pas d'horaires, on met des valeurs par défaut
   const defaultHours = [
       { day: "Lundi", open: "09:00", close: "18:00", closed: false },
       { day: "Mardi", open: "09:00", close: "18:00", closed: false },
@@ -33,21 +34,59 @@ export default function Profile({ profile, setProfile }) {
       { day: "Dimanche", open: "", close: "", closed: true },
   ];
   
-  // On suppose que les horaires sont stockés dans 'landing_config' pour l'instant (ou une colonne dédiée 'opening_hours')
-  // Pour faire simple et compatible avec ce qu'on a fait avant, on va les stocker dans landing_config.hours
   const [hours, setHours] = useState(profile?.landing_config?.hours || defaultHours);
-
-  // Données du Mot de Passe
   const [passData, setPassData] = useState({ newPassword: "", confirmPassword: "" });
+
+  // Calcul des jours d'essai restants
+  const creationDate = new Date(profile?.created_at || Date.now());
+  const diffTime = Math.abs(Date.now() - creationDate);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  const trialDaysLeft = 7 - diffDays;
+  const isTrial = diffDays <= 7;
+
+  // --- CHANGEMENT D'ABONNEMENT (Simulation Paiement) ---
+  const handleUpgrade = async () => {
+      if(!window.confirm("Simuler le paiement et passer en PREMIUM ?")) return;
+      
+      setSubLoading(true);
+      try {
+          // ICI : C'est là qu'on branchera Stripe plus tard
+          // Pour l'instant, on change juste le statut en base de données
+          const { error } = await supabase.from("business_profile")
+              .update({ subscription_tier: 'premium' })
+              .eq("id", profile.id);
+
+          if (error) throw error;
+
+          setProfile({ ...profile, subscription_tier: 'premium' });
+          alert("🎉 Félicitations ! Vous êtes maintenant Premium.");
+      } catch (error) {
+          alert("Erreur : " + error.message);
+      } finally {
+          setSubLoading(false);
+      }
+  };
+
+  const handleDowngrade = async () => {
+      if(!window.confirm("Êtes-vous sûr de vouloir repasser en Basic ?")) return;
+      setSubLoading(true);
+      try {
+          const { error } = await supabase.from("business_profile")
+              .update({ subscription_tier: 'basic' })
+              .eq("id", profile.id);
+          if (error) throw error;
+          setProfile({ ...profile, subscription_tier: 'basic' });
+          alert("Vous êtes repassé en forfait Basic.");
+      } catch (error) { alert("Erreur : " + error.message); } 
+      finally { setSubLoading(false); }
+  };
 
   // --- MISE À JOUR DU PROFIL ---
   const handleUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-        // On met à jour les infos classiques ET les horaires (dans landing_config)
         const updatedConfig = { ...profile?.landing_config, hours: hours };
-
         const { error } = await supabase.from("business_profile").update({
             name: formData.name,
             phone: formData.phone,
@@ -56,18 +95,14 @@ export default function Profile({ profile, setProfile }) {
             zip_code: formData.zip_code,
             website: formData.website,
             siret: formData.siret,
-            landing_config: updatedConfig // Sauvegarde des horaires ici
+            landing_config: updatedConfig 
         }).eq("id", profile.id);
 
         if (error) throw error;
-        
         setProfile({ ...profile, ...formData, landing_config: updatedConfig });
         alert("✅ Informations et horaires mis à jour !");
-    } catch (error) {
-        alert("Erreur : " + error.message);
-    } finally {
-        setLoading(false);
-    }
+    } catch (error) { alert("Erreur : " + error.message); } 
+    finally { setLoading(false); }
   };
 
   const updateHour = (index, field, value) => {
@@ -88,11 +123,8 @@ export default function Profile({ profile, setProfile }) {
           if (error) throw error;
           alert("🔒 Mot de passe modifié avec succès !");
           setPassData({ newPassword: "", confirmPassword: "" });
-      } catch (error) {
-          alert("Erreur : " + error.message);
-      } finally {
-          setPassLoading(false);
-      }
+      } catch (error) { alert("Erreur : " + error.message); } 
+      finally { setPassLoading(false); }
   };
 
   // --- UPLOAD LOGO ---
@@ -104,18 +136,12 @@ export default function Profile({ profile, setProfile }) {
           const fileName = `logos/${profile.id}_${Date.now()}`;
           const { error: uploadError } = await supabase.storage.from("user_uploads").upload(fileName, file);
           if (uploadError) throw uploadError;
-
           const { data: { publicUrl } } = supabase.storage.from("user_uploads").getPublicUrl(fileName);
           await supabase.from("business_profile").update({ logo_url: publicUrl }).eq("id", profile.id);
-          
           setProfile({ ...profile, logo_url: publicUrl });
           alert("✅ Logo ajouté !");
-      } catch (error) {
-          console.error(error);
-          alert("Erreur lors de l'upload.");
-      } finally {
-          setLoading(false);
-      }
+      } catch (error) { alert("Erreur lors de l'upload."); } 
+      finally { setLoading(false); }
   };
 
   return (
@@ -130,14 +156,15 @@ export default function Profile({ profile, setProfile }) {
              <h2 className="text-2xl font-black text-slate-900">Mon Établissement</h2>
              <p className="text-slate-500 text-sm">Gérez votre identité commerciale et vos accès.</p>
          </div>
-         <div className="ml-auto px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full font-bold text-xs uppercase tracking-wide border border-indigo-100 hidden md:block">
-             Compte {profile?.subscription_tier}
+         {/* Badge Forfait */}
+         <div className={`ml-auto px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wide border hidden md:block ${profile?.subscription_tier === 'premium' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+             {profile?.subscription_tier === 'premium' ? '💎 Premium' : '⭐ Basic'}
          </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* COLONNE GAUCHE : INFOS GÉNÉRALES + HORAIRES */}
+          {/* COLONNE GAUCHE : INFOS + HORAIRES */}
           <div className="lg:col-span-2 space-y-8">
               <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                   <h3 className="font-black text-lg mb-6 flex items-center gap-2"><Building size={20} className="text-indigo-600"/> Informations Générales</h3>
@@ -169,7 +196,6 @@ export default function Profile({ profile, setProfile }) {
                                   <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
                               </div>
                           </div>
-                          
                           <div>
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">SIRET</label>
                               <div className="relative">
@@ -177,7 +203,6 @@ export default function Profile({ profile, setProfile }) {
                                   <input value={formData.siret} onChange={e => setFormData({...formData, siret: e.target.value})} placeholder="14 chiffres" className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
                               </div>
                           </div>
-
                           <div>
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Site Web</label>
                               <div className="relative">
@@ -197,17 +222,14 @@ export default function Profile({ profile, setProfile }) {
                                   <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="10 rue de la République" className="w-full pl-10 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
                               </div>
                           </div>
-
                           <div>
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Code Postal</label>
                               <input value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} placeholder="75001" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
                           </div>
-
                           <div>
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Ville</label>
                               <input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} placeholder="Paris" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/>
                           </div>
-                          
                           <div className="md:col-span-2">
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Téléphone public</label>
                               <div className="relative">
@@ -217,7 +239,6 @@ export default function Profile({ profile, setProfile }) {
                           </div>
                       </div>
 
-                      {/* --- SECTION HORAIRES (AJOUTÉE) --- */}
                       <hr className="border-slate-100"/>
                       
                       <div>
@@ -237,11 +258,7 @@ export default function Profile({ profile, setProfile }) {
                                               <span className="text-slate-400 text-xs italic bg-white px-3 py-2 rounded-lg w-full text-center border border-slate-100">Fermé toute la journée</span>
                                           )}
                                       </div>
-                                      <button 
-                                        type="button"
-                                        onClick={() => updateHour(index, 'closed', !h.closed)}
-                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition w-full sm:w-auto ${h.closed ? "bg-rose-100 text-rose-600 hover:bg-rose-200" : "bg-green-100 text-green-600 hover:bg-green-200"}`}
-                                      >
+                                      <button type="button" onClick={() => updateHour(index, 'closed', !h.closed)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition w-full sm:w-auto ${h.closed ? "bg-rose-100 text-rose-600 hover:bg-rose-200" : "bg-green-100 text-green-600 hover:bg-green-200"}`}>
                                          {h.closed ? "Fermé" : "Ouvert"}
                                       </button>
                                   </div>
@@ -256,14 +273,58 @@ export default function Profile({ profile, setProfile }) {
               </div>
           </div>
 
-          {/* COLONNE DROITE : SÉCURITÉ */}
+          {/* COLONNE DROITE : ABONNEMENT & SÉCURITÉ */}
           <div className="space-y-6">
+              
+              {/* --- CARTE MON ABONNEMENT (NOUVEAU) --- */}
+              <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl"></div>
+                  
+                  <h3 className="font-black text-lg mb-4 flex items-center gap-2 relative z-10">
+                      <CreditCard size={20} className="text-indigo-400"/> Mon Abonnement
+                  </h3>
+                  
+                  <div className="mb-6 relative z-10">
+                      <div className="text-sm text-slate-400 mb-1">Forfait actuel</div>
+                      <div className="text-2xl font-black flex items-center gap-2">
+                          {profile?.subscription_tier === 'premium' ? '💎 Premium' : '⭐ Basic'}
+                          {profile?.subscription_tier === 'premium' && <CheckCircle size={20} className="text-green-400"/>}
+                      </div>
+                      {/* Affichage Essai */}
+                      {isTrial && profile?.subscription_tier === 'premium' && (
+                          <div className="mt-2 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg inline-flex items-center gap-2">
+                              <Clock size={12}/> Essai gratuit : J-{trialDaysLeft}
+                          </div>
+                      )}
+                      {!isTrial && profile?.subscription_tier === 'basic' && (
+                          <div className="mt-2 text-xs font-bold text-rose-300 flex items-center gap-2">
+                              <AlertTriangle size={12}/> Essai terminé
+                          </div>
+                      )}
+                  </div>
+
+                  {/* Actions Abonnement */}
+                  <div className="relative z-10">
+                      {profile?.subscription_tier === 'basic' ? (
+                          <button onClick={handleUpgrade} disabled={subLoading} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-900/50">
+                              {subLoading ? "..." : "Passer Premium (99€/mois)"}
+                          </button>
+                      ) : (
+                          <button onClick={handleDowngrade} disabled={subLoading} className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition">
+                              {subLoading ? "..." : "Gérer / Résilier"}
+                          </button>
+                      )}
+                  </div>
+              </div>
+
+              {/* Carte Email */}
               <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm opacity-70">
                   <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-500"><Lock size={16}/> Identifiant de connexion</h3>
                   <input disabled value={formData.email} className="w-full p-3 bg-slate-100 border border-slate-100 rounded-xl font-bold text-sm text-slate-500 cursor-not-allowed"/>
                   <p className="text-[10px] text-slate-400 mt-2">Contactez le support pour changer d'email.</p>
               </div>
 
+              {/* Carte Mot de Passe */}
               <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                   <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-slate-900"><Key size={20} className="text-amber-500"/> Sécurité</h3>
                   <form onSubmit={handleChangePassword} className="space-y-4">
@@ -280,6 +341,7 @@ export default function Profile({ profile, setProfile }) {
                       </button>
                   </form>
               </div>
+
           </div>
       </div>
     </div>

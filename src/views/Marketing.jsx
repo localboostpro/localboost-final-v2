@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { generatePostContent } from "../lib/openai";
 import canvasConfetti from "canvas-confetti";
+// CORRECTION ICI : J'ai ajouté 'Sparkles' dans la liste ci-dessous
 import {
   Wand2, Instagram, Facebook, Linkedin,
   Trash2, Lock, ArrowRight, X, LayoutList, 
   Calendar as CalendarIcon, Eye, PenTool,
-  Megaphone, MapPin, Smartphone, Image as ImageIcon, Upload
+  Megaphone, MapPin, Smartphone, Image as ImageIcon, Upload, Sparkles
 } from "lucide-react";
 
 export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {

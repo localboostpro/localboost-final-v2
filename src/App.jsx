@@ -6,6 +6,7 @@ import Dashboard from "./views/Dashboard";
 import Marketing from "./views/Marketing";
 import Reviews from "./views/Reviews";
 import Customers from "./views/Customers";
+import WebPage from "./views/WebPage";
 import Profile from "./views/Profile";
 import Promotions from "./views/Promotions";
 import Admin from "./views/Admin";
@@ -220,6 +221,7 @@ export default function App() {
           {activeTab === "generator" && <Marketing posts={posts} currentPost={currentPost} setCurrentPost={setCurrentPost} profile={profile} onUpdate={handlePostUpdate} />}
           {activeTab === "reviews" && <Reviews reviews={reviews} />}
           {activeTab === "customers" && <Customers customers={customers} />}
+          {activeTab === "webpage" && <WebPage profile={profile} setProfile={setProfile} />}
           {activeTab === "profile" && <Profile profile={profile} setProfile={setProfile} />}
           {activeTab === "promotions" && <Promotions />}
           

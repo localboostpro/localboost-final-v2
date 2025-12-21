@@ -27,7 +27,6 @@ export default function Customers({ customers }) {
     e.preventDefault();
     try {
         if (isEditing) {
-            // MODE MODIFICATION
             const { error } = await supabase
                 .from("customers")
                 .update({
@@ -38,12 +37,11 @@ export default function Customers({ customers }) {
             if (error) throw error;
             alert("✅ Client modifié !");
         } else {
-            // MODE CRÉATION
             const { data: { user } } = await supabase.auth.getUser();
             const { data: profile } = await supabase.from("business_profile").select("id").eq("user_id", user.id).single();
             
             if (profile) {
-                const { id, ...dataToInsert } = formData; // On retire l'ID null
+                const { id, ...dataToInsert } = formData;
                 const { error } = await supabase.from("customers").insert([{ ...dataToInsert, business_id: profile.id }]);
                 if (error) throw error;
                 alert("✅ Client ajouté !");
@@ -62,7 +60,6 @@ export default function Customers({ customers }) {
       if(!error) window.location.reload();
   };
 
-  // Actions rapides
   const sendEmail = (email) => window.open(`mailto:${email}`);
   const callPhone = (phone) => window.open(`tel:${phone}`);
 
@@ -71,7 +68,7 @@ export default function Customers({ customers }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
-      {/* HEADER */}
+      {/* HEADER CORRIGÉ & TRADUIT */}
       <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm gap-4">
          <div>
             <h3 className="text-xl font-black text-slate-900 flex items-center gap-2"><Users className="text-indigo-600"/> Fichier Clients</h3>
@@ -82,7 +79,6 @@ export default function Customers({ customers }) {
          </button>
       </div>
 
-      {/* MODALE (ADD/EDIT) */}
       {showModal && (
           <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
               <div className="bg-white p-8 rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in-95">
@@ -108,10 +104,7 @@ export default function Customers({ customers }) {
           </div>
       )}
 
-      {/* LISTE TABLEAU */}
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-        
-        {/* BARRE DE RECHERCHE */}
         <div className="p-4 border-b border-slate-50 bg-slate-50/30">
            <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
@@ -119,7 +112,6 @@ export default function Customers({ customers }) {
            </div>
         </div>
 
-        {/* TABLEAU */}
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-400 text-xs uppercase font-black">

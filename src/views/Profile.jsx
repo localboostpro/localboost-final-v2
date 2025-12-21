@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { 
   User, MapPin, Save, Upload, Image as ImageIcon, 
-  Phone, Globe, Building, Lock, Key 
+  Phone, Globe, Building, Lock, Key, Clock
 } from "lucide-react";
 
 export default function Profile({ profile, setProfile }) {
@@ -21,6 +21,22 @@ export default function Profile({ profile, setProfile }) {
     siret: profile?.siret || "",
   });
 
+  // Gestion des Horaires (Format JSON)
+  // Si pas d'horaires, on met des valeurs par défaut
+  const defaultHours = [
+      { day: "Lundi", open: "09:00", close: "18:00", closed: false },
+      { day: "Mardi", open: "09:00", close: "18:00", closed: false },
+      { day: "Mercredi", open: "09:00", close: "18:00", closed: false },
+      { day: "Jeudi", open: "09:00", close: "18:00", closed: false },
+      { day: "Vendredi", open: "09:00", close: "18:00", closed: false },
+      { day: "Samedi", open: "10:00", close: "17:00", closed: false },
+      { day: "Dimanche", open: "", close: "", closed: true },
+  ];
+  
+  // On suppose que les horaires sont stockés dans 'landing_config' pour l'instant (ou une colonne dédiée 'opening_hours')
+  // Pour faire simple et compatible avec ce qu'on a fait avant, on va les stocker dans landing_config.hours
+  const [hours, setHours] = useState(profile?.landing_config?.hours || defaultHours);
+
   // Données du Mot de Passe
   const [passData, setPassData] = useState({ newPassword: "", confirmPassword: "" });
 
@@ -29,6 +45,9 @@ export default function Profile({ profile, setProfile }) {
     e.preventDefault();
     setLoading(true);
     try {
+        // On met à jour les infos classiques ET les horaires (dans landing_config)
+        const updatedConfig = { ...profile?.landing_config, hours: hours };
+
         const { error } = await supabase.from("business_profile").update({
             name: formData.name,
             phone: formData.phone,
@@ -36,18 +55,25 @@ export default function Profile({ profile, setProfile }) {
             city: formData.city,
             zip_code: formData.zip_code,
             website: formData.website,
-            siret: formData.siret
+            siret: formData.siret,
+            landing_config: updatedConfig // Sauvegarde des horaires ici
         }).eq("id", profile.id);
 
         if (error) throw error;
         
-        setProfile({ ...profile, ...formData });
-        alert("✅ Informations mises à jour !");
+        setProfile({ ...profile, ...formData, landing_config: updatedConfig });
+        alert("✅ Informations et horaires mis à jour !");
     } catch (error) {
         alert("Erreur : " + error.message);
     } finally {
         setLoading(false);
     }
+  };
+
+  const updateHour = (index, field, value) => {
+      const newHours = [...hours];
+      newHours[index][field] = value;
+      setHours(newHours);
   };
 
   // --- CHANGEMENT DE MOT DE PASSE ---
@@ -93,7 +119,7 @@ export default function Profile({ profile, setProfile }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       
       {/* HEADER */}
       <div className="flex items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
@@ -111,7 +137,7 @@ export default function Profile({ profile, setProfile }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* COLONNE GAUCHE : INFOS GÉNÉRALES */}
+          {/* COLONNE GAUCHE : INFOS GÉNÉRALES + HORAIRES */}
           <div className="lg:col-span-2 space-y-8">
               <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                   <h3 className="font-black text-lg mb-6 flex items-center gap-2"><Building size={20} className="text-indigo-600"/> Informations Générales</h3>
@@ -191,6 +217,38 @@ export default function Profile({ profile, setProfile }) {
                           </div>
                       </div>
 
+                      {/* --- SECTION HORAIRES (AJOUTÉE) --- */}
+                      <hr className="border-slate-100"/>
+                      
+                      <div>
+                          <h4 className="font-bold text-sm text-slate-900 mb-4 flex items-center gap-2"><Clock size={16}/> Horaires d'ouverture</h4>
+                          <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                              {hours.map((h, index) => (
+                                  <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm">
+                                      <div className="w-24 font-bold text-slate-700">{h.day}</div>
+                                      <div className="flex-1 flex gap-2 items-center w-full sm:w-auto">
+                                          {!h.closed ? (
+                                              <>
+                                                <input type="time" value={h.open} onChange={e => updateHour(index, 'open', e.target.value)} className="bg-white border rounded-lg p-2 text-xs font-bold w-full sm:w-auto"/>
+                                                <span className="text-slate-400">-</span>
+                                                <input type="time" value={h.close} onChange={e => updateHour(index, 'close', e.target.value)} className="bg-white border rounded-lg p-2 text-xs font-bold w-full sm:w-auto"/>
+                                              </>
+                                          ) : (
+                                              <span className="text-slate-400 text-xs italic bg-white px-3 py-2 rounded-lg w-full text-center border border-slate-100">Fermé toute la journée</span>
+                                          )}
+                                      </div>
+                                      <button 
+                                        type="button"
+                                        onClick={() => updateHour(index, 'closed', !h.closed)}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition w-full sm:w-auto ${h.closed ? "bg-rose-100 text-rose-600 hover:bg-rose-200" : "bg-green-100 text-green-600 hover:bg-green-200"}`}
+                                      >
+                                         {h.closed ? "Fermé" : "Ouvert"}
+                                      </button>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+
                       <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-lg">
                           {loading ? "Enregistrement..." : <><Save size={18}/> Enregistrer les modifications</>}
                       </button>
@@ -200,15 +258,12 @@ export default function Profile({ profile, setProfile }) {
 
           {/* COLONNE DROITE : SÉCURITÉ */}
           <div className="space-y-6">
-              
-              {/* Carte Email (Lecture seule) */}
               <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm opacity-70">
                   <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-500"><Lock size={16}/> Identifiant de connexion</h3>
                   <input disabled value={formData.email} className="w-full p-3 bg-slate-100 border border-slate-100 rounded-xl font-bold text-sm text-slate-500 cursor-not-allowed"/>
                   <p className="text-[10px] text-slate-400 mt-2">Contactez le support pour changer d'email.</p>
               </div>
 
-              {/* Carte Changement de Mot de Passe */}
               <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                   <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-slate-900"><Key size={20} className="text-amber-500"/> Sécurité</h3>
                   <form onSubmit={handleChangePassword} className="space-y-4">
@@ -225,7 +280,6 @@ export default function Profile({ profile, setProfile }) {
                       </button>
                   </form>
               </div>
-
           </div>
       </div>
     </div>

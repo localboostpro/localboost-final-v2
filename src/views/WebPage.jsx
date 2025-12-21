@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Globe, Save, Lock, ArrowRight, Clock, MapPin, Phone, Layout, AlertCircle } from "lucide-react";
+import { Globe, Save, ArrowRight, Clock, MapPin, Phone, Layout, AlertCircle } from "lucide-react";
 
 export default function WebPage({ profile, setProfile }) {
   const [loading, setLoading] = useState(false);
   
-  // On récupère les horaires du profil (ou un tableau vide par sécurité)
+  // On récupère les horaires depuis le profil (lecture seule ici)
   const hours = profile?.landing_config?.hours || [];
 
   const defaultConfig = {
@@ -13,12 +13,12 @@ export default function WebPage({ profile, setProfile }) {
     description: "Bienvenue dans notre établissement.",
     primaryColor: "#4F46E5",
     coverImage: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=800&q=80",
-    // Plus besoin de "hours" ici, on lit celles du profil
   };
 
   const [config, setConfig] = useState({ ...defaultConfig, ...profile?.landing_config });
   const [isPublished, setIsPublished] = useState(profile?.is_published || false);
 
+  // --- PROTECTION BASIC ---
   if (profile?.subscription_tier === 'basic') {
     return (
       <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl relative overflow-hidden animate-in fade-in">
@@ -28,7 +28,10 @@ export default function WebPage({ profile, setProfile }) {
                 <Globe size={48} className="text-indigo-400"/>
             </div>
             <h2 className="text-3xl font-black mb-4">Votre Site Vitrine</h2>
-            <p className="text-slate-300 mb-8">Activez votre page web optimisée pour le référencement local.</p>
+            <p className="text-slate-300 mb-8">
+                Activez votre page web optimisée pour le référencement local.
+                Inclus : Horaires, Contact, Avis, et Design Pro.
+            </p>
             <button onClick={() => alert("Passez Premium via 'Mon Profil'")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all shadow-lg">
                 Activer ma Page <ArrowRight size={20}/>
             </button>
@@ -40,10 +43,10 @@ export default function WebPage({ profile, setProfile }) {
   const handleSave = async () => {
       setLoading(true);
       try {
-          // On sauvegarde la config (sans les horaires qui sont gérés ailleurs, mais on garde le reste)
+          // On sauvegarde le design, en préservant les horaires existants dans la config
           const newLandingConfig = { 
-              ...profile.landing_config, // on garde les horaires s'ils y sont
-              ...config // on écrase avec les nouvelles couleurs/textes
+              ...profile.landing_config, // garde les horaires
+              ...config // écrase titre, couleur, image
           };
 
           const { error } = await supabase.from("business_profile")
@@ -59,8 +62,10 @@ export default function WebPage({ profile, setProfile }) {
   return (
     <div className="flex flex-col lg:flex-row gap-8 pb-20 animate-in fade-in duration-500 h-full lg:h-[calc(100vh-100px)]">
       
-      {/* ÉDITEUR */}
+      {/* COLONNE GAUCHE : ÉDITEUR (Design Uniquement) */}
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-2">
+          
+          {/* Header */}
           <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
              <div>
                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-2"><Layout className="text-indigo-600"/> Éditeur Web</h2>
@@ -76,15 +81,16 @@ export default function WebPage({ profile, setProfile }) {
              </div>
           </div>
 
+          {/* Formulaire Design */}
           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
               <h3 className="font-bold text-lg border-b pb-4 mb-4">Design & Contenu</h3>
               
-              {/* Note pour l'utilisateur */}
+              {/* Note d'information pour l'utilisateur */}
               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
                   <AlertCircle size={20} className="text-indigo-600 shrink-0 mt-0.5"/>
                   <div>
-                      <p className="text-xs font-bold text-indigo-800 mb-1">Où sont les horaires ?</p>
-                      <p className="text-xs text-indigo-600">Les horaires d'ouverture se gèrent désormais directement dans la rubrique <strong>"Mon Profil"</strong>. Ils seront automatiquement affichés sur votre site web.</p>
+                      <p className="text-xs font-bold text-indigo-800 mb-1">Information</p>
+                      <p className="text-xs text-indigo-600">Les horaires d'ouverture et coordonnées se modifient désormais dans la rubrique <strong>"Mon Profil"</strong> pour plus de simplicité.</p>
                   </div>
               </div>
 
@@ -111,7 +117,7 @@ export default function WebPage({ profile, setProfile }) {
           </div>
       </div>
 
-      {/* PRÉVISUALISATION */}
+      {/* COLONNE DROITE : PRÉVISUALISATION (Toujours visible pour contrôle) */}
       <div className="w-full lg:w-[400px] bg-slate-100 rounded-[2.5rem] border p-8 flex flex-col items-center shrink-0 overflow-y-auto min-h-[600px] shadow-inner">
           <h3 className="font-black text-slate-900 mb-6 text-center">Aperçu Mobile</h3>
           <div className="w-full max-w-[320px] bg-white rounded-[2rem] border-8 border-slate-900 shadow-2xl overflow-hidden min-h-[600px] flex flex-col relative">
@@ -130,7 +136,7 @@ export default function WebPage({ profile, setProfile }) {
                   </div>
                   <div className="mb-6"><h3 className="font-bold text-sm text-slate-900 mb-2">À propos</h3><p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{config.description}</p></div>
                   
-                  {/* AFFICHAGE DES HORAIRES DU PROFIL */}
+                  {/* Les horaires sont affichés ici mais non éditables */}
                   <div className="bg-slate-50 rounded-xl p-4">
                       <h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-2"><Clock size={14}/> Horaires</h3>
                       <div className="space-y-2">

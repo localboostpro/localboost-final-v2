@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { generatePostContent } from "../lib/openai";
-// import canvasConfetti from "canvas-confetti"; // COMMENTÉ POUR TESTER
+import canvasConfetti from "canvas-confetti";
+// CORRECTION : Utilisation de FileImage et ajout de Sparkles
 import {
   Wand2, Instagram, Facebook, Linkedin,
   Trash2, Lock, ArrowRight, X, LayoutList, 
   Calendar as CalendarIcon, Eye, PenTool,
-  Megaphone, MapPin, Smartphone, Image as ImageIcon, Upload, Sparkles
+  Megaphone, MapPin, Smartphone, FileImage, Upload, Sparkles
 } from "lucide-react";
 
 export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
@@ -102,7 +103,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
     const { data: savedPost, error } = await supabase.from("posts").insert([data]).select();
     if (!error && onUpdate) {
       onUpdate(savedPost[0]);
-      // canvasConfetti(); // COMMENTÉ AUSSI
+      canvasConfetti();
       alert("✅ Post enregistré avec succès !");
     } else { alert("Erreur lors de la sauvegarde"); }
   };
@@ -216,7 +217,8 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
         <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex-1 flex flex-col">
            <div className="flex flex-wrap gap-2 mb-4 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
               <button onClick={() => setImageSource("AI")} className={`px-4 py-2 text-xs font-bold rounded-lg transition flex items-center gap-2 ${imageSource === 'AI' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
-                  <ImageIcon size={14}/> Image IA
+                  {/* Utilisation de FileImage ici */}
+                  <FileImage size={14}/> Image IA
               </button>
               <button onClick={() => document.getElementById('uploadInput').click()} className={`px-4 py-2 text-xs font-bold rounded-lg transition flex items-center gap-2 ${imageSource === 'UPLOAD' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
                   <Upload size={14}/> Importer

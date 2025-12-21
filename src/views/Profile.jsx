@@ -1,274 +1,314 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { 
-  User, MapPin, Save, Upload, Image as ImageIcon, 
-  Phone, Globe, Building, Lock, Key, Clock, 
-  CreditCard, CheckCircle, AlertTriangle, Trash2
+import { generatePostContent } from "../lib/openai";
+import canvasConfetti from "canvas-confetti";
+import {
+  Wand2, Instagram, Facebook, Linkedin,
+  Trash2, Lock, ArrowRight, X, LayoutList, 
+  Calendar as CalendarIcon, Eye, PenTool,
+  Megaphone, MapPin, Smartphone, Image as ImageIcon, Upload
 } from "lucide-react";
 
-export default function Profile({ profile, setProfile }) {
-  const [loading, setLoading] = useState(false);
-  const [passLoading, setPassLoading] = useState(false);
-  const [subLoading, setSubLoading] = useState(false);
-  
-  // Données du Profil
-  const [formData, setFormData] = useState({
-    name: profile?.name || "",
-    email: profile?.email || "",
-    phone: profile?.phone || "",
-    address: profile?.address || "",
-    city: profile?.city || "",
-    zip_code: profile?.zip_code || "",
-    website: profile?.website || "",
-    siret: profile?.siret || "",
-  });
+export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
+  const [prompt, setPrompt] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeNetwork, setActiveNetwork] = useState("Instagram");
+  const [imageSource, setImageSource] = useState("AI");
+  const [style, setStyle] = useState("Professionnel");
+  const [demonym, setDemonym] = useState(""); 
+  const [hashtags, setHashtags] = useState([]);
+  const [viewMode, setViewMode] = useState("list"); 
+  const [mobileTab, setMobileTab] = useState("editor");
 
-  // Gestion des Horaires
-  const defaultHours = [
-      { day: "Lundi", open: "09:00", close: "18:00", closed: false },
-      { day: "Mardi", open: "09:00", close: "18:00", closed: false },
-      { day: "Mercredi", open: "09:00", close: "18:00", closed: false },
-      { day: "Jeudi", open: "09:00", close: "18:00", closed: false },
-      { day: "Vendredi", open: "09:00", close: "18:00", closed: false },
-      { day: "Samedi", open: "10:00", close: "17:00", closed: false },
-      { day: "Dimanche", open: "", close: "", closed: true },
-  ];
-  
-  const [hours, setHours] = useState(profile?.landing_config?.hours || defaultHours);
-  const [passData, setPassData] = useState({ newPassword: "", confirmPassword: "" });
+  const availableTones = ["Professionnel", "Amical", "Drôle", "Urgent", "Luxe"];
 
-  const creationDate = new Date(profile?.created_at || Date.now());
-  const diffTime = Math.abs(Date.now() - creationDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-  const trialDaysLeft = 7 - diffDays;
-  const isTrial = diffDays <= 7;
+  // --- PROTECTION BASIC ---
+  if (profile?.subscription_tier === 'basic') {
+    return (
+      <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl relative overflow-hidden animate-in fade-in duration-700">
+         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-600/20 to-purple-600/20 z-0"></div>
+         <div className="relative z-10 max-w-lg mx-auto">
+            <div className="bg-white/10 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-md border border-white/10 shadow-2xl">
+                <Lock size={48} className="text-indigo-400"/>
+            </div>
+            <h2 className="text-3xl font-black mb-4">Studio Créatif IA</h2>
+            <p className="text-slate-300 mb-8">Débloquez la puissance de l'IA pour vos réseaux sociaux.</p>
+            <button onClick={() => alert("Passez Premium via votre Profil !")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all shadow-lg">
+                Débloquer l'accès <ArrowRight size={20}/>
+            </button>
+         </div>
+      </div>
+    );
+  }
 
-  // --- SUPPRESSION DE COMPTE (RGPD) ---
-  const handleDeleteAccount = async () => {
-      const confirm1 = window.confirm("⚠️ ATTENTION : Vous êtes sur le point de supprimer votre compte définitivement.\n\nToutes vos données seront effacées.\n\nVoulez-vous continuer ?");
-      if (!confirm1) return;
-
-      const confirm2 = window.prompt("Pour confirmer, tapez le mot 'SUPPRIMER' ci-dessous :");
-      if (confirm2 !== "SUPPRIMER") return alert("Annulé : Le mot de confirmation est incorrect.");
-
-      try {
-          // Appel de la fonction SQL 'delete_own_account'
-          const { error } = await supabase.rpc('delete_own_account');
-          if (error) throw error;
-
-          await supabase.auth.signOut();
-          alert("Compte supprimé avec succès. Au revoir.");
-          window.location.reload();
-      } catch (error) {
-          alert("Erreur lors de la suppression : " + error.message);
-      }
+  const handleDeletePost = async (e, postId) => {
+      e.stopPropagation(); 
+      if(!window.confirm("Voulez-vous vraiment supprimer ce post ?")) return;
+      const { error } = await supabase.from("posts").delete().eq("id", postId);
+      if(!error) window.location.reload(); 
   };
 
-  // --- ABONNEMENT ---
-  const handleUpgrade = async () => {
-      if(!window.confirm("Simuler le paiement et passer en PREMIUM ?")) return;
-      setSubLoading(true);
-      try {
-          const { error } = await supabase.from("business_profile").update({ subscription_tier: 'premium' }).eq("id", profile.id);
-          if (error) throw error;
-          setProfile({ ...profile, subscription_tier: 'premium' });
-          alert("🎉 Félicitations ! Vous êtes maintenant Premium.");
-      } catch (error) { alert("Erreur : " + error.message); } finally { setSubLoading(false); }
-  };
-
-  const handleDowngrade = async () => {
-      if(!window.confirm("Êtes-vous sûr de vouloir repasser en Basic ?")) return;
-      setSubLoading(true);
-      try {
-          const { error } = await supabase.from("business_profile").update({ subscription_tier: 'basic' }).eq("id", profile.id);
-          if (error) throw error;
-          setProfile({ ...profile, subscription_tier: 'basic' });
-          alert("Vous êtes repassé en forfait Basic.");
-      } catch (error) { alert("Erreur : " + error.message); } finally { setSubLoading(false); }
-  };
-
-  // --- UPDATE PROFIL ---
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     try {
-        const updatedConfig = { ...profile?.landing_config, hours: hours };
-        const { error } = await supabase.from("business_profile").update({
-            name: formData.name, phone: formData.phone, address: formData.address,
-            city: formData.city, zip_code: formData.zip_code, website: formData.website,
-            siret: formData.siret, landing_config: updatedConfig 
-        }).eq("id", profile.id);
-
-        if (error) throw error;
-        setProfile({ ...profile, ...formData, landing_config: updatedConfig });
-        alert("✅ Informations mises à jour !");
-    } catch (error) { alert("Erreur : " + error.message); } finally { setLoading(false); }
+      setIsLoading(true);
+      const fileName = `${profile?.id || 'temp'}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+      const { error } = await supabase.storage.from("user_uploads").upload(fileName, file);
+      if (error) throw error;
+      const { data } = supabase.storage.from("user_uploads").getPublicUrl(fileName);
+      setCurrentPost({ ...currentPost, image_url: data.publicUrl });
+      setImageSource("UPLOAD");
+    } catch (error) { alert("Erreur upload: " + error.message); } finally { setIsLoading(false); }
   };
 
-  const updateHour = (index, field, value) => {
-      const newHours = [...hours];
-      newHours[index][field] = value;
-      setHours(newHours);
+  const handleGenerate = async () => {
+    if (!prompt) return alert("Veuillez décrire votre idée de post !");
+    setIsLoading(true);
+    if(window.innerWidth < 1024) setMobileTab("preview"); 
+    try {
+      const locationInfo = demonym 
+        ? `Ville: ${profile?.city}. Nom des habitants: ${demonym} (Important: utilise ce terme exact).`
+        : `Ville: ${profile?.city}.`;
+
+      const fullPrompt = `Rédige un post pour ${activeNetwork}. Ton: ${style}. Sujet: ${prompt}. ${locationInfo}`;
+      
+      const aiResult = await generatePostContent(fullPrompt, profile);
+      if (aiResult) {
+        let finalImage = currentPost?.image_url;
+        if (imageSource === "AI") {
+          const ratio = activeNetwork === "Facebook" ? "width=1200&height=630" : "width=1080&height=1080";
+          finalImage = `https://image.pollinations.ai/prompt/${encodeURIComponent(aiResult.image_keyword)}?${ratio}&nologo=true`;
+        }
+        setCurrentPost({
+            id: currentPost?.id || Date.now(),
+            business_id: profile?.id,
+            title: aiResult.title,
+            content: aiResult.content,
+            image_url: finalImage,
+            networks: [activeNetwork],
+            created_at: new Date().toISOString(),
+        });
+        setHashtags(["#Local", `#${profile?.city?.replace(/\s/g,'') || 'Ville'}`]);
+      }
+    } catch (e) { console.error(e); alert("Erreur lors de la génération IA"); } finally { setIsLoading(false); }
   };
 
-  // --- PASSWORD ---
-  const handleChangePassword = async (e) => {
-      e.preventDefault();
-      if (passData.newPassword.length < 6) return alert("Le mot de passe doit faire 6 caractères min.");
-      if (passData.newPassword !== passData.confirmPassword) return alert("Les mots de passe ne correspondent pas.");
-      setPassLoading(true);
-      try {
-          const { error } = await supabase.auth.updateUser({ password: passData.newPassword });
-          if (error) throw error;
-          alert("🔒 Mot de passe modifié !");
-          setPassData({ newPassword: "", confirmPassword: "" });
-      } catch (error) { alert("Erreur : " + error.message); } finally { setPassLoading(false); }
+  const handleSave = async () => {
+    if (!currentPost || !profile?.id) return alert("Profil introuvable");
+    const { id, ...data } = currentPost;
+    data.business_id = profile.id;
+    if(typeof data.id === 'number') delete data.id;
+    const { data: savedPost, error } = await supabase.from("posts").insert([data]).select();
+    if (!error && onUpdate) {
+      onUpdate(savedPost[0]);
+      canvasConfetti();
+      alert("✅ Post enregistré avec succès !");
+    } else { alert("Erreur lors de la sauvegarde"); }
   };
 
-  const handleLogoUpload = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-          setLoading(true);
-          const fileName = `logos/${profile.id}_${Date.now()}`;
-          const { error: uploadError } = await supabase.storage.from("user_uploads").upload(fileName, file);
-          if (uploadError) throw uploadError;
-          const { data: { publicUrl } } = supabase.storage.from("user_uploads").getPublicUrl(fileName);
-          await supabase.from("business_profile").update({ logo_url: publicUrl }).eq("id", profile.id);
-          setProfile({ ...profile, logo_url: publicUrl });
-          alert("✅ Logo ajouté !");
-      } catch (error) { alert("Erreur upload."); } finally { setLoading(false); }
+  const renderCalendar = () => {
+    const today = new Date();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    return (
+      <div className="grid grid-cols-5 gap-2 p-2">
+        {days.map(day => {
+          const postsForDay = posts.filter(p => { const d = new Date(p.created_at); return d.getDate() === day && d.getMonth() === today.getMonth(); });
+          return (
+            <div key={day} className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-1 relative ${postsForDay.length > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}`}>
+                <span className={`text-[10px] font-bold ${postsForDay.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{day}</span>
+                {postsForDay.map(p => (<div key={p.id} onClick={() => { setCurrentPost(p); setMobileTab("preview"); }} className="w-2 h-2 mt-1 rounded-full bg-indigo-500"></div>))}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="flex flex-col lg:flex-row h-full gap-6 pb-20 lg:pb-6 animate-in fade-in duration-500 relative">
       
-      {/* HEADER */}
-      <div className="flex items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-         <div className="w-20 h-20 rounded-2xl bg-slate-50 text-indigo-600 flex items-center justify-center font-black text-3xl border border-slate-200 shadow-inner overflow-hidden">
-             {profile?.logo_url ? <img src={profile.logo_url} className="w-full h-full object-cover"/> : profile?.name?.[0]}
-         </div>
-         <div>
-             <h2 className="text-2xl font-black text-slate-900">Mon Établissement</h2>
-             <p className="text-slate-500 text-sm">Gérez votre identité commerciale et vos accès.</p>
-         </div>
-         <div className={`ml-auto px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wide border hidden md:block ${profile?.subscription_tier === 'premium' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-             {profile?.subscription_tier === 'premium' ? '💎 Premium' : '⭐ Basic'}
-         </div>
+      {/* MENU MOBILE */}
+      <div className="lg:hidden flex bg-white rounded-2xl p-1 mb-4 shadow-sm border border-slate-100 shrink-0 sticky top-0 z-20 mx-4 md:mx-0">
+          <button onClick={() => setMobileTab("history")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center gap-2 justify-center ${mobileTab === 'history' ? 'bg-slate-900 text-white' : 'text-slate-500'}`}><History size={14}/> Historique</button>
+          <button onClick={() => setMobileTab("editor")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center gap-2 justify-center ${mobileTab === 'editor' ? 'bg-slate-900 text-white' : 'text-slate-500'}`}><PenTool size={14}/> Éditeur</button>
+          <button onClick={() => setMobileTab("preview")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center gap-2 justify-center ${mobileTab === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}><Eye size={14}/> Aperçu</button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* GAUCHE : INFOS */}
-          <div className="lg:col-span-2 space-y-8">
-              <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-                  <h3 className="font-black text-lg mb-6 flex items-center gap-2"><Building size={20} className="text-indigo-600"/> Informations Générales</h3>
-                  
-                  <form onSubmit={handleUpdate} className="space-y-6">
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                              <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-600"><ImageIcon size={18}/></div>
-                              <div><div className="font-bold text-slate-900 text-xs uppercase">Logo</div><div className="text-[10px] text-slate-400">JPG, PNG (Max 2Mo)</div></div>
-                          </div>
-                          <div className="relative">
-                              <input type="file" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*"/>
-                              <button type="button" className="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm flex items-center gap-2"><Upload size={12}/> {profile?.logo_url ? "Modifier" : "Ajouter"}</button>
-                          </div>
-                      </div>
+      {/* COLONNE GAUCHE : HISTORIQUE */}
+      <div className={`${mobileTab === 'history' ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden shrink-0 h-[60vh] lg:h-auto`}>
+        <div className="p-4 border-b bg-slate-50 flex justify-between items-center shrink-0">
+            <div className="font-bold text-xs uppercase text-slate-400 flex items-center gap-2">
+              {viewMode === 'list' ? <LayoutList size={14}/> : <CalendarIcon size={14}/>} {viewMode === 'list' ? "Vos Créations" : "Calendrier"}
+            </div>
+            <div className="flex bg-slate-200 rounded-lg p-1 gap-1">
+                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-white shadow' : ''}`}><LayoutList size={14}/></button>
+                <button onClick={() => setViewMode('calendar')} className={`p-1.5 rounded-md ${viewMode === 'calendar' ? 'bg-white shadow' : ''}`}><CalendarIcon size={14}/></button>
+            </div>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {viewMode === 'list' ? (
+             <div className="p-3 space-y-2">
+               {posts.map(post => (
+                 <div key={post.id} onClick={() => { setCurrentPost(post); setMobileTab("preview"); }} className="flex gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 transition group relative">
+                   <img src={post.image_url} className="w-12 h-12 rounded-lg object-cover bg-slate-200" alt="mini"/>
+                   <div className="overflow-hidden flex-1">
+                     <div className="font-bold text-xs truncate text-slate-800">{post.title || "Post"}</div>
+                     <div className="text-[10px] text-slate-400">{new Date(post.created_at).toLocaleDateString()}</div>
+                   </div>
+                   <button onClick={(e) => handleDeletePost(e, post.id)} className="absolute top-1 right-1 bg-white rounded-full p-1 text-slate-300 hover:text-rose-500 shadow-sm opacity-0 group-hover:opacity-100"><X size={12}/></button>
+                 </div>
+               ))}
+               {posts.length === 0 && <div className="text-center text-slate-400 text-xs py-10">Aucun post.</div>}
+             </div>
+          ) : renderCalendar()}
+        </div>
+      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Nom de l'entreprise</label><input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full pl-4 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/></div>
-                          <div><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">SIRET</label><input value={formData.siret} onChange={e => setFormData({...formData, siret: e.target.value})} placeholder="14 chiffres" className="w-full pl-4 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/></div>
-                          <div><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Site Web</label><input value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} placeholder="www.monsite.fr" className="w-full pl-4 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/></div>
-                      </div>
+      {/* COLONNE CENTRE : ÉDITEUR */}
+      <div className={`${mobileTab === 'editor' ? 'flex' : 'hidden'} lg:flex flex-1 flex-col gap-4 overflow-y-auto custom-scrollbar`}>
+        
+        {/* EN-TÊTE */}
+        <div className="flex justify-between items-center bg-white p-4 rounded-[2rem] border shadow-sm">
+          <h2 className="font-black text-slate-900 text-lg flex items-center gap-2"><Sparkles className="text-indigo-600"/> Studio Créatif</h2>
+          <button onClick={() => {setCurrentPost(null); setPrompt("");}} className="text-xs font-bold text-slate-400 hover:text-red-500 flex gap-1 items-center"><Trash2 size={12}/> Reset</button>
+        </div>
 
-                      <hr className="border-slate-100"/>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Adresse postale</label><input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="10 rue de la République" className="w-full pl-4 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/></div>
-                          <div><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Code Postal</label><input value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} placeholder="75001" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/></div>
-                          <div><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Ville</label><input value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} placeholder="Paris" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/></div>
-                          <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Téléphone public</label><input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="01 23 45 67 89" className="w-full pl-4 p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500"/></div>
-                      </div>
-
-                      <hr className="border-slate-100"/>
-                      
-                      <div>
-                          <h4 className="font-bold text-sm text-slate-900 mb-4 flex items-center gap-2"><Clock size={16}/> Horaires d'ouverture</h4>
-                          <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                              {hours.map((h, index) => (
-                                  <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm">
-                                      <div className="w-24 font-bold text-slate-700">{h.day}</div>
-                                      <div className="flex-1 flex gap-2 items-center w-full sm:w-auto">
-                                          {!h.closed ? (
-                                              <>
-                                                <input type="time" value={h.open} onChange={e => updateHour(index, 'open', e.target.value)} className="bg-white border rounded-lg p-2 text-xs font-bold w-full sm:w-auto"/>
-                                                <span className="text-slate-400">-</span>
-                                                <input type="time" value={h.close} onChange={e => updateHour(index, 'close', e.target.value)} className="bg-white border rounded-lg p-2 text-xs font-bold w-full sm:w-auto"/>
-                                              </>
-                                          ) : <span className="text-slate-400 text-xs italic bg-white px-3 py-2 rounded-lg w-full text-center border border-slate-100">Fermé toute la journée</span>}
-                                      </div>
-                                      <button type="button" onClick={() => updateHour(index, 'closed', !h.closed)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition w-full sm:w-auto ${h.closed ? "bg-rose-100 text-rose-600 hover:bg-rose-200" : "bg-green-100 text-green-600 hover:bg-green-200"}`}>{h.closed ? "Fermé" : "Ouvert"}</button>
-                                  </div>
-                              ))}
-                          </div>
-                      </div>
-
-                      <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-lg">{loading ? "Enregistrement..." : <><Save size={18}/> Enregistrer les modifications</>}</button>
-                  </form>
+        {/* PARAMÈTRES */}
+        <div className="bg-white p-6 rounded-[2rem] border shadow-sm space-y-6">
+           <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Destination</label>
+              <div className="grid grid-cols-3 gap-2">
+                {['Instagram', 'Facebook', 'LinkedIn'].map(net => (
+                  <button key={net} onClick={() => setActiveNetwork(net)} className={`py-3 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${activeNetwork === net ? "bg-slate-900 text-white border-slate-900 shadow-md" : "text-slate-500 border-slate-100 hover:bg-slate-50"}`}>
+                    {net === 'Instagram' ? <Instagram size={14}/> : net === 'Facebook' ? <Facebook size={14}/> : <Linkedin size={14}/>} <span className="hidden md:inline">{net}</span>
+                  </button>
+                ))}
               </div>
-          </div>
+           </div>
 
-          {/* DROITE : ABONNEMENT & SÉCURITÉ */}
-          <div className="space-y-6">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Megaphone size={14}/> Ton du message</label>
+                 <div className="flex flex-wrap gap-2">
+                   {availableTones.map(ton => (
+                     <button key={ton} onClick={() => setStyle(ton)} className={`py-2 px-3 rounded-xl border text-[10px] font-bold transition ${style === ton ? "bg-indigo-100 text-indigo-700 border-indigo-200" : "text-slate-500 border-slate-100 hover:bg-slate-50"}`}>{ton}</button>
+                   ))}
+                 </div>
+              </div>
               
-              {/* ABONNEMENT */}
-              <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl"></div>
-                  <h3 className="font-black text-lg mb-4 flex items-center gap-2 relative z-10"><CreditCard size={20} className="text-indigo-400"/> Mon Abonnement</h3>
-                  <div className="mb-6 relative z-10">
-                      <div className="text-sm text-slate-400 mb-1">Forfait actuel</div>
-                      <div className="text-2xl font-black flex items-center gap-2">
-                          {profile?.subscription_tier === 'premium' ? '💎 Premium' : '⭐ Basic'}
-                          {profile?.subscription_tier === 'premium' && <CheckCircle size={20} className="text-green-400"/>}
+              <div>
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><MapPin size={14}/> Nom des habitants (Gentilé)</label>
+                 <input 
+                    type="text" 
+                    placeholder="Ex: Toulousains (optionnel)" 
+                    value={demonym}
+                    onChange={(e) => setDemonym(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:ring-2 ring-indigo-500"
+                 />
+                 <p className="text-[9px] text-slate-400 mt-1">Laissez vide si vous ne savez pas.</p>
+              </div>
+           </div>
+        </div>
+
+        {/* PROMPT ET GÉNÉRATION */}
+        <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex-1 flex flex-col">
+           <div className="flex flex-wrap gap-2 mb-4 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
+              <button onClick={() => setImageSource("AI")} className={`px-4 py-2 text-xs font-bold rounded-lg transition flex items-center gap-2 ${imageSource === 'AI' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
+                  <ImageIcon size={14}/> Image IA
+              </button>
+              <button onClick={() => document.getElementById('uploadInput').click()} className={`px-4 py-2 text-xs font-bold rounded-lg transition flex items-center gap-2 ${imageSource === 'UPLOAD' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
+                  <Upload size={14}/> Importer
+              </button>
+              <input id="uploadInput" type="file" className="hidden" onChange={handleFileUpload} accept="image/*"/>
+           </div>
+           
+           <textarea 
+             value={prompt} 
+             onChange={(e) => setPrompt(e.target.value)} 
+             placeholder="Décrivez votre idée de post ici... (Ex: Promo -20% sur les croissants ce matin)" 
+             className="w-full h-32 md:h-full bg-slate-50 rounded-2xl p-4 text-sm outline-none resize-none mb-4 focus:ring-2 ring-indigo-100 transition border border-slate-100 placeholder:text-slate-400" 
+           />
+           
+           <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 flex justify-center items-center gap-2 transition mt-auto">
+             {isLoading ? "L'IA rédige votre post..." : <><Wand2 size={16}/> Générer le Post</>}
+           </button>
+        </div>
+      </div>
+
+      {/* COLONNE DROITE : PRÉVISUALISATION */}
+      <div className={`${mobileTab === 'preview' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[420px] bg-slate-100 rounded-[2.5rem] border p-4 lg:p-8 flex-col items-center justify-center shrink-0 overflow-hidden relative min-h-[500px]`}>
+         
+         <div className="text-center mb-6 z-10">
+            <h3 className="font-black text-slate-900 text-lg">Aperçu {activeNetwork}</h3>
+            <p className="text-xs text-slate-500">Visualisez le rendu final.</p>
+         </div>
+
+         {/* CADRE TÉLÉPHONE */}
+         <div className="relative w-full max-w-[300px] h-[550px] lg:h-[600px] bg-white rounded-[3rem] border-8 border-slate-900 shadow-2xl flex flex-col z-10 mx-auto">
+            {/* Encoche */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-30 pointer-events-none"></div>
+            
+            {/* Écran Scrollable */}
+            <div 
+                className="flex-1 overflow-y-auto bg-white rounded-[2.5rem] w-full h-full"
+                style={{
+                    scrollbarWidth: 'none', 
+                    msOverflowStyle: 'none',
+                    maskImage: 'radial-gradient(white, black)', 
+                    WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                    borderRadius: '2.3rem' 
+                }}
+            >
+                {currentPost ? (
+                   <>
+                      {/* En-tête App */}
+                      <div className="h-14 border-b flex items-center px-4 gap-3 pt-6 bg-white/95 backdrop-blur sticky top-0 z-20">
+                          <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{profile?.name?.[0]}</div>
+                          <div className="text-xs font-bold truncate">{profile?.name}</div>
                       </div>
-                      {isTrial && profile?.subscription_tier === 'premium' && <div className="mt-2 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg inline-flex items-center gap-2"><Clock size={12}/> Essai gratuit : J-{trialDaysLeft}</div>}
-                      {!isTrial && profile?.subscription_tier === 'basic' && <div className="mt-2 text-xs font-bold text-rose-300 flex items-center gap-2"><AlertTriangle size={12}/> Essai terminé</div>}
-                  </div>
-                  <div className="relative z-10">
-                      {profile?.subscription_tier === 'basic' ? (
-                          <button onClick={handleUpgrade} disabled={subLoading} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-900/50">{subLoading ? "..." : "Passer Premium (99€/mois)"}</button>
-                      ) : (
-                          <button onClick={handleDowngrade} disabled={subLoading} className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition">{subLoading ? "..." : "Gérer / Résilier"}</button>
-                      )}
-                  </div>
-              </div>
+                      
+                      {/* Image */}
+                      <div className="w-full bg-slate-100 aspect-square">
+                          <img src={currentPost.image_url} className="w-full h-full object-cover block" alt="Post"/>
+                      </div>
 
-              {/* EMAIL */}
-              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm opacity-70">
-                  <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-500"><Lock size={16}/> Identifiant de connexion</h3>
-                  <input disabled value={formData.email} className="w-full p-3 bg-slate-100 border border-slate-100 rounded-xl font-bold text-sm text-slate-500 cursor-not-allowed"/>
-                  <p className="text-[10px] text-slate-400 mt-2">Contactez le support pour changer d'email.</p>
-              </div>
+                      {/* Actions */}
+                      <div className="px-4 py-3 flex gap-4 text-slate-800">
+                          <div className="hover:text-red-500 cursor-pointer transition">♥</div>
+                          <div>💬</div>
+                          <div>✈️</div>
+                      </div>
 
-              {/* PASSWORD */}
-              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                  <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-slate-900"><Key size={20} className="text-amber-500"/> Sécurité</h3>
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                      <div><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Nouveau mot de passe</label><input type="password" required value={passData.newPassword} onChange={e => setPassData({...passData, newPassword: e.target.value})} placeholder="••••••••" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-amber-500"/></div>
-                      <div><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Confirmer</label><input type="password" required value={passData.confirmPassword} onChange={e => setPassData({...passData, confirmPassword: e.target.value})} placeholder="••••••••" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-amber-500"/></div>
-                      <button type="submit" disabled={passLoading} className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition shadow-lg shadow-amber-200">{passLoading ? "Modification..." : "Changer le mot de passe"}</button>
-                  </form>
-              </div>
+                      {/* Contenu */}
+                      <div className="px-4 pb-20">
+                          <p className="text-[11px] text-slate-800 leading-relaxed">
+                            <span className="font-bold mr-1">{profile?.name}</span>
+                            {currentPost.content}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                             {hashtags.map(t => <span key={t} className="text-[10px] text-indigo-600 font-medium">{t}</span>)}
+                          </div>
+                      </div>
+                   </>
+                ) : (
+                   <div className="h-full flex flex-col items-center justify-center text-slate-300 p-8 text-center">
+                       <Smartphone size={48} className="mb-4 opacity-50"/>
+                       <p className="text-xs font-bold">Remplissez le formulaire et cliquez sur Générer.</p>
+                   </div>
+                )}
+            </div>
 
-              {/* ZONE DANGER (RGPD) */}
-              <div className="bg-rose-50 p-6 rounded-[2rem] border border-rose-100 shadow-sm">
-                  <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-rose-600"><Trash2 size={20}/> Zone de Danger</h3>
-                  <p className="text-xs text-rose-400 mb-4">La suppression de votre compte est irréversible. Toutes vos données (clients, avis, page web) seront perdues.</p>
-                  <button onClick={handleDeleteAccount} className="w-full bg-white border border-rose-200 text-rose-600 py-3 rounded-xl font-bold hover:bg-rose-600 hover:text-white transition shadow-sm">Supprimer mon compte</button>
-              </div>
-
-          </div>
+            {/* Bouton Publier */}
+            {currentPost && (
+                <div className="absolute bottom-0 left-0 w-full p-4 bg-white/90 backdrop-blur z-30 rounded-b-[2.5rem]">
+                    <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition">
+                        ENREGISTRER LE POST
+                    </button>
+                </div>
+            )}
+         </div>
       </div>
     </div>
   );

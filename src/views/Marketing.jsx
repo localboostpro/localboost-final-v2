@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { generatePostContent } from "../lib/openai";
 import canvasConfetti from "canvas-confetti";
-// CORRECTION ICI : J'ai ajouté 'Sparkles' dans la liste ci-dessous
+// CORRECTION : J'ai bien ajouté 'Sparkles' ci-dessous
 import {
   Wand2, Instagram, Facebook, Linkedin,
   Trash2, Lock, ArrowRight, X, LayoutList, 

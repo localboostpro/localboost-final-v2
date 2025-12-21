@@ -1,569 +1,727 @@
-import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabase";
-import { generatePostContent } from "../lib/openai";
-import canvasConfetti from "canvas-confetti";
+// pages/marketing.jsx
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/router';
+import Head from 'next/head';
 import {
-  Wand2, Instagram, Facebook, Linkedin, Twitter,
-  Trash2, Lock, ArrowRight, X, LayoutList,
-  Calendar as CalendarIcon, Eye, PenTool, Megaphone,
-  MapPin, Smartphone, FileImage, Upload, Sparkles,
-  Heart, MessageSquare, Send, Hash, Image as ImageIcon,
-  Type, Smile, Clock, Check, AlertCircle, Music
-} from "lucide-react";
+  MessageSquare, Send, X, Paperclip, Smile,
+  Mic, Settings, HelpCircle, LogOut, User,
+  BarChart2, Mail, Phone, MapPin, Globe, Facebook,
+  Instagram, Linkedin, Twitter, Music, Check,
+  AlertTriangle, Sparkles, Trash2, Edit2, Eye
+} from 'lucide-react';
 
-// Composant personnalisé pour TikTok
-const TikTokIcon = ({ size = 24, color = "currentColor" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill={color}
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M16.09 0C14.26 0 12.51.94 11.4 2.37L6.8 11.62H2.4V12.4h4.4l4.6 9.25c.63 1.15 1.68 1.87 2.85 1.87.53 0 1.05-.17 1.53-.48l5.1-10.2c.52-1.03.79-2.17.79-3.35v-1.1c0-1.18-.27-2.32-.79-3.35l-5.1-10.2C17.14.17 16.62 0 16.09 0zm-4.55 6.27c-.8 0-1.45.65-1.45 1.45v7.9c0 .8.65 1.45 1.45 1.45s1.45-.65 1.45-1.45v-7.9c0-.8-.65-1.45-1.45-1.45z"/>
-  </svg>
-);
-
-export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate }) {
-  // États
-  const [prompt, setPrompt] = useState("");
+const MarketingPage = () => {
+  const [messages, setMessages] = useState([]);
+  const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeNetwork, setActiveNetwork] = useState("Instagram");
-  const [imageSource, setImageSource] = useState("AI");
-  const [style, setStyle] = useState("Professionnel");
-  const [hashtags, setHashtags] = useState([]);
-  const [viewMode, setViewMode] = useState("list");
-  const [mobileTab, setMobileTab] = useState("editor");
-  const [error, setError] = useState(null);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const confettiRef = useRef(null);
+  const [chatStarted, setChatStarted] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [showSettings, setShowSettings] = useState(false);
+  const messagesEndRef = useRef(null);
+  const router = useRouter();
 
-  // CORRECTION: Réseaux sociaux avec tous les réseaux demandés
-  const availableNetworks = [
-    { name: "Instagram", icon: <Instagram size={16} />, ratio: "1:1", placeholder: "/placeholder-instagram.png" },
-    { name: "Facebook", icon: <Facebook size={16} />, ratio: "1.91:1", placeholder: "/placeholder-facebook.png" },
-    { name: "LinkedIn", icon: <Linkedin size={16} />, ratio: "1.91:1", placeholder: "/placeholder-linkedin.png" },
-    { name: "Twitter", icon: <Twitter size={16} />, ratio: "16:9", placeholder: "/placeholder-twitter.png" },
-    { name: "TikTok", icon: <TikTokIcon size={16} />, ratio: "9:16", placeholder: "/placeholder-tiktok.png" }
+  // Exemple de données de posts
+  useEffect(() => {
+    // Chargement des posts depuis un API ou base de données
+    const samplePosts = [
+      {
+        id: 1,
+        title: "Promotion Été 2023",
+        content: "Découvrez nos nouvelles offres spéciales pour l'été ! 🌞 Profitez de -20% sur tous nos menus jusqu'au 31 août.",
+        platform: "Instagram",
+        status: "published",
+        date: "2023-06-15",
+        metrics: { likes: 120, comments: 24, shares: 12 },
+        image: "/placeholder-instagram.png"
+      },
+      {
+        id: 2,
+        title: "Nouveau produit",
+        content: "Nous sommes ravis de vous présenter notre tout nouveau produit ! 🎉 Venir le découvrir en magasin.",
+        platform: "Facebook",
+        status: "draft",
+        date: "2023-06-10",
+        metrics: { likes: 0, comments: 0, shares: 0 },
+        image: "/placeholder-facebook.png"
+      }
+    ];
+    setPosts(samplePosts);
+  }, []);
+
+  // Gestion du scroll automatique
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Messages d'exemple pour le chat
+  const exampleMessages = [
+    {
+      role: 'assistant',
+      content: "Bonjour ! Je suis votre assistant marketing IA. Comment puis-je vous aider aujourd'hui à booster votre visibilité ? 😊"
+    },
+    {
+      role: 'assistant',
+      content: "Voici quelques exemples de ce que je peux faire pour vous :\n\n1. Créer des posts pour vos réseaux sociaux\n2. Générer des idées de contenu marketing\n3. Analyser vos performances actuelles\n4. Proposer des stratégies de croissance"
+    }
   ];
 
-  const availableTones = ["Professionnel", "Amical", "Drôle", "Urgent", "Luxe", "Inspirant"];
-
-  // Protection pour les utilisateurs basic
-  if (profile?.subscription_tier === 'basic') {
-    return (
-      <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center text-center p-8 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-[2rem] shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-600/20 to-purple-600/20"></div>
-        <div className="relative z-10 max-w-lg mx-auto">
-          <div className="bg-white/10 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-md border border-white/10 shadow-2xl">
-            <Lock size={48} className="text-indigo-400"/>
-          </div>
-          <h2 className="text-3xl font-black mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-            Studio Créatif IA
-          </h2>
-          <p className="text-slate-300 mb-8">Débloquez la puissance de l'IA pour vos réseaux sociaux et bien plus.</p>
-          <button
-            onClick={() => alert("Passez Premium via votre Profil !")}
-            className="group relative bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 mx-auto transition-all shadow-lg hover:shadow-indigo-500/30"
-          >
-            <span className="absolute inset-0 rounded-2xl border-2 border-indigo-400 opacity-0 group-hover:opacity-100 transition"></span>
-            <span className="relative">Débloquer l'accès</span>
-            <ArrowRight size={20} className="relative transition-transform group-hover:translate-x-1"/>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // CORRECTION: Fonction de suppression avec gestion d'erreur
-  const handleDeletePost = async (e, postId) => {
-    e.stopPropagation();
-    if (!window.confirm("Voulez-vous vraiment supprimer ce post ?")) return;
-
-    try {
-      setIsLoading(true);
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', postId)
-        .eq('business_id', profile.id);
-
-      if (error) throw error;
-
-      // Mise à jour locale
-      setCurrentPost(null);
-      onUpdate();
-      canvasConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
+  // Démarrer une nouvelle conversation
+  const startNewChat = () => {
+    setMessages(exampleMessages);
+    setChatStarted(true);
   };
 
-  // CORRECTION: Génération de contenu avec gestion d'erreur améliorée
-  const handleGenerate = async () => {
-    if (!prompt.trim()) {
-      setError("Veuillez entrer une description pour générer du contenu");
-      return;
-    }
+  // Envoyer un message
+  const sendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return;
+
+    setIsLoading(true);
+    const userMessage = { role: 'user', content: inputValue };
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
 
     try {
-      setIsLoading(true);
-      setError(null);
+      // Simulation d'une réponse de l'API
+      const mockResponse = {
+        role: 'assistant',
+        content: `Voici une suggestion pour votre demande "${inputValue}" :
 
-      const generated = await generatePostContent({
-        prompt,
-        tone: style,
-        platform: activeNetwork,
-        businessType: profile.business_type,
-        location: profile.city,
-        hashtags: hashtags.join(', ')
-      });
+        **Post Instagram :**
+        📢 [Nom de votre entreprise] a une offre spéciale pour vous !
+        💥 ${Math.floor(Math.random() * 30) + 10}% de réduction ce week-end seulement
+        📍 ${Math.random() > 0.5 ? 'En ligne' : 'En magasin'}
 
-      if (generated.error) {
-        throw new Error(generated.error);
-      }
+        #Promotion #OffreSpéciale #${Math.random() > 0.5 ? 'Soldes' : 'BonPlan'}
 
-      setCurrentPost({
-        ...currentPost,
-        content: generated.content,
-        image_prompt: generated.imagePrompt,
-        hashtags: generated.hashtags
-      });
-
-      setHashtags(generated.hashtags);
-      setShowConfetti(true);
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // CORRECTION: Sauvegarde du post avec validation
-  const handleSave = async () => {
-    if (!currentPost?.content) {
-      setError("Le contenu du post ne peut pas être vide");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const postData = {
-        ...currentPost,
-        business_id: profile.id,
-        network: activeNetwork,
-        status: "draft",
-        scheduled_at: new Date().toISOString(),
-        tone: style
+        **Conseil supplémentaire :**
+        Postez ce contenu entre 18h et 20h pour un maximum d'engagement.`
       };
 
-      let result;
-      if (currentPost.id) {
-        // Update existing post
-        ({ data: result, error } = await supabase
-          .from('posts')
-          .update(postData)
-          .eq('id', currentPost.id));
-      } else {
-        // Create new post
-        ({ data: result, error } = await supabase
-          .from('posts')
-          .insert(postData)
-          .select());
-      }
+      // Dans une vraie implémentation, vous utiliseriez :
+      // const response = await fetch('/api/openai', { method: 'POST', body: JSON.stringify({ message: inputValue }) });
+      // const data = await response.json();
 
-      if (error) throw error;
-
-      setCurrentPost(result[0]);
-      onUpdate();
-      canvasConfetti({ particleCount: 200, spread: 100 });
+      setTimeout(() => {
+        setMessages(prev => [...prev, mockResponse]);
+        setIsLoading(false);
+      }, 1000);
     } catch (error) {
-      setError(error.message);
-    } finally {
+      console.error("Erreur:", error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: "Désolé, une erreur s'est produite. Veuillez réessayer plus tard."
+      }]);
       setIsLoading(false);
     }
   };
 
-  // CORRECTION: Aperçu du post avec tous les réseaux sociaux
-  const renderPostPreview = () => {
-    if (!currentPost) return null;
+  // Créer un nouveau post depuis le chat
+  const createPostFromSuggestion = (content) => {
+    const newPost = {
+      id: posts.length + 1,
+      title: `Post généré ${posts.length + 1}`,
+      content: content,
+      platform: "Instagram", // Par défaut
+      status: "draft",
+      date: new Date().toISOString().split('T')[0],
+      metrics: { likes: 0, comments: 0, shares: 0 },
+      image: "/placeholder-instagram.png"
+    };
 
-    const networkConfig = availableNetworks.find(n => n.name === activeNetwork) || availableNetworks[0];
+    setPosts([...posts, newPost]);
+    setSelectedPost(newPost);
 
-    return (
-      <div className={`bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100 ${networkConfig.name === 'TikTok' ? 'max-w-[320px]' : 'max-w-[400px]'}`}>
-        {/* Header */}
-        <div className="flex items-center p-3 border-b border-gray-100">
-          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-            {profile?.logo_url ? (
-              <img src={profile.logo_url} alt="Logo" className="w-full h-full rounded-full object-cover"/>
-            ) : (
-              <span className="text-xs font-bold text-indigo-600">{profile?.name?.[0]}</span>
-            )}
-          </div>
-          <div className="ml-2 text-sm font-semibold">{profile?.name}</div>
-          <div className="ml-auto text-xs text-gray-500">
-            {networkConfig.name === 'TikTok' ? '🎵 Son original' : '✉️'}
-          </div>
-        </div>
-
-        {/* Image/Video */}
-        <div className={`bg-gray-100 ${networkConfig.ratio === '9:16' ? 'aspect-[9/16]' : 'aspect-square'} relative`}>
-          {currentPost.image_url ? (
-            <img
-              src={currentPost.image_url}
-              className="w-full h-full object-cover"
-              alt="Contenu du post"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              <ImageIcon size={48}/>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="p-3 flex gap-4 text-gray-600">
-          <button className="flex items-center gap-1 text-red-500">
-            <Heart size={18}/> <span className="text-xs">Aimer</span>
-          </button>
-          <button className="flex items-center gap-1">
-            <MessageSquare size={18}/> <span className="text-xs">Commenter</span>
-          </button>
-          <button className="flex items-center gap-1">
-            <Send size={18}/> <span className="text-xs">Partager</span>
-          </button>
-          {networkConfig.name === 'Instagram' && (
-            <button className="ml-auto">
-              <Hash size={18}/>
-            </button>
-          )}
-        </div>
-
-        {/* Contenu */}
-        <div className="p-3 pb-4">
-          <div className="flex items-center mb-2">
-            <span className="text-sm font-semibold mr-2">{profile?.name}</span>
-            {profile?.verified && (
-              <Check size={14} className="text-blue-500"/>
-            )}
-          </div>
-          <p className="text-sm text-gray-800 mb-3 whitespace-pre-line">
-            {currentPost.content}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {hashtags.map((tag, index) => (
-              <span key={index} className="text-xs text-indigo-600 font-medium">
-                #{tag}
-              </span>
-            ))}
-          </div>
-          {networkConfig.name === 'TikTok' && (
-            <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
-              <Music size={12}/> Son original - Nom de la musique
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `✅ J'ai créé un nouveau brouillon de post pour vous ! Vous pouvez le modifier et le publier depuis l'onglet "Mes Posts".`
+    }]);
   };
 
-  // CORRECTION: Interface utilisateur complète
+  // Publier un post
+  const publishPost = (postId) => {
+    setPosts(posts.map(post =>
+      post.id === postId ? { ...post, status: "published" } : post
+    ));
+
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `🎉 Votre post a été publié avec succès ! Vous pouvez suivre ses performances dans l'onglet "Analytique".`
+    }]);
+  };
+
+  // Supprimer un post
+  const deletePost = (postId) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce post ?")) return;
+
+    setPosts(posts.filter(post => post.id !== postId));
+    if (selectedPost?.id === postId) setSelectedPost(null);
+
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `🗑️ Le post a été supprimé. Vous pouvez en créer un nouveau si besoin !`
+    }]);
+  };
+
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col md:flex-row bg-gray-50 rounded-[2rem] shadow-md overflow-hidden">
-      {/* Sidebar gauche - Liste des posts */}
-      <div className={`w-full md:w-64 bg-white border-r border-gray-100 ${viewMode === 'list' ? 'block' : 'hidden md:block'}`}>
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="font-bold text-gray-800">Mes Posts</h3>
-          <button
-            onClick={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
-            className="p-1 text-gray-600 hover:bg-gray-100 rounded-md"
-          >
-            {viewMode === 'list' ? <CalendarIcon size={18}/> : <LayoutList size={18}/>}
-          </button>
-        </div>
+    <>
+      <Head>
+        <title>LocalBoost - Marketing IA | Studio Créatif</title>
+        <meta name="description" content="Boostez votre visibilité locale avec notre assistant marketing IA" />
+      </Head>
 
-        <div className="p-2">
-          <button className="w-full bg-indigo-50 text-indigo-600 py-2 px-3 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-indigo-100 transition">
-            <Sparkles size={16}/> Nouveau post IA
-          </button>
-        </div>
+      <div className="flex h-screen bg-gray-50">
+        {/* Sidebar */}
+        <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200">
+            <h1 className="text-xl font-bold text-indigo-600">LocalBoost</h1>
+            <p className="text-xs text-gray-500">Marketing IA pour les commerces locaux</p>
+          </div>
 
-        <div className="h-[calc(100vh-250px)] overflow-y-auto p-2">
-          {posts.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <FileImage size={32} className="mx-auto mb-2"/>
-              <p className="text-sm">Aucun post encore</p>
-              <p className="text-xs mt-1">Créez votre premier post avec l'IA</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {posts.map((post) => (
+          <div className="p-2">
+            <button
+              onClick={startNewChat}
+              className="w-full bg-indigo-600 text-white py-2 px-3 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-indigo-700 transition mb-2"
+            >
+              <Sparkles size={16} />
+              Nouveau chat IA
+            </button>
+
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-full bg-white text-gray-700 py-2 px-3 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-gray-50 transition border border-gray-200"
+            >
+              <Settings size={16} />
+              Paramètres
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-2">
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase px-2 mb-2">Mes Posts</h3>
+              {posts.map(post => (
                 <div
                   key={post.id}
-                  onClick={() => setCurrentPost(post)}
-                  className={`p-3 rounded-xl cursor-pointer border ${currentPost?.id === post.id ? 'border-indigo-500 bg-indigo-50' : 'border-transparent hover:bg-gray-50'}`}
+                  onClick={() => setSelectedPost(post)}
+                  className={`p-3 rounded-lg mb-2 cursor-pointer flex items-center gap-3 ${selectedPost?.id === post.id ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50'}`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-lg ${post.network === 'TikTok' ? 'bg-black' : 'bg-gray-100'} flex items-center justify-center`}>
-                      {post.network === 'Instagram' && <Instagram size={16} className="text-pink-500"/>}
-                      {post.network === 'Facebook' && <Facebook size={16} className="text-blue-600"/>}
-                      {post.network === 'LinkedIn' && <Linkedin size={16} className="text-blue-700"/>}
-                      {post.network === 'Twitter' && <Twitter size={16} className="text-blue-400"/>}
-                      {post.network === 'TikTok' && <Music size={16} className="text-white"/>}
+                  {post.platform === 'Instagram' && <Instagram size={16} className="text-pink-500" />}
+                  {post.platform === 'Facebook' && <Facebook size={16} className="text-blue-600" />}
+                  {post.platform === 'LinkedIn' && <Linkedin size={16} className="text-blue-700" />}
+                  {post.platform === 'Twitter' && <Twitter size={16} className="text-blue-400" />}
+                  {post.platform === 'TikTok' && <Music size={16} className="black" />}
+
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium truncate">{post.title}</span>
+                      {post.status === 'published' && <Check size={12} className="text-green-500" />}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm font-medium truncate">{post.title || 'Sans titre'}</span>
-                        {post.status === 'published' && (
-                          <Check size={14} className="text-green-500"/>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{post.content?.substring(0, 50)}...</p>
-                      <div className="flex gap-2 mt-1">
-                        {post.hashtags?.slice(0, 2).map((tag, i) => (
-                          <span key={i} className="text-xs text-indigo-500">#{tag}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => handleDeletePost(e, post.id)}
-                      className="text-gray-400 hover:text-red-500 p-1"
-                    >
-                      <Trash2 size={16}/>
-                    </button>
+                    <p className="text-xs text-gray-500 truncate">{post.content.substring(0, 30)}...</p>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Contenu principal - Éditeur */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header mobile */}
-        <div className="md:hidden p-3 border-b border-gray-100 flex justify-between items-center">
-          <button onClick={() => setViewMode('list')} className="p-1">
-            <X size={20}/>
-          </button>
-          <h3 className="font-bold">Éditeur de post</h3>
-          <div className="w-8"></div>
-        </div>
-
-        {/* Onglets mobile */}
-        <div className="md:hidden flex border-b border-gray-100">
-          {['editor', 'preview'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setMobileTab(tab)}
-              className={`flex-1 p-3 text-center ${mobileTab === tab ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600'}`}
-            >
-              {tab === 'editor' ? <PenTool size={16}/> : <Eye size={16}/>}
-            </button>
-          ))}
+            <div className="mt-auto p-2 border-t border-gray-200">
+              <button className="w-full flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 py-2 px-3 rounded-lg hover:bg-gray-100">
+                <HelpCircle size={16} />
+                Aide
+              </button>
+              <button className="w-full flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 py-2 px-3 rounded-lg hover:bg-gray-100">
+                <LogOut size={16} />
+                Déconnexion
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Contenu principal */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {mobileTab === 'editor' && (
-            <div className="max-w-2xl mx-auto">
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description du post</label>
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={`Décrivez le contenu que vous voulez créer pour ${activeNetwork}.
-Par exemple: "Promotion de notre nouveau menu été avec des couleurs vives et un ton enthousiaste"`}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[120px] resize-y"
-                />
-                <div className="mt-1 text-xs text-gray-500 flex justify-between">
-                  <span>{prompt.length}/500 caractères</span>
-                  {error && <span className="text-red-500 flex items-center"><AlertCircle size={12} className="mr-1"/>{error}</span>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Réseau</label>
-                  <select
-                    value={activeNetwork}
-                    onChange={(e) => setActiveNetwork(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500"
-                  >
-                    {availableNetworks.map(network => (
-                      <option key={network.name} value={network.name}>
-                        {network.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Style</label>
-                  <select
-                    value={style}
-                    onChange={(e) => setStyle(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500"
-                  >
-                    {availableTones.map(tone => (
-                      <option key={tone} value={tone}>{tone}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Source image</label>
-                  <select
-                    value={imageSource}
-                    onChange={(e) => setImageSource(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500"
-                  >
-                    <option value="AI">Générer avec IA</option>
-                    <option value="upload">Uploader une image</option>
-                    <option value="none">Pas d'image</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hashtags</label>
-                  <div className="flex flex-wrap gap-2">
-                    {hashtags.map((tag, index) => (
-                      <span key={index} className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full flex items-center">
-                        #{tag}
-                        <button
-                          onClick={() => setHashtags(hashtags.filter((_, i) => i !== index))}
-                          className="ml-1 hover:text-red-500"
-                        >
-                          <X size={12}/>
-                        </button>
-                      </span>
-                    ))}
-                    {hashtags.length < 5 && (
-                      <button
-                        onClick={() => {
-                          const newTag = prompt.match(/#(\w+)/)?.[1] || '';
-                          if (newTag && !hashtags.includes(newTag)) {
-                            setHashtags([...hashtags, newTag]);
-                          } else {
-                            const userTag = window.prompt("Ajouter un hashtag:");
-                            if (userTag && !hashtags.includes(userTag)) {
-                              setHashtags([...hashtags, userTag]);
-                            }
-                          }
-                        }}
-                        className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200"
-                      >
-                        <Hash size={14}/>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {imageSource === 'upload' && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Uploader une image</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-500 transition">
-                    <Upload size={24} className="mx-auto text-gray-400 mb-2"/>
-                    <p className="text-sm text-gray-500">Glissez-déposez une image ou <button className="text-indigo-600 font-medium">parcourez</button></p>
-                    <input type="file" className="hidden" />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
+            {selectedPost ? (
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={handleGenerate}
-                  disabled={isLoading || !prompt.trim()}
-                  className="flex-1 bg-indigo-600 text-white py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setSelectedPost(null)}
+                  className="p-1 text-gray-500 hover:text-gray-700"
                 >
-                  {isLoading ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Génération...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={16}/> GÉNÉRER AVEC IA
-                    </>
-                  )}
+                  <ArrowLeft size={20} />
                 </button>
+                <h2 className="text-lg font-semibold">Modification du post</h2>
+              </div>
+            ) : chatStarted ? (
+              <h2 className="text-lg font-semibold">Assistant Marketing IA</h2>
+            ) : (
+              <h2 className="text-lg font-semibold">Tableau de bord Marketing</h2>
+            )}
 
-                {currentPost && (
-                  <button
-                    onClick={() => setMobileTab('preview')}
-                    className="flex-1 bg-white border border-gray-300 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-50 transition"
+            <div className="flex items-center gap-2">
+              <button className="p-2 text-gray-500 hover:text-gray-700">
+                <User size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Contenu principal */}
+          {selectedPost ? (
+            <div className="flex-1 overflow-y-auto p-6">
+              <PostEditor
+                post={selectedPost}
+                onPublish={publishPost}
+                onDelete={deletePost}
+                onBack={() => setSelectedPost(null)}
+              />
+            </div>
+          ) : chatStarted ? (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Zone de chat */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <Eye size={16}/> APERÇU
-                  </button>
+                    {message.role !== 'user' && (
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                        <Sparkles size={16} className="text-indigo-600" />
+                      </div>
+                    }
+
+                    <div
+                      className={`max-w-[80%] p-3 rounded-lg ${message.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border border-gray-200 rounded-bl-none'}`}
+                    >
+                      {message.role === 'assistant' && message.content.includes('**Post') ? (
+                        <div className="space-y-2">
+                          {message.content.split('\n\n').map((part, i) => (
+                            <div key={i} className={part.startsWith('**') ? 'bg-indigo-50 p-3 rounded-lg' : ''}>
+                              {part.startsWith('**Post') && (
+                                <button
+                                  onClick={() => createPostFromSuggestion(message.content)}
+                                  className="bg-indigo-600 text-white text-xs px-2 py-1 rounded mb-2 flex items-center gap-1"
+                                >
+                                  <Sparkles size={12} /> Utiliser cette suggestion
+                                </button>
+                              )}
+                              {part.split('\n').map((line, j) => (
+                                <p key={j} className={line.startsWith('📢') || line.startswith('💥') ? 'font-semibold' : ''}>
+                                  {line.replace(/^[★♦♣♠•·]\s?/, '')}
+                                </p>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                      <Sparkles size={16} className="text-indigo-600" />
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-3 rounded-bl-none max-w-[80%]">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce"></div>
+                        <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                      </div>
+                    </div>
+                  </div>
                 )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Zone de saisie */}
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex items-end gap-2">
+                  <button className="p-2 text-gray-500 hover:text-gray-700">
+                    <Paperclip size={20} />
+                  </button>
+
+                  <div className="flex-1">
+                    <textarea
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      placeholder="Demandez à l'IA de créer un post, une campagne, ou donnez-lui des instructions..."
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[56px] max-h-[120px] resize-none"
+                      rows={1}
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span></span>
+                      <span>{inputValue.length}/500</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={sendMessage}
+                    disabled={isLoading || !inputValue.trim()}
+                    className={`p-2 rounded-lg ${isLoading || !inputValue.trim() ? 'text-gray-300' : 'text-indigo-600 hover:bg-indigo-50'}`}
+                  >
+                    <Send size={20} />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  L'IA peut faire des erreurs. Vérifiez toujours les informations importantes.
+                </p>
               </div>
             </div>
-          )}
-
-          {mobileTab === 'preview' && (
-            <div className="flex flex-col items-center justify-center h-full p-4">
-              {renderPostPreview()}
-              <div className="mt-6 w-full max-w-sm">
-                <button
-                  onClick={handleSave}
-                  disabled={isLoading || !currentPost?.content}
-                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Sauvegarde...
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={16}/> ENREGISTRER LE POST
-                    </>
-                  )}
-                </button>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-50 to-purple-50">
+              <div className="max-w-md text-center space-y-6">
+                <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-white">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <Sparkles size={32} className="text-indigo-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-2">Boostez votre visibilité</h2>
+                  <p className="text-gray-600 mb-6">
+                    Utilisez notre assistant IA pour créer des posts percutants, analyser vos performances et développer votre stratégie marketing.
+                  </p>
+                  <button
+                    onClick={startNewChat}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl font-semibold transition duration-200 flex items-center justify-center gap-2 mb-4"
+                  >
+                    <Sparkles size={16} /> Commencer avec l'IA
+                  </button>
+                  <div className="text-left text-sm">
+                    <p className="flex items-center gap-2 mb-1">
+                      <Check size={14} className="text-green-500" /> <span>Création de posts optimisés</span>
+                    </p>
+                    <p className="flex items-center gap-2 mb-1">
+                      <Check size={14} className="text-green-500" /> <span>Analyse de performance</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Check size={14} className="text-green-500" /> <span>Stratégies personnalisées</span>
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Aperçu desktop */}
-        <div className="hidden md:block w-80 border-l border-gray-100 p-4 bg-gray-50">
-          <div className="sticky top-0 space-y-4">
-            <h3 className="font-bold text-gray-800 mb-4">Aperçu</h3>
-            {currentPost ? (
-              <>
-                {renderPostPreview()}
-                <div className="mt-4">
-                  <button
-                    onClick={handleSave}
-                    disabled={isLoading}
-                    className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? (
-                      <>
-                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        En cours...
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={14}/> ENREGISTRER
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8">
-                <Smartphone size={48} className="mb-4"/>
-                <p className="text-sm font-medium text-center">Générez un post pour voir l'aperçu</p>
+        {/* Éditeur de post */}
+        {selectedPost && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Éditeur de post</h3>
+                <button
+                  onClick={() => setSelectedPost(null)}
+                  className="p-1 text-gray-500 hover:text-gray-700"
+                >
+                  <X size={20} />
+                </button>
               </div>
-            )}
+
+              <div className="flex-1 overflow-y-auto p-4">
+                <PostEditor
+                  post={selectedPost}
+                  onPublish={publishPost}
+                  onDelete={deletePost}
+                  onBack={() => setSelectedPost(null)}
+                />
+              </div>
+            </div>
           </div>
+        )}
+
+        {/* Paramètres */}
+        {showSettings && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Paramètres</h3>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-1 text-gray-500 hover:text-gray-700"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                <div>
+                  <h4 className="font-medium mb-2">Paramètres du compte</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nom du commerce</label>
+                      <input
+                        type="text"
+                        defaultValue="Mon Commerce Local"
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Secteur d'activité</label>
+                      <select className="w-full p-2 border border-gray-300 rounded-lg">
+                        <option>Restauration</option>
+                        <option>Commerce de détail</option>
+                        <option>Services</option>
+                        <option>Artisanat</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">Réseaux sociaux connectés</h4>
+                  <div className="space-y-3">
+                    {[
+                      { name: 'Facebook', icon: <Facebook size={16} />, connected: true },
+                      { name: 'Instagram', icon: <Instagram size={16} />, connected: true },
+                      { name: 'LinkedIn', icon: <Linkedin size={16} />, connected: false },
+                      { name: 'Twitter', icon: <Twitter size={16} />, connected: false },
+                      { name: 'TikTok', icon: <Music size={16} />, connected: false }
+                    ].map((network, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-gray-100">
+                            {network.icon}
+                          </div>
+                          <span>{network.name}</span>
+                        </div>
+                        <div className={`px-2 py-1 text-xs rounded-full ${network.connected ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {network.connected ? 'Connecté' : 'Déconnecté'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">Préférences de l'IA</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ton par défaut</label>
+                      <select className="w-full p-2 border border-gray-300 rounded-lg">
+                        <option>Professionnel</option>
+                        <option>Amical</option>
+                        <option>Drôle</option>
+                        <option>Inspirant</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="auto-hashtags" className="rounded" />
+                      <label htmlFor="auto-hashtags" className="text-sm">Générer automatiquement des hashtags</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
+
+// Composant PostEditor séparé pour une meilleure organisation
+const PostEditor = ({ post, onPublish, onDelete, onBack }) => {
+  const [editedPost, setEditedPost] = useState(post);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditedPost(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-6">
+        {post.platform === 'Instagram' && <Instagram size={20} className="text-pink-500" />}
+        {post.platform === 'Facebook' && <Facebook size={20} className="text-blue-600" />}
+        {post.platform === 'LinkedIn' && <Linkedin size={20} className="text-blue-700" />}
+        {post.platform === 'Twitter' && <Twitter size={20} className="text-blue-400" />}
+        {post.platform === 'TikTok' && <Music size={20} className="black" />}
+
+        <h3 className="text-xl font-semibold">{post.title}</h3>
+
+        <div className={`ml-auto px-2 py-1 text-xs rounded-full ${post.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+          {post.status === 'published' ? 'Publié' : 'Brouillon'}
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        {/* Aperçu du post */}
+        <div className="p-4">
+          <div className={`max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden ${post.platform === 'TikTok' ? 'border-2 border-black' : 'border border-gray-200'}`}>
+            {/* Header du post */}
+            <div className="flex items-center p-3 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                <User size={16} className="text-indigo-600" />
+              </div>
+              <div className="ml-2 text-sm font-semibold">Mon Commerce Local</div>
+              <div className="ml-auto text-xs text-gray-500">✉️</div>
+            </div>
+
+            {/* Contenu du post */}
+            <div className={`bg-gray-50 ${post.platform === 'TikTok' ? 'aspect-[9/16]' : 'aspect-square'} relative`}>
+              <img
+                src={post.image || "/placeholder-post.jpg"}
+                alt="Contenu du post"
+                className="w-full h-full object-cover"
+              />
+              {post.platform === 'TikTok' && (
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent text-white">
+                  <div className="text-sm font-medium">@moncommercelocal</div>
+                  <div className="text-xs mt-1">Son original - Nom de la musique</div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="p-3 flex gap-4 text-gray-600">
+              <button className="flex items-center gap-1">
+                <Heart size={18} /> <span className="text-xs">Aimer</span>
+              </button>
+              <button className="flex items-center gap-1">
+                <MessageSquare size={18} /> <span className="text-xs">Commenter</span>
+              </button>
+              <button className="flex items-center gap-1">
+                <Send size={18} /> <span className="text-xs">Partager</span>
+              </button>
+            </div>
+
+            {/* Légende */}
+            <div className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-semibold">Mon Commerce Local</span>
+                <Check size={14} className="text-blue-500" />
+              </div>
+              {isEditing ? (
+                <textarea
+                  name="content"
+                  value={editedPost.content}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-lg min-h-[100px]"
+                />
+              ) : (
+                <p className="text-sm whitespace-pre-line">{post.content}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Métriques */}
+        {post.status === 'published' && (
+          <div className="p-4 border-t border-gray-200">
+            <h4 className="font-medium mb-3">Performances</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-lg font-semibold">{post.metrics?.likes || 0}</div>
+                <div className="text-xs text-gray-500">J'aime</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold">{post.metrics?.comments || 0}</div>
+                <div className="text-xs text-gray-500">Commentaires</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold">{post.metrics?.shares || 0}</div>
+                <div className="text-xs text-gray-500">Partages</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+          {post.status !== 'published' && (
+            <>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm flex items-center gap-2 hover:bg-gray-50"
+              >
+                <Edit2 size={16} /> {isEditing ? 'Annuler' : 'Modifier'}
+              </button>
+              <button
+                onClick={() => onPublish(post.id)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm flex items-center gap-2 hover:bg-indigo-700"
+              >
+                <Send size={16} /> Publier
+              </button>
+            </>
+          )}
+          <button
+            onClick={onBack}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm flex items-center gap-2 hover:bg-gray-50"
+          >
+            <X size={16} /> Fermer
+          </button>
+          <button
+            onClick={() => onDelete(post.id)}
+            className="px-3 py-2 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm flex items-center gap-2 hover:bg-red-100"
+          >
+            <Trash2 size={16} /> Supprimer
+          </button>
         </div>
       </div>
     </div>
   );
+};
+
+// Fonction pour simuler l'API OpenAI (à remplacer par l'appel réel)
+async function callOpenAIAPI(prompt) {
+  // Dans une vraie implémentation, vous feriez :
+  // const response = await fetch('/api/openai', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify({ prompt })
+  // });
+  // return await response.json();
+
+  // Simulation pour le développement
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: `Voici une suggestion pour votre demande "${prompt}" :
+
+            **Post Instagram :**
+            📢 [Nom de votre entreprise] a une offre spéciale pour vous !
+            💥 25% de réduction ce week-end seulement
+            📍 En magasin et en ligne
+
+            #Promotion #OffreSpéciale #Été2023
+
+            **Conseils supplémentaires :**
+            - Postez ce contenu entre 18h et 20h pour un maximum d'engagement
+            - Ajoutez une photo de vos produits phares
+            - Répondez rapidement aux commentaires pour booster l'algorithme`
+          }
+        }]
+      });
+    }, 1000);
+  });
 }
+
+export default MarketingPage;

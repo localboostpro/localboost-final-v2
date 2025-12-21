@@ -1,67 +1,66 @@
-// pages/marketing.jsx
-import { useState, useEffect } from 'react'
-import { generatePostContent } from '../lib/openai'
+// CORRECTION ICI : Ajout de 'React' dans l'import pour éviter "React is not defined"
+import React, { useState, useEffect } from 'react';
+import { generatePostContent } from '../lib/openai';
+// Import des icônes Lucide (vérifiez que vous avez bien installé lucide-react)
 import {
   Instagram, Facebook, Linkedin, Twitter, Music as TikTok,
   Wand2, Send, Trash2, Edit2, Eye, Check, X, Sparkles,
-  BarChart2, MessageSquare, User, Settings, HelpCircle
-} from 'lucide-react'
+  BarChart2, MessageSquare, Settings
+} from 'lucide-react';
 
-// Configuration des plateformes avec fallback pour les icônes
+// Configuration des plateformes
 const PLATFORM_CONFIG = {
   Instagram: {
     icon: Instagram,
     color: "bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600",
     textColor: "text-pink-600",
     ratio: "1:1",
-    placeholder: "/placeholder-instagram.png"
+    placeholder: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80" // Image placeholder valide
   },
   Facebook: {
     icon: Facebook,
     color: "bg-blue-600",
     textColor: "text-blue-600",
     ratio: "1.91:1",
-    placeholder: "/placeholder-facebook.png"
+    placeholder: "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=800&q=80"
   },
   LinkedIn: {
     icon: Linkedin,
     color: "bg-blue-700",
     textColor: "text-blue-700",
     ratio: "1.91:1",
-    placeholder: "/placeholder-linkedin.png"
+    placeholder: "https://images.unsplash.com/photo-1611944212129-2999046c819b?w=800&q=80"
   },
   Twitter: {
     icon: Twitter,
     color: "bg-blue-400",
     textColor: "text-blue-400",
     ratio: "16:9",
-    placeholder: "/placeholder-twitter.png"
+    placeholder: "https://images.unsplash.com/photo-1611605698335-8b15f5b2909f?w=800&q=80"
   },
   TikTok: {
     icon: TikTok,
     color: "bg-black",
     textColor: "text-black",
     ratio: "9:16",
-    placeholder: "/placeholder-tiktok.png"
+    placeholder: "https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?w=800&q=80"
   }
-}
+};
 
 export default function MarketingPage({ profile }) {
-  // États avec valeurs par défaut plus sûres
-  const [posts, setPosts] = useState([])
-  const [currentPost, setCurrentPost] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('generator')
-  const [prompt, setPrompt] = useState('')
-  const [platform, setPlatform] = useState('Instagram')
-  const [tone, setTone] = useState('Amical')
-  const [error, setError] = useState(null)
-  const [generationHistory, setGenerationHistory] = useState([])
+  const [posts, setPosts] = useState([]);
+  const [currentPost, setCurrentPost] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('generator');
+  const [prompt, setPrompt] = useState('');
+  const [platform, setPlatform] = useState('Instagram');
+  const [tone, setTone] = useState('Amical');
+  const [error, setError] = useState(null);
+  const [generationHistory, setGenerationHistory] = useState([]);
 
-  // Chargement initial sécurisé
+  // Chargement initial sécurisé (Simulation)
   useEffect(() => {
     try {
-      // Dans une vraie app, vous feriez un fetch ici
       const demoPosts = [
         {
           id: 'demo-1',
@@ -74,21 +73,21 @@ export default function MarketingPage({ profile }) {
           metrics: { likes: 120, comments: 24 },
           createdAt: new Date(Date.now() - 86400000).toISOString()
         }
-      ]
-      setPosts(demoPosts)
+      ];
+      setPosts(demoPosts);
     } catch (err) {
-      console.error("Erreur de chargement initial:", err)
+      console.error("Erreur de chargement initial:", err);
     }
-  }, [])
+  }, []);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setError("Veuillez décrire votre post")
-      return
+      setError("Veuillez décrire votre post");
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
       const enhancedPrompt = `
@@ -103,9 +102,9 @@ export default function MarketingPage({ profile }) {
       - Inclut 2-3 hashtags pertinents
       - Propose une idée d'image
       - Reste concis (max 280 caractères)
-      `
+      `;
 
-      const result = await generatePostContent(enhancedPrompt, profile)
+      const result = await generatePostContent(enhancedPrompt, profile);
 
       const newPost = {
         id: `post-${Date.now()}`,
@@ -119,24 +118,24 @@ export default function MarketingPage({ profile }) {
         tips: result.platform_tips || "Publiez aux heures d'affluence",
         createdAt: new Date().toISOString(),
         metrics: { likes: 0, comments: 0 }
-      }
+      };
 
-      setPosts([newPost, ...posts])
-      setCurrentPost(newPost)
-      setActiveTab('preview')
+      setPosts([newPost, ...posts]);
+      setCurrentPost(newPost);
+      setActiveTab('preview');
       setGenerationHistory([...generationHistory, {
         prompt,
         result: newPost.content,
         date: new Date().toISOString()
-      }])
+      }]);
 
     } catch (err) {
-      console.error("Erreur de génération:", err)
-      setError(err.message || "Échec de la génération du contenu")
+      console.error("Erreur de génération:", err);
+      setError(err.message || "Échec de la génération du contenu");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handlePublish = (postId) => {
     setPosts(posts.map(post =>
@@ -145,22 +144,22 @@ export default function MarketingPage({ profile }) {
         status: "published",
         metrics: { ...post.metrics, likes: Math.floor(Math.random() * 100) + 20 }
       } : post
-    ))
-  }
+    ));
+  };
 
   const handleDelete = (postId) => {
     if (window.confirm("Voulez-vous vraiment supprimer ce post?")) {
-      setPosts(posts.filter(post => post.id !== postId))
-      if (currentPost?.id === postId) setCurrentPost(null)
+      setPosts(posts.filter(post => post.id !== postId));
+      if (currentPost?.id === postId) setCurrentPost(null);
     }
-  }
+  };
 
-  // Composant pour l'aperçu des posts
+  // Composant pour l'aperçu des posts (Interne)
   const PostPreview = ({ post }) => {
-    if (!post) return null
+    if (!post) return null;
 
-    const PlatformIcon = PLATFORM_CONFIG[post.platform]?.icon || Instagram
-    const platformConfig = PLATFORM_CONFIG[post.platform] || PLATFORM_CONFIG.Instagram
+    const PlatformIcon = PLATFORM_CONFIG[post.platform]?.icon || Instagram;
+    const platformConfig = PLATFORM_CONFIG[post.platform] || PLATFORM_CONFIG.Instagram;
 
     return (
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -191,7 +190,7 @@ export default function MarketingPage({ profile }) {
                 alt="Aperçu du post"
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.target.src = '/placeholder-fallback.png'
+                  e.target.src = 'https://via.placeholder.com/400x400?text=Image+Non+Disponible'; // Fallback image valide
                 }}
               />
               {post.platform === 'TikTok' && (
@@ -214,7 +213,7 @@ export default function MarketingPage({ profile }) {
               </div>
 
               <div className="space-y-2">
-                <p className="whitespace-pre-line break-words">{post.content}</p>
+                <p className="whitespace-pre-line break-words text-sm">{post.content}</p>
                 <div className="text-indigo-600 text-sm">
                   {post.hashtags.join(' ')}
                 </div>
@@ -249,16 +248,16 @@ export default function MarketingPage({ profile }) {
           </button>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 h-[calc(100vh-100px)]">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 p-4 flex flex-col">
+      <div className="w-64 bg-white border-r border-gray-200 p-4 flex flex-col hidden lg:flex">
         <div className="mb-8">
-          <h1 className="text-xl font-bold text-indigo-600">LocalBoost</h1>
-          <p className="text-xs text-gray-500">Studio Marketing IA</p>
+          <h1 className="text-xl font-bold text-indigo-600">Studio IA</h1>
+          <p className="text-xs text-gray-500">Assistant Marketing</p>
         </div>
 
         <nav className="space-y-1">
@@ -266,7 +265,7 @@ export default function MarketingPage({ profile }) {
             onClick={() => { setActiveTab('generator'); setCurrentPost(null) }}
             className={`w-full flex items-center gap-3 p-3 rounded-lg ${activeTab === 'generator' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
           >
-            <Wand2 size={18} /> Générateur IA
+            <Wand2 size={18} /> Générateur
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -285,12 +284,17 @@ export default function MarketingPage({ profile }) {
 
       {/* Contenu principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-white">
+        {/* Header Mobile & Desktop */}
+        <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
           <h2 className="text-lg font-semibold">
             {activeTab === 'generator' ? 'Générateur de Posts' :
              activeTab === 'preview' ? 'Aperçu' : 'Historique'}
           </h2>
+          {/* Menu mobile simple */}
+          <div className="lg:hidden flex gap-2">
+             <button onClick={() => setActiveTab('generator')} className="p-2 bg-gray-100 rounded-lg"><Wand2 size={18}/></button>
+             <button onClick={() => setActiveTab('history')} className="p-2 bg-gray-100 rounded-lg"><BarChart2 size={18}/></button>
+          </div>
         </div>
 
         {/* Générateur */}
@@ -383,16 +387,16 @@ export default function MarketingPage({ profile }) {
 
         {/* Aperçu */}
         {activeTab === 'preview' && currentPost && (
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 bg-gray-100">
             <PostPreview post={currentPost} />
           </div>
         )}
 
-        {/* Historique */}
+        {/* Historique Complet */}
         {activeTab === 'history' && (
           <div className="flex-1 overflow-y-auto p-6">
             <div className="max-w-4xl mx-auto">
-              <h3 className="text-lg font-medium mb-6">Historique des posts</h3>
+              <h3 className="text-lg font-medium mb-6">Tous vos posts</h3>
 
               {posts.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
@@ -408,65 +412,33 @@ export default function MarketingPage({ profile }) {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {posts.map(post => {
-                    const PlatformIcon = PLATFORM_CONFIG[post.platform]?.icon || Instagram
-                    const platformConfig = PLATFORM_CONFIG[post.platform] || PLATFORM_CONFIG.Instagram
+                    const PlatformIcon = PLATFORM_CONFIG[post.platform]?.icon || Instagram;
+                    const platformConfig = PLATFORM_CONFIG[post.platform] || PLATFORM_CONFIG.Instagram;
 
                     return (
                       <div
                         key={post.id}
-                        className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                        className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => { setCurrentPost(post); setActiveTab('preview'); }}
                       >
                         <div className="p-4">
                           <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${platformConfig.color}/10`}>
                               <PlatformIcon size={16} className={platformConfig.textColor} />
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 overflow-hidden">
                               <h4 className="font-medium truncate">{post.title}</h4>
                               <p className="text-sm text-gray-500 truncate">
                                 {post.platform} • {new Date(post.createdAt).toLocaleDateString()}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className={`px-2 py-1 text-xs rounded-full ${
-                                post.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {post.status === 'published' ? 'Publié' : 'Brouillon'}
-                              </div>
+                            <div className={`px-2 py-1 text-xs rounded-full ${
+                              post.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {post.status === 'published' ? 'Publié' : 'Brouillon'}
                             </div>
                           </div>
-
-                          <p className="mt-3 text-sm line-clamp-2">{post.content}</p>
-
-                          {post.status === 'published' && (
-                            <div className="mt-3 flex gap-4 text-sm">
-                              <div className="text-center">
-                                <div className="font-medium">{post.metrics?.likes || 0}</div>
-                                <div className="text-gray-500 text-xs">J'aime</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="font-medium">{post.metrics?.comments || 0}</div>
-                                <div className="text-gray-500 text-xs">Commentaires</div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                          <button
-                            onClick={() => { setCurrentPost(post); setActiveTab('preview') }}
-                            className="p-1.5 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
-                            aria-label="Voir le post"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(post.id)}
-                            className="p-1.5 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-200 transition-colors"
-                            aria-label="Supprimer le post"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <p className="mt-3 text-sm line-clamp-2 text-gray-600">{post.content}</p>
                         </div>
                       </div>
                     )
@@ -478,5 +450,5 @@ export default function MarketingPage({ profile }) {
         )}
       </div>
     </div>
-  )
+  );
 }

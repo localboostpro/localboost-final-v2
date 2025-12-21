@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
+// CORRECTION : On remplace 'Image as ImageIcon' par 'FileImage' pour éviter le bug du constructeur
 import { 
-  User, MapPin, Save, Upload, Image as ImageIcon, 
+  User, MapPin, Save, Upload, FileImage, 
   Phone, Globe, Building, Lock, Key, Clock, 
   CreditCard, CheckCircle, AlertTriangle, Trash2
 } from "lucide-react";
@@ -32,7 +33,6 @@ export default function Profile({ profile, setProfile }) {
       { day: "Dimanche", open: "", close: "", closed: true },
   ];
   
-  // SÉCURITÉ ICI : On s'assure que hours est un tableau
   const initialHours = Array.isArray(profile?.landing_config?.hours) 
     ? profile.landing_config.hours 
     : defaultHours;
@@ -166,7 +166,8 @@ export default function Profile({ profile, setProfile }) {
                   <form onSubmit={handleUpdate} className="space-y-6">
                       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                              <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-600"><ImageIcon size={18}/></div>
+                              {/* Utilisation de FileImage ici */}
+                              <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-600"><FileImage size={18}/></div>
                               <div><div className="font-bold text-slate-900 text-xs uppercase">Logo</div><div className="text-[10px] text-slate-400">JPG, PNG (Max 2Mo)</div></div>
                           </div>
                           <div className="relative">

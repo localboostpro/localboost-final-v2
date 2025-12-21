@@ -1,7 +1,7 @@
 import React from "react";
 import { 
   LayoutDashboard, Wand2, MessageSquare, Users, 
-  Ticket, User, LogOut, X, Zap, PlusCircle
+  Ticket, User, LogOut, X, Zap, PlusCircle, Globe // <--- J'ai ajouté Globe ici
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -12,7 +12,7 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
     { id: "generator", label: "Générateur IA", icon: <Wand2 size={20} /> },
     { id: "reviews", label: "Avis clients", icon: <MessageSquare size={20} /> },
     { id: "customers", label: "Mes Clients", icon: <Users size={20} /> },
-    { id: "webpage", label: "Ma Page Web", icon: <Globe size={20} /> },
+    { id: "webpage", label: "Ma Page Web", icon: <Globe size={20} /> }, // Utilise l'icône Globe
     { id: "promotions", label: "Promotions", icon: <Ticket size={20} /> },
     { id: "profile", label: "Mon Profil", icon: <User size={20} /> },
   ];

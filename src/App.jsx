@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase";
 import { getPlanConfig } from "./lib/plans";
 import Sidebar from "./components/Sidebar";
@@ -10,14 +10,14 @@ import Profile from "./views/Profile";
 import Promotions from "./views/Promotions";
 import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
-import { Eye, LogOut, Menu } from "lucide-react"; // Ajout de l'icône Menu
+import { Eye, LogOut, Menu } from "lucide-react";
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   
-  // NOUVEAU : État pour le menu mobile
+  // État pour le menu mobile
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // États de sécurité
@@ -31,8 +31,42 @@ export default function App() {
   const [posts, setPosts] = useState([]);
   const [currentPost, setCurrentPost] = useState(null);
 
+  // --- SÉCURITÉ : DÉCONNEXION AUTOMATIQUE (15 min) ---
+  const timerRef = useRef(null);
+
+  const resetTimer = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (session) {
+          alert("🔒 Session expirée par sécurité. Veuillez vous reconnecter.");
+          supabase.auth.signOut();
+          setSession(null);
+      }
+    }, 15 * 60 * 1000); // 15 minutes en millisecondes
+  };
+
   useEffect(() => {
-    // Sécurité : On force la fin du chargement après 3 secondes max
+    // On écoute l'activité de l'utilisateur
+    if (session) {
+        window.addEventListener("mousemove", resetTimer);
+        window.addEventListener("keydown", resetTimer);
+        window.addEventListener("click", resetTimer);
+        window.addEventListener("scroll", resetTimer);
+        
+        resetTimer(); // Lancement initial
+    }
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      window.removeEventListener("mousemove", resetTimer);
+      window.removeEventListener("keydown", resetTimer);
+      window.removeEventListener("click", resetTimer);
+      window.removeEventListener("scroll", resetTimer);
+    };
+  }, [session]);
+  // --- FIN SÉCURITÉ ---
+
+  useEffect(() => {
     const safetyTimer = setTimeout(() => setLoading(false), 3000);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -57,7 +91,6 @@ export default function App() {
     const isDemoAdmin = session.user.email === "admin@demo.fr";
     setIsAdmin(isDemoAdmin);
     
-    // Redirection intelligente
     if (isDemoAdmin && !impersonatedUserId) {
       setActiveTab("admin");
     } else if (!impersonatedUserId && activeTab === "admin") {
@@ -110,7 +143,6 @@ export default function App() {
 
   const handlePostUpdate = (newPost) => setPosts([newPost, ...posts]);
 
-  // ÉCRAN DE CHARGEMENT
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-slate-50">
       <div className="flex flex-col items-center gap-4">
@@ -133,16 +165,13 @@ export default function App() {
             activeTab={activeTab} 
             setActiveTab={setActiveTab} 
             profile={profile} 
-            // Props pour le mobile
             isOpen={isMobileMenuOpen}
             onClose={() => setIsMobileMenuOpen(false)}
         />
       )}
       
-      {/* Ajustement des marges pour le mobile (pt-4) et desktop (md:pt-8) */}
       <main className={`flex-1 overflow-y-auto w-full pt-4 md:pt-8 transition-all ${!isFullPage ? 'md:ml-0' : ''}`}>
         
-        {/* BANDEAU ROUGE MODE ESPION */}
         {impersonatedUserId && (
           <div className="bg-rose-600 text-white px-4 md:px-8 py-3 sticky top-0 z-50 flex justify-between items-center shadow-lg animate-in slide-in-from-top">
              <div className="flex items-center gap-2 font-bold animate-pulse text-xs md:text-sm">
@@ -154,11 +183,9 @@ export default function App() {
           </div>
         )}
 
-        {/* HEADER CLASSIQUE (Sauf en admin plein écran) */}
         {!isFullPage && !impersonatedUserId && (
           <header className="px-4 md:px-8 pb-6 flex justify-between items-center sticky top-0 bg-[#F8FAFC]/95 z-30 pt-2">
             <div className="flex items-center gap-3">
-                {/* BOUTON HAMBURGER MOBILE */}
                 <button 
                     onClick={() => setIsMobileMenuOpen(true)}
                     className="md:hidden p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-indigo-600 shadow-sm active:scale-95 transition"
@@ -175,7 +202,6 @@ export default function App() {
               <span className="hidden md:inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase">
                  {currentPlan.label}
               </span>
-              {/* Pastille mobile simple */}
               <span className={`md:hidden w-3 h-3 rounded-full ${profile?.subscription_tier === 'premium' ? 'bg-indigo-500' : 'bg-slate-300'}`}></span>
             </div>
           </header>

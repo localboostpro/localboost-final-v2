@@ -1,24 +1,25 @@
 import React from "react";
 import { 
   LayoutDashboard, Wand2, MessageSquare, Users, 
-  Ticket, User, LogOut, X, Zap, PlusCircle, Globe // <--- J'ai ajouté Globe ici
+  Ticket, User, LogOut, X, Zap, PlusCircle, Globe
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onClose }) {
   
+  // MENU EN FRANÇAIS
   const menuItems = [
     { id: "dashboard", label: "Tableau de bord", icon: <LayoutDashboard size={20} /> },
-    { id: "generator", label: "Générateur IA", icon: <Wand2 size={20} /> },
-    { id: "reviews", label: "Avis clients", icon: <MessageSquare size={20} /> },
-    { id: "customers", label: "Mes Clients", icon: <Users size={20} /> },
-    { id: "webpage", label: "Ma Page Web", icon: <Globe size={20} /> }, // Utilise l'icône Globe
-    { id: "promotions", label: "Promotions", icon: <Ticket size={20} /> },
-    { id: "profile", label: "Mon Profil", icon: <User size={20} /> },
+    { id: "generator", label: "Studio Créatif", icon: <Wand2 size={20} /> },
+    { id: "reviews", label: "Avis Clients", icon: <MessageSquare size={20} /> },
+    { id: "customers", label: "Fichier Clients", icon: <Users size={20} /> },
+    { id: "webpage", label: "Ma Vitrine Web", icon: <Globe size={20} /> },
+    { id: "promotions", label: "Offres & Promo", icon: <Ticket size={20} /> },
+    { id: "profile", label: "Mon Établissement", icon: <User size={20} /> },
   ];
 
   const handleLogout = async () => {
-    if(window.confirm("Se déconnecter ?")) {
+    if(window.confirm("Voulez-vous vraiment vous déconnecter ?")) {
         await supabase.auth.signOut();
         window.location.reload();
     }
@@ -43,10 +44,9 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
         h-[100dvh] md:h-screen
       `}>
         
-        {/* EN-TÊTE : LOGO LOCALBOOST PRO + LOGO CLIENT */}
+        {/* EN-TÊTE */}
         <div className="p-8 flex flex-col gap-6 shrink-0 border-b border-slate-50">
           
-          {/* 1. Logo LocalBoost Pro */}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="bg-slate-900 p-2 rounded-xl text-white shadow-lg shadow-slate-200">
@@ -61,13 +61,13 @@ export default function Sidebar({ activeTab, setActiveTab, profile, isOpen, onCl
             </button>
           </div>
 
-          {/* 2. Logo Client (Zone personnalisable) */}
+          {/* Espace Client / Logo */}
           <div className="w-full">
              {profile?.logo_url ? (
                  <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                     <img src={profile.logo_url} className="w-10 h-10 rounded-lg object-cover bg-white border border-slate-200" alt="Logo"/>
                     <div className="overflow-hidden">
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Espace Client</div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Espace Pro</div>
                         <div className="font-bold text-sm text-slate-900 truncate">{profile.name}</div>
                     </div>
                  </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-// CORRECTION ICI : Ajout de 'Sparkles' dans la liste
+// CORRECTION : Import complet de toutes les icônes nécessaires, y compris Sparkles
 import { 
   Users, MessageSquare, TrendingUp, Calendar, ArrowRight, 
   CheckCircle, AlertCircle, Sparkles, Sun, Cloud, CloudRain, Wind 
@@ -10,10 +10,11 @@ export default function Dashboard({ stats, posts, onGenerate, profile }) {
   const socialConnected = profile?.instagram_url || profile?.facebook_url;
 
   useEffect(() => {
+      // Tentative de récupération de la géolocalisation
       if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
               async (position) => { fetchWeather(position.coords.latitude, position.coords.longitude); },
-              () => fetchWeather(48.8566, 2.3522)
+              () => fetchWeather(48.8566, 2.3522) // Paris par défaut si refus/erreur
           );
       } else { fetchWeather(48.8566, 2.3522); }
   }, []);
@@ -61,16 +62,19 @@ export default function Dashboard({ stats, posts, onGenerate, profile }) {
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Carte Clients */}
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center justify-between group hover:border-indigo-100 transition">
           <div><div className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Base Clients</div><div className="text-4xl font-black text-slate-900">{stats.clients}</div></div>
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition"><Users size={24} /></div>
         </div>
 
+        {/* Carte Avis */}
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center justify-between group hover:border-indigo-100 transition">
           <div><div className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Avis Reçus</div><div className="text-4xl font-black text-slate-900">{stats.reviews}</div></div>
           <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition"><MessageSquare size={24} /></div>
         </div>
 
+        {/* Carte Création Post IA */}
         <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 rounded-[2rem] shadow-lg shadow-indigo-200 text-white relative overflow-hidden group cursor-pointer" onClick={onGenerate}>
             <div className="relative z-10">
                 <h3 className="font-black text-xl mb-2">Créer un post IA</h3>
@@ -79,11 +83,14 @@ export default function Dashboard({ stats, posts, onGenerate, profile }) {
                     <Sparkles size={16}/> Lancer le Studio
                 </button>
             </div>
+            {/* Décoration Sparkles en fond */}
             <Sparkles className="absolute -bottom-4 -right-4 text-white/10 w-32 h-32 rotate-12 group-hover:rotate-45 transition duration-700"/>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Section Dernières Créations */}
         <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
            <div className="flex justify-between items-center mb-6">
                <h3 className="font-black text-xl text-slate-900 flex items-center gap-2"><TrendingUp className="text-indigo-600"/> Dernières Créations</h3>
@@ -108,6 +115,7 @@ export default function Dashboard({ stats, posts, onGenerate, profile }) {
            </div>
         </div>
 
+        {/* Section Connexion Réseaux */}
         <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col items-center text-center justify-center relative overflow-hidden">
              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -z-10"></div>
              <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mb-4 shadow-sm ${socialConnected ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}><Calendar size={32}/></div>

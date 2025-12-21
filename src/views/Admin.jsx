@@ -4,7 +4,7 @@ import {
   Shield, LogOut, Search, Key, Eye, Calendar, Power, TrendingUp, Mail, Zap 
 } from "lucide-react";
 
-export default function AdminView({ onAccessClient }) {
+export default function AdminView({ onAccessClient, onExit }) {
   const [businesses, setBusinesses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [stats, setStats] = useState({ revenue: 0, total: 0, premium: 0 });
@@ -37,7 +37,7 @@ export default function AdminView({ onAccessClient }) {
 
       setStats({ 
           total: data.length, 
-          premium: premiumCount,
+          premium: premiumCount, 
           revenue: Math.round(currentRevenue) 
       });
 
@@ -68,7 +68,7 @@ export default function AdminView({ onAccessClient }) {
     
     // 1. Profil Business
     const newProfile = {
-        user_id: user?.id, // On lie au compte admin (nécessite la commande SQL étape 1)
+        user_id: user?.id, // On lie au compte admin
         name: `DÉMO Boulangerie ${uniqueSuffix}`,
         email: `demo.${uniqueSuffix}@localboost.test`,
         city: "Paris",
@@ -122,10 +122,18 @@ export default function AdminView({ onAccessClient }) {
       calculateStats(updatedList);
   };
 
-  const handleSendResetPassword = async (email) => { alert(`🔑 Lien envoyé à ${email}`); };
+  const handleSendResetPassword = async (email) => { 
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+      if(error) alert("Erreur: " + error.message);
+      else alert(`🔑 Email de réinitialisation envoyé à ${email}`);
+  };
+  
   const handleSendUpgradeEmail = (email) => { window.open(`mailto:${email}?subject=Fin d'essai&body=Passez Premium !`); };
 
-  const filteredBusinesses = businesses.filter(b => b.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredBusinesses = businesses.filter(b => 
+      b.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      b.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-slate-100 p-8 animate-in fade-in duration-300">
@@ -146,13 +154,14 @@ export default function AdminView({ onAccessClient }) {
                   <div className="text-xs font-bold text-slate-400 uppercase">CA Mensuel</div>
                   <div className="text-2xl font-black text-emerald-400">{stats.revenue} €</div>
               </div>
-              <button onClick={() => window.location.reload()} className="bg-white/10 hover:bg-white/20 p-3 rounded-xl transition"><LogOut size={20}/></button>
+              {/* Utilisation de onExit si fourni, sinon reload */}
+              <button onClick={onExit || (() => window.location.reload())} className="bg-white/10 hover:bg-white/20 p-3 rounded-xl transition"><LogOut size={20}/></button>
           </div>
        </div>
 
        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-black text-xl text-slate-800">Gestion Base Clients</h3>
+              <h3 className="font-black text-xl text-slate-800">Gestion Base Clients ({filteredBusinesses.length})</h3>
               <div className="relative w-64">
                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
                    <input type="text" placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
@@ -208,16 +217,17 @@ export default function AdminView({ onAccessClient }) {
                                     className="w-12 text-center bg-slate-50 border rounded-lg font-bold text-slate-700"/>
                                </td>
                                <td className="p-4 text-right flex justify-end gap-2">
-                                   {trialOver && <button onClick={() => handleSendUpgradeEmail(b.email)} className="p-2 bg-rose-50 text-rose-600 rounded-lg" title="Relance Mail"><Mail size={16}/></button>}
-                                   <button onClick={() => handleSendResetPassword(b.email)} className="p-2 bg-amber-50 text-amber-600 rounded-lg" title="MDP"><Key size={16}/></button>
-                                   <button onClick={() => toggleClientStatus(b)} className={`p-2 rounded-lg ${b.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}><Power size={16}/></button>
-                                   <button onClick={() => onAccessClient(b.user_id, b.email)} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Eye size={16}/></button>
+                                   {trialOver && <button onClick={() => handleSendUpgradeEmail(b.email)} className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition" title="Relance Mail"><Mail size={16}/></button>}
+                                   <button onClick={() => handleSendResetPassword(b.email)} className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Réinitialiser MDP"><Key size={16}/></button>
+                                   <button onClick={() => toggleClientStatus(b)} className={`p-2 rounded-lg transition ${b.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}`} title={b.is_active ? "Désactiver" : "Réactiver"}><Power size={16}/></button>
+                                   <button onClick={() => onAccessClient(b.user_id, b.email)} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition" title="Accéder au compte"><Eye size={16}/></button>
                                </td>
                            </tr>
                        );
                    })}
                 </tbody>
              </table>
+             {filteredBusinesses.length === 0 && <div className="text-center p-8 text-slate-400">Aucun client trouvé.</div>}
           </div>
        </div>
     </div>

@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { generatePostContent } from "../lib/openai";
-import canvasConfetti from "canvas-confetti";
-// CORRECTION : J'ai bien ajouté 'Sparkles' ci-dessous
+// import canvasConfetti from "canvas-confetti"; // COMMENTÉ POUR TESTER
 import {
   Wand2, Instagram, Facebook, Linkedin,
   Trash2, Lock, ArrowRight, X, LayoutList, 
@@ -103,7 +102,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
     const { data: savedPost, error } = await supabase.from("posts").insert([data]).select();
     if (!error && onUpdate) {
       onUpdate(savedPost[0]);
-      canvasConfetti();
+      // canvasConfetti(); // COMMENTÉ AUSSI
       alert("✅ Post enregistré avec succès !");
     } else { alert("Erreur lors de la sauvegarde"); }
   };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-// J'AI AJOUTÉ 'Sparkles' DANS LES IMPORTS CI-DESSOUS
+// CORRECTION ICI : Ajout de 'Sparkles' dans la liste
 import { 
   Users, MessageSquare, TrendingUp, Calendar, ArrowRight, 
   CheckCircle, AlertCircle, Sparkles, Sun, Cloud, CloudRain, Wind 

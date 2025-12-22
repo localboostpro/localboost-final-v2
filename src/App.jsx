@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-// ✅ VERIFIEZ AUSSI CET IMPORT :
+// ✅ VERIFIEZ L'IMPORT ICI AUSSI :
 import { supabase } from "./lib/supabase";
 
 import Sidebar from "./components/Sidebar";
@@ -18,15 +18,17 @@ export default function App() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Données
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
   
-  // ÉTAT DU MENU
+  // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // AUTHENTIFICATION
+  // AUTH
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -44,7 +46,6 @@ export default function App() {
 
   const isAdmin = session?.user?.email === "admin@demo.fr";
 
-  // CHARGEMENT DONNÉES
   const fetchAllData = async (userId, email) => {
     try {
       const { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
@@ -81,7 +82,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
       
-      {/* 1. SIDEBAR (Gère les deux affichages) */}
+      {/* 1. SIDEBAR (Invisible sur mobile par CSS, gérée dans le composant) */}
       <Sidebar 
         profile={profile} 
         isAdmin={isAdmin} 
@@ -89,14 +90,21 @@ export default function App() {
         onClose={() => setIsMobileMenuOpen(false)} 
       />
 
-      {/* 2. HEADER MOBILE (Bouton Rouge de Debug) */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between h-16 shadow-sm">
-        <div className="font-black text-lg text-slate-900">LocalBoost</div>
+      {/* 2. HEADER MOBILE (Le Hamburger) */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200 px-4 h-16 flex items-center justify-between shadow-sm">
+        <div className="font-black text-lg text-slate-900 flex items-center gap-2">
+           LocalBoost <span className="text-indigo-600 text-xs bg-indigo-50 px-2 py-0.5 rounded">PRO</span>
+        </div>
+        
+        {/* BOUTON HAMBURGER */}
         <button 
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2 bg-red-100 text-red-600 rounded-lg border border-red-200 font-bold"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsMobileMenuOpen(true);
+          }}
+          className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 active:scale-95 transition-transform"
         >
-          MENU
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
         </button>
       </header>
 

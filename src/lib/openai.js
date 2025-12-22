@@ -1,43 +1,38 @@
-// ⚠️ NE RIEN IMPORTER D'AUTRE ICI (Pas de Supabase, pas de lib)
-// Cela évite l'erreur "r is not a function" due aux conflits de fichiers.
+// On sécurise l'accès à la clé (évite les bugs si undefined)
+const RAW_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const generatePostContent = async (prompt, profile) => {
+  console.log("👉 ÉTAPE 1: Démarrage IA");
 
-export const generatePostContent = async (prompt, profile) => {
-  console.log("🔵 Démarrage fonction IA...");
-
-  // 1. Vérification de la clé
-  if (!OPENAI_API_KEY) {
-    console.error("⛔ CLÉ MANQUANTE : VITE_OPENAI_API_KEY est introuvable.");
-    throw new Error("Clé API manquante sur Vercel. Vérifiez vos variables d'environnement.");
+  // Sécurité 1: On vérifie que la clé existe
+  if (!RAW_KEY) {
+    console.error("❌ CLÉ MANQUANTE sur Vercel");
+    throw new Error("Clé API manquante. Ajoutez VITE_OPENAI_API_KEY dans Vercel.");
   }
 
-  // 2. Préparation des données (Ville/Nom) avec valeurs par défaut de sécurité
-  const businessName = profile?.name || "Mon Entreprise";
+  // Sécurité 2: On force la conversion en texte et on enlève les espaces invisibles
+  const apiKey = String(RAW_KEY).trim();
+  console.log("👉 ÉTAPE 2: Clé détectée (longueur: " + apiKey.length + ")");
+
+  const businessName = profile?.name || "Pro";
   const businessCity = profile?.city || "France";
 
   try {
-    // 3. Appel direct à l'API (Sans passer par une librairie tierce qui pourrait planter)
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    console.log("👉 ÉTAPE 3: Envoi requête OpenAI...");
+    
+    // Sécurité 3: On utilise window.fetch pour être sûr d'utiliser le navigateur
+    const response = await window.fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: `Tu es un expert marketing pour "${businessName}" situé à "${businessCity}".
-            Tu dois répondre UNIQUEMENT avec un objet JSON valide.
-            Format attendu:
-            {
-              "title": "Titre accrocheur",
-              "content": "Texte du post (engageant, avec emojis)",
-              "hashtags": ["#tag1", "#tag2"],
-              "image_keyword": "mot clé pour décrire l'image en anglais"
-            }`
+            content: `Expert marketing pour ${businessName} à ${businessCity}. Réponds en JSON: { "title": "...", "content": "...", "hashtags": [], "image_keyword": "..." }`
           },
           { role: "user", content: prompt }
         ],
@@ -45,42 +40,37 @@ export const generatePostContent = async (prompt, profile) => {
       })
     });
 
-    // 4. Lecture de la réponse
+    console.log("👉 ÉTAPE 4: Réponse reçue (Statut: " + response.status + ")");
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("❌ Erreur API OpenAI :", errorData);
-      // Gestion spécifique du quota
-      if (response.status === 429) throw new Error("Quota OpenAI dépassé ou crédit insuffisant.");
-      if (response.status === 401) throw new Error("Clé API invalide.");
-      throw new Error(errorData.error?.message || "Erreur serveur OpenAI");
+      const err = await response.json();
+      console.error("❌ Erreur API:", err);
+      throw new Error("Erreur OpenAI: " + (err.error?.message || response.statusText));
     }
 
     const data = await response.json();
     const contentRaw = data.choices[0].message.content;
 
-    // 5. Nettoyage et Parsing du JSON
+    // Parsing JSON sécurisé
     let parsed;
     try {
         parsed = JSON.parse(contentRaw);
     } catch (e) {
-        console.warn("⚠️ Le format JSON est imparfait, tentative de récupération...");
-        // Fallback manuel si l'IA bavarde
-        return {
-            title: "Suggestion IA",
-            content: contentRaw,
-            image_keyword: "business",
-            hashtags: []
-        };
+        return { title: "Post IA", content: contentRaw, image_keyword: "business" };
     }
 
     return {
       title: parsed.title,
       content: parsed.content + "\n\n" + (parsed.hashtags?.join(" ") || ""),
-      image_keyword: parsed.image_keyword || "work"
+      image_keyword: parsed.image_keyword
     };
 
   } catch (error) {
-    console.error("❌ CRASH DANS OPENAI.JS :", error);
-    throw error; // Renvoie l'erreur pour l'afficher dans l'alerte
+    console.error("❌ CRASH:", error);
+    throw error;
   }
 };
+
+// DOUBLE EXPORT (Pour éviter l'erreur "r is not a function")
+export { generatePostContent };
+export default generatePostContent;

@@ -43,7 +43,7 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
 
   return (
     <>
-      {/* OVERLAY MOBILE */}
+      {/* OVERLAY */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 md:hidden"
@@ -52,6 +52,7 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
       )}
 
       <aside
+        onClick={(e) => e.stopPropagation()} // ⛔ empêche fermeture interne
         className={`
           fixed md:static z-50 md:z-auto
           top-0 left-0 h-full w-64
@@ -75,7 +76,6 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
             )}
           </div>
 
-          {/* CLOSE MOBILE */}
           <button
             className="md:hidden p-2 rounded-lg hover:bg-slate-100"
             onClick={onClose}

@@ -32,6 +32,7 @@ export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete
   const [visualConfig, setVisualConfig] = useState({ title: "", subtitle: "", template: "modern", showLogo: true, customImage: null });
 
   // --- ACTIONS ---
+// --- ACTIONS ---
   const handleGenerate = async () => {
     if (!prompt) return alert("Décrivez votre post !");
     setIsLoading(true);
@@ -45,9 +46,9 @@ export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete
       const ratio = activeNetwork === 'Instagram' ? '1080' : '1200';
       const img = `https://image.pollinations.ai/prompt/${safeKeyword}?width=${ratio}&height=${ratio}&nologo=true`;
       
-      // Sécurisation du Titre
+      // Sécurisation du Titre (MAIS SANS LE COUPER CETTE FOIS)
       const safeTitle = String(res.title || "Nouveau post");
-      const shortTitle = safeTitle.length > 20 ? safeTitle.substring(0, 20) : safeTitle;
+      // ON A SUPPRIMÉ LA LIGNE QUI COUPAT LE TITRE ICI
 
       const newPost = {
           id: Date.now(),
@@ -59,6 +60,24 @@ export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete
           created_at: new Date().toISOString(),
           image_overlay: { ...visualConfig, title: safeTitle }
       };
+      
+      setCurrentPost(newPost);
+      
+      setVisualConfig(prev => ({ 
+          ...prev, 
+          customImage: img, 
+          title: safeTitle, // On utilise le titre complet
+          subtitle: profile?.name || "" 
+      }));
+      
+      setActiveTab("editor");
+    } catch (e) { 
+        console.error("❌ ERREUR DANS MARKETING:", e);
+        alert("Erreur IA: " + e.message); 
+    } finally { 
+        setIsLoading(false); 
+    }
+  };
       
       // ✅ C'est cette ligne qui plantait avant la correction
       setCurrentPost(newPost);

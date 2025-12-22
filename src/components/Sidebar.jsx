@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Wand2, MessageSquare, Users, Globe, Ticket, User, Shield, LogOut, X, Zap
 } from "lucide-react";
-// ✅ CORRECTION DU CHEMIN ICI :
+// ✅ CORRECTION IMPORTANCE CAPITALE :
 import { supabase } from "../lib/supabase";
 
 export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
@@ -70,22 +70,22 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
 
   return (
     <>
-      {/* --- 1. SIDEBAR BUREAU (Cachée sur mobile) --- */}
-      <div className="hidden md:flex h-screen w-72 flex-col border-r border-slate-200 sticky top-0">
+      {/* 1. SIDEBAR BUREAU : hidden sur mobile (display: none CSS pur) => PAS DE FLASH */}
+      <aside className="hidden md:flex h-screen w-72 flex-col border-r border-slate-200 sticky top-0 bg-white z-30">
         <MenuContent />
-      </div>
+      </aside>
 
-      {/* --- 2. SIDEBAR MOBILE (S'affiche par-dessus tout) --- */}
+      {/* 2. SIDEBAR MOBILE : N'existe dans le DOM que si isOpen est vrai */}
       {isOpen && (
         <div className="fixed inset-0 z-[9999] flex md:hidden">
-          {/* Fond Noir (Clic pour fermer) */}
+          {/* Fond Noir */}
           <div 
-            className="absolute inset-0 bg-black/50" 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
             onClick={onClose}
           />
           
-          {/* Menu Blanc (Largeur 80%) */}
-          <aside className="relative w-[80%] max-w-sm h-full shadow-2xl">
+          {/* Menu Blanc */}
+          <aside className="relative w-[85%] max-w-sm h-full shadow-2xl bg-white animate-in slide-in-from-left duration-200">
             <MenuContent mobile={true} />
           </aside>
         </div>

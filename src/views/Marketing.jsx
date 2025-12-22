@@ -19,10 +19,9 @@ const TEMPLATES = [
     { id: 'bold', name: 'Impact', overlayColor: 'bg-indigo-900/60', textPos: 'items-center justify-center', font: 'font-black uppercase' },
 ];
 
-// ✅ CORRECTION ICI : On retire currentPost/setCurrentPost des props pour les gérer en interne
 export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete }) {
   
-  // ✅ AJOUT DE L'ÉTAT LOCAL (C'est ce qui manquait et causait l'erreur "r is not a function")
+  // ✅ ÉTAT LOCAL RÉINTÉGRÉ (Corrige l'erreur de crash)
   const [currentPost, setCurrentPost] = useState(null);
 
   const [activeTab, setActiveTab] = useState("generator");
@@ -32,7 +31,6 @@ export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete
   const [visualConfig, setVisualConfig] = useState({ title: "", subtitle: "", template: "modern", showLogo: true, customImage: null });
 
   // --- ACTIONS ---
-// --- ACTIONS ---
   const handleGenerate = async () => {
     if (!prompt) return alert("Décrivez votre post !");
     setIsLoading(true);
@@ -46,9 +44,8 @@ export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete
       const ratio = activeNetwork === 'Instagram' ? '1080' : '1200';
       const img = `https://image.pollinations.ai/prompt/${safeKeyword}?width=${ratio}&height=${ratio}&nologo=true`;
       
-      // Sécurisation du Titre (MAIS SANS LE COUPER CETTE FOIS)
+      // Sécurisation du Titre (SANS COUPE)
       const safeTitle = String(res.title || "Nouveau post");
-      // ON A SUPPRIMÉ LA LIGNE QUI COUPAT LE TITRE ICI
 
       const newPost = {
           id: Date.now(),
@@ -66,26 +63,7 @@ export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete
       setVisualConfig(prev => ({ 
           ...prev, 
           customImage: img, 
-          title: safeTitle, // On utilise le titre complet
-          subtitle: profile?.name || "" 
-      }));
-      
-      setActiveTab("editor");
-    } catch (e) { 
-        console.error("❌ ERREUR DANS MARKETING:", e);
-        alert("Erreur IA: " + e.message); 
-    } finally { 
-        setIsLoading(false); 
-    }
-  };
-      
-      // ✅ C'est cette ligne qui plantait avant la correction
-      setCurrentPost(newPost);
-      
-      setVisualConfig(prev => ({ 
-          ...prev, 
-          customImage: img, 
-          title: shortTitle,
+          title: safeTitle, // Titre complet affiché
           subtitle: profile?.name || "" 
       }));
       

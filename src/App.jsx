@@ -24,7 +24,7 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
 
-  // MENU MOBILE
+  // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   /* ---------------- AUTH ---------------- */
@@ -119,8 +119,8 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        Chargement…
+      <div className="h-screen flex items-center justify-center bg-slate-50 text-slate-400 font-medium">
+        Chargement de l'espace pro...
       </div>
     );
   }
@@ -130,7 +130,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR : On passe bien les props pour le mobile */}
       <Sidebar
         profile={profile}
         isAdmin={isAdmin}
@@ -138,19 +138,26 @@ export default function App() {
         onClose={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* HEADER MOBILE */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3 border-b flex items-center">
+      {/* HEADER MOBILE (Visible uniquement sur petits écrans) */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between h-16 shadow-sm">
+        <div className="font-black text-lg text-slate-800">LocalBoost</div>
         <button
           onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2 rounded-xl bg-slate-100 border shadow"
+          className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-slate-100 active:scale-95 transition"
           aria-label="Ouvrir le menu"
         >
-          ☰
+          {/* Icône Menu Hamburger (SVG inline pour éviter les dépendances) */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
         </button>
       </header>
 
-      {/* CONTENU */}
-      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-14 md:pt-8 pb-10">
+      {/* CONTENU PRINCIPAL */}
+      {/* pt-20 permet de ne pas cacher le contenu sous le header mobile */}
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-20 md:pt-8 pb-10">
         <Routes>
           <Route
             path="/"

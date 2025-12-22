@@ -24,6 +24,9 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
 
+  // ✅ ÉTAT CENTRAL
+  const [currentPost, setCurrentPost] = useState(null);
+
   /* ---------- AUTH ---------- */
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -34,14 +37,15 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } =
-      supabase.auth.onAuthStateChange((_e, session) => {
-        setSession(session);
-        setLoading(false);
-        if (session) {
-          fetchAllData(session.user.id, session.user.email);
-        }
-      });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSession(session);
+      setLoading(false);
+      if (session) {
+        fetchAllData(session.user.id, session.user.email);
+      }
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -49,7 +53,6 @@ export default function App() {
   /* ---------- DATA ---------- */
   const fetchAllData = async (userId, email) => {
     try {
-      // Profil
       const { data: profileData } = await supabase
         .from("business_profile")
         .select("*")
@@ -64,7 +67,6 @@ export default function App() {
 
       if (!profileData?.id) return;
 
-      // Données liées au business
       const [r, c, p] = await Promise.all([
         supabase.from("reviews").select("*").eq("business_id", profileData.id),
         supabase.from("customers").select("*").eq("business_id", profileData.id),
@@ -84,23 +86,18 @@ export default function App() {
   };
 
   if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        Chargement…
-      </div>
-    );
+    return <div className="h-screen flex items-center justify-center">Chargement…</div>;
   }
 
   if (!session) return <AuthForm />;
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-
       <Sidebar profile={profile} />
 
-      <main className="flex-1 overflow-y-auto px-4 md:px-8">
+      {/* ✅ LE PADDING DOIT ÊTRE ICI */}
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-6 md:pt-8">
         <Routes>
-
           <Route
             path="/"
             element={
@@ -119,12 +116,28 @@ export default function App() {
 
           <Route
             path="/marketing"
-            element={<Marketing posts={posts} profile={profile} />}
+            element={
+              <Marketing
+                posts={posts}
+                profile={profile}
+                currentPost={currentPost}
+                setCurrentPost={setCurrentPost}
+                onUpdate={(p) => setPosts((prev) => [p, ...prev])}
+              />
+            }
           />
 
           <Route
             path="/marketing/:id"
-            element={<Marketing posts={posts} profile={profile} />}
+            element={
+              <Marketing
+                posts={posts}
+                profile={profile}
+                currentPost={currentPost}
+                setCurrentPost={setCurrentPost}
+                onUpdate={(p) => setPosts((prev) => [p, ...prev])}
+              />
+            }
           />
 
           <Route path="/reviews" element={<Reviews reviews={reviews} />} />

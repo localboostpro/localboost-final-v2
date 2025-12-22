@@ -1,18 +1,19 @@
 import { supabase } from "./supabase";
 
+// Access the environment variable
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
 export const generatePostContent = async (prompt, profile) => {
-  console.log("🧠 Démarrage IA avec le prompt :", prompt);
+  console.log("🚀 Starting AI Generation...");
 
-  // 1. Vérification de la clé
+  // 1. Check if Key exists
   if (!OPENAI_API_KEY) {
-    console.error("❌ Pas de clé API trouvée !");
-    throw new Error("Clé API manquante. Ajoutez VITE_OPENAI_API_KEY dans Vercel.");
+    console.error("CRITICAL: Missing API Key. Please add VITE_OPENAI_API_KEY to Vercel Environment Variables.");
+    throw new Error("Clé API manquante. Configuration requise sur Vercel.");
   }
 
   try {
-    // 2. Appel à l'API OpenAI
+    // 2. Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -20,19 +21,13 @@ export const generatePostContent = async (prompt, profile) => {
         "Authorization": `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo", // Ou gpt-4o si vous avez le budget
+        model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: `Tu es un expert marketing pour ${profile?.name || "une entreprise"}. 
-            Ville : ${profile?.city || "France"}.
-            Format de réponse attendu (JSON pur uniquement) :
-            {
-              "title": "Titre accrocheur",
-              "content": "Contenu du post avec emojis",
-              "image_keyword": "mot clé anglais pour photo",
-              "hashtags": ["#tag1", "#tag2"]
-            }`
+            content: `You are a marketing expert for a local business named "${profile?.name || 'Local Business'}". 
+            City: "${profile?.city || 'France'}".
+            Output JSON only: { "title": "...", "content": "...", "hashtags": ["#tag"], "image_keyword": "..." }`
           },
           { role: "user", content: prompt }
         ],
@@ -42,15 +37,21 @@ export const generatePostContent = async (prompt, profile) => {
 
     const data = await response.json();
 
-    // 3. Gestion des erreurs OpenAI (Quota dépassé, clé invalide...)
+    // 3. Handle OpenAI Errors (Quota, Invalid Key, etc.)
     if (data.error) {
-      console.error("❌ Erreur OpenAI :", data.error);
+      console.error("❌ OpenAI API Error:", data.error);
       throw new Error(data.error.message || "Erreur lors de l'appel à l'IA");
     }
 
-    // 4. Parsing de la réponse
+    // 4. Parse Response
     const contentRaw = data.choices[0].message.content;
-    const parsed = JSON.parse(contentRaw);
+    let parsed;
+    try {
+        parsed = JSON.parse(contentRaw);
+    } catch (e) {
+        console.error("❌ JSON Parse Error:", contentRaw);
+        throw new Error("L'IA a généré un format invalide.");
+    }
 
     return {
       title: parsed.title,
@@ -59,7 +60,7 @@ export const generatePostContent = async (prompt, profile) => {
     };
 
   } catch (error) {
-    console.error("❌ CRASH IA :", error);
-    throw error; // Renvoie l'erreur pour afficher l'alerte
+    console.error("❌ FINAL ERROR:", error);
+    throw error;
   }
 };

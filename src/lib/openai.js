@@ -1,26 +1,12 @@
-// On sécurise l'accès à la clé (évite les bugs si undefined)
 const RAW_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
-const generatePostContent = async (prompt, profile) => {
+export const generatePostContent = async (prompt, profile) => {
   console.log("👉 ÉTAPE 1: Démarrage IA");
 
-  // Sécurité 1: On vérifie que la clé existe
-  if (!RAW_KEY) {
-    console.error("❌ CLÉ MANQUANTE sur Vercel");
-    throw new Error("Clé API manquante. Ajoutez VITE_OPENAI_API_KEY dans Vercel.");
-  }
-
-  // Sécurité 2: On force la conversion en texte et on enlève les espaces invisibles
+  if (!RAW_KEY) throw new Error("Clé API manquante sur Vercel.");
   const apiKey = String(RAW_KEY).trim();
-  console.log("👉 ÉTAPE 2: Clé détectée (longueur: " + apiKey.length + ")");
-
-  const businessName = profile?.name || "Pro";
-  const businessCity = profile?.city || "France";
 
   try {
-    console.log("👉 ÉTAPE 3: Envoi requête OpenAI...");
-    
-    // Sécurité 3: On utilise window.fetch pour être sûr d'utiliser le navigateur
     const response = await window.fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -32,37 +18,44 @@ const generatePostContent = async (prompt, profile) => {
         messages: [
           {
             role: "system",
-            content: `Expert marketing pour ${businessName} à ${businessCity}. Réponds en JSON: { "title": "...", "content": "...", "hashtags": [], "image_keyword": "..." }`
+            content: `Tu es un expert marketing. Réponds UNIQUEMENT en JSON: { "title": "...", "content": "...", "hashtags": [], "image_keyword": "..." }`
           },
-          { role: "user", content: prompt }
+          { role: "user", content: `Sujet: ${prompt}. Entreprise: ${profile?.name || "Pro"}` }
         ],
         temperature: 0.7
       })
     });
 
-    console.log("👉 ÉTAPE 4: Réponse reçue (Statut: " + response.status + ")");
+    console.log("👉 ÉTAPE 4: Réponse reçue");
 
     if (!response.ok) {
       const err = await response.json();
-      console.error("❌ Erreur API:", err);
       throw new Error("Erreur OpenAI: " + (err.error?.message || response.statusText));
     }
 
     const data = await response.json();
     const contentRaw = data.choices[0].message.content;
 
-    // Parsing JSON sécurisé
     let parsed;
     try {
         parsed = JSON.parse(contentRaw);
     } catch (e) {
-        return { title: "Post IA", content: contentRaw, image_keyword: "business" };
+        console.warn("⚠️ JSON invalide, mode secours activé");
+        return { 
+          title: "Nouveau Post", 
+          content: contentRaw, 
+          image_keyword: "business" 
+        };
     }
 
+    // --- SÉCURISATION DES DONNÉES (C'est ici qu'on évite le bug) ---
+    // On s'assure que tout est du texte ou un tableau, sinon ça plante après.
+    const safeHashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags.join(" ") : "";
+    
     return {
-      title: parsed.title,
-      content: parsed.content + "\n\n" + (parsed.hashtags?.join(" ") || ""),
-      image_keyword: parsed.image_keyword
+      title: String(parsed.title || "Sans titre"), // Force le texte
+      content: String(parsed.content || "") + "\n\n" + safeHashtags,
+      image_keyword: String(parsed.image_keyword || "work")
     };
 
   } catch (error) {
@@ -70,7 +63,3 @@ const generatePostContent = async (prompt, profile) => {
     throw error;
   }
 };
-
-// DOUBLE EXPORT (Pour éviter l'erreur "r is not a function")
-export { generatePostContent };
-export default generatePostContent;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 
 import Sidebar from "./components/Sidebar";
@@ -15,6 +15,7 @@ import AuthForm from "./components/AuthForm";
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,23 +38,27 @@ export default function App() {
       }
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setLoading(false);
-      if (s) {
-        fetchAllData(s.user.id, s.user.email);
-      } else {
-        setProfile(null);
-        setReviews([]);
-        setCustomers([]);
-        setPosts([]);
-      }
-    });
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange((_e, s) => {
+        setSession(s);
+        setLoading(false);
+        if (s) {
+          fetchAllData(s.user.id, s.user.email);
+        } else {
+          setProfile(null);
+          setReviews([]);
+          setCustomers([]);
+          setPosts([]);
+        }
+      });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  /* ---------------- FERMETURE MENU AU CHANGEMENT DE PAGE ---------------- */
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   /* ---------------- ADMIN CHECK ---------------- */
   const isAdmin = session?.user?.email === "admin@demo.fr";
@@ -130,7 +135,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
 
-      {/* ✅ SIDEBAR */}
+      {/* SIDEBAR */}
       <Sidebar
         profile={profile}
         isAdmin={isAdmin}
@@ -138,10 +143,13 @@ export default function App() {
         onClose={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* ✅ HEADER MOBILE FIXE */}
+      {/* HEADER MOBILE */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3 border-b flex items-center">
         <button
-          onClick={() => setIsMobileMenuOpen(true)}
+          onClick={(e) => {
+            e.stopPropagation();          // 🔑 FIX CRITIQUE
+            setIsMobileMenuOpen(true);
+          }}
           className="p-2 rounded-xl bg-slate-100 border shadow"
           aria-label="Ouvrir le menu"
         >
@@ -149,7 +157,7 @@ export default function App() {
         </button>
       </header>
 
-      {/* ✅ CONTENU PRINCIPAL */}
+      {/* CONTENU */}
       <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-14 md:pt-8 pb-10">
         <Routes>
 
@@ -195,7 +203,7 @@ export default function App() {
           <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
           <Route path="/promotions" element={<Promotions />} />
 
-          {/* 🔐 ADMIN */}
+          {/* ADMIN */}
           <Route
             path="/admin"
             element={isAdmin ? <Admin /> : <Navigate to="/" />}

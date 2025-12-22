@@ -43,28 +43,25 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
 
   return (
     <>
-      {/* OVERLAY */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
+      {/* OVERLAY MOBILE */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-40 bg-black/40 transition-opacity md:hidden ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      />
 
+      {/* SIDEBAR */}
       <aside
-        onClick={(e) => e.stopPropagation()} // ⛔ empêche fermeture interne
         className={`
-          fixed md:static z-50 md:z-auto
-          top-0 left-0 h-full w-64
-          bg-white border-r border-slate-100
-          flex flex-col
+          fixed top-0 left-0 z-50 h-full w-72 bg-white border-r border-slate-100
           transform transition-transform duration-300
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0
+          md:translate-x-0 md:static md:z-auto
         `}
       >
         {/* HEADER */}
-        <div className="p-6 border-b flex items-center justify-between">
+        <div className="p-6 border-b flex justify-between items-center">
           <div>
             <h1 className="text-xl font-black text-slate-900">
               LocalBoost <span className="text-indigo-600">Pro</span>
@@ -76,11 +73,9 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
             )}
           </div>
 
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-slate-100"
-            onClick={onClose}
-          >
-            <X size={18} />
+          {/* CLOSE MOBILE */}
+          <button onClick={onClose} className="md:hidden">
+            <X />
           </button>
         </div>
 

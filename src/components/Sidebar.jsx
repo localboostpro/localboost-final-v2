@@ -14,12 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-export default function Sidebar({
-  profile,
-  isAdmin,
-  isOpen = false,
-  onClose = () => {},
-}) {
+export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
   const navigate = useNavigate();
 
   const menuItems = [
@@ -48,26 +43,24 @@ export default function Sidebar({
 
   return (
     <>
-      {/* OVERLAY MOBILE */}
+      {/* 🔲 OVERLAY MOBILE */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onClose}
         />
       )}
 
       <aside
         className={`
-          fixed md:static top-0 left-0 z-50
-          w-64 h-screen bg-white border-r border-slate-100
-          flex flex-col
-          transition-transform duration-300 ease-in-out
+          fixed top-0 left-0 z-50 h-screen w-64 bg-white border-r border-slate-100
+          flex flex-col transition-transform duration-300
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0
+          md:translate-x-0 md:static
         `}
       >
         {/* HEADER */}
-        <div className="p-6 border-b flex items-start justify-between">
+        <div className="p-6 border-b flex justify-between items-center">
           <div>
             <h1 className="text-xl font-black text-slate-900">
               LocalBoost <span className="text-indigo-600">Pro</span>
@@ -79,18 +72,17 @@ export default function Sidebar({
             )}
           </div>
 
-          {/* CLOSE MOBILE */}
+          {/* ❌ BOUTON FERMER (MOBILE) */}
           <button
             onClick={onClose}
-            className="md:hidden p-2 text-slate-400 hover:text-rose-500"
-            aria-label="Fermer le menu"
+            className="md:hidden p-2 rounded-lg hover:bg-slate-100"
           >
             <X size={20} />
           </button>
         </div>
 
         {/* MENU */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menuItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

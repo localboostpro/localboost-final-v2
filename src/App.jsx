@@ -139,14 +139,19 @@ export default function App() {
       />
 
       {/* HEADER MOBILE (Visible uniquement sur petits écrans) */}
+{/* HEADER MOBILE */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between h-16 shadow-sm">
-        <div className="font-black text-lg text-slate-800">LocalBoost</div>
+        <div className="font-black text-lg text-slate-800 flex items-center gap-2">
+           LocalBoost <span className="text-indigo-600">Pro</span>
+        </div>
         <button
-          onClick={() => setIsMobileMenuOpen(true)}
+          onClick={(e) => {
+            e.stopPropagation(); // EMPÊCHE LA FERMETURE IMMÉDIATE
+            setIsMobileMenuOpen(true);
+          }}
           className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-slate-100 active:scale-95 transition"
           aria-label="Ouvrir le menu"
         >
-          {/* Icône Menu Hamburger (SVG inline pour éviter les dépendances) */}
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>

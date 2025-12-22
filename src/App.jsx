@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 
 import Sidebar from "./components/Sidebar";
@@ -15,7 +15,6 @@ import AuthForm from "./components/AuthForm";
 
 export default function App() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +23,9 @@ export default function App() {
   const [reviews, setReviews] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
+
+  // ✅ MENU MOBILE
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   /* ---------------- AUTH ---------------- */
   useEffect(() => {
@@ -35,19 +37,20 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } =
-      supabase.auth.onAuthStateChange((_e, s) => {
-        setSession(s);
-        setLoading(false);
-        if (s) {
-          fetchAllData(s.user.id, s.user.email);
-        } else {
-          setProfile(null);
-          setReviews([]);
-          setCustomers([]);
-          setPosts([]);
-        }
-      });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      setLoading(false);
+      if (s) {
+        fetchAllData(s.user.id, s.user.email);
+      } else {
+        setProfile(null);
+        setReviews([]);
+        setCustomers([]);
+        setPosts([]);
+      }
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -105,14 +108,21 @@ export default function App() {
     setPosts((prev) => prev.filter((p) => String(p.id) !== String(id)));
   };
 
-  const stats = useMemo(() => ({
-    clients: customers.length,
-    reviews: reviews.length,
-    posts: posts.length,
-  }), [customers, reviews, posts]);
+  const stats = useMemo(
+    () => ({
+      clients: customers.length,
+      reviews: reviews.length,
+      posts: posts.length,
+    }),
+    [customers, reviews, posts]
+  );
 
   if (loading) {
-    return <div className="h-screen flex items-center justify-center">Chargement…</div>;
+    return (
+      <div className="h-screen flex items-center justify-center">
+        Chargement…
+      </div>
+    );
   }
 
   if (!session) return <AuthForm />;
@@ -120,11 +130,29 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
 
-      <Sidebar profile={profile} isAdmin={isAdmin} />
+      {/* ✅ SIDEBAR */}
+      <Sidebar
+        profile={profile}
+        isAdmin={isAdmin}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
 
-      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-6 md:pt-8 pb-10">
+      {/* CONTENU */}
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-0 md:pt-8 pb-10">
+
+        {/* ✅ HEADER MOBILE */}
+        <header className="md:hidden sticky top-0 z-40 bg-[#F8FAFC] px-4 py-3 border-b">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 rounded-xl bg-white border shadow"
+            aria-label="Ouvrir le menu"
+          >
+            ☰
+          </button>
+        </header>
+
         <Routes>
-
           <Route
             path="/"
             element={
@@ -167,7 +195,7 @@ export default function App() {
           <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
           <Route path="/promotions" element={<Promotions />} />
 
-          {/* 🔐 ADMIN PROTÉGÉ */}
+          {/* 🔐 ADMIN */}
           <Route
             path="/admin"
             element={isAdmin ? <Admin /> : <Navigate to="/" />}

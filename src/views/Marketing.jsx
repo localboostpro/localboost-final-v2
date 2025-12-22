@@ -31,25 +31,45 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
     if (!prompt) return alert("Décrivez votre post !");
     setIsLoading(true);
     try {
+      console.log("🟢 Lancement génération...");
       const res = await generatePostContent(prompt, profile);
+      console.log("🟢 Résultat reçu:", res);
+
+      // Sécurisation de l'image URL
+      const safeKeyword = encodeURIComponent(res.image_keyword || "business");
       const ratio = activeNetwork === 'Instagram' ? '1080' : '1200';
-      const img = `https://image.pollinations.ai/prompt/${encodeURIComponent(res.image_keyword)}?width=${ratio}&height=${ratio}&nologo=true`;
+      const img = `https://image.pollinations.ai/prompt/${safeKeyword}?width=${ratio}&height=${ratio}&nologo=true`;
       
+      // Sécurisation du Titre (C'est souvent là que ça plante)
+      const safeTitle = String(res.title || "Nouveau post");
+      const shortTitle = safeTitle.length > 20 ? safeTitle.substring(0, 20) : safeTitle;
+
       const newPost = {
           id: Date.now(),
           business_id: profile?.id,
-          title: res.title,
+          title: safeTitle,
           content: res.content,
           image_url: img,
           networks: [activeNetwork],
           created_at: new Date().toISOString(),
-          image_overlay: { ...visualConfig, title: res.title }
+          image_overlay: { ...visualConfig, title: safeTitle }
       };
+      
       setCurrentPost(newPost);
-      setVisualConfig(prev => ({ ...prev, customImage: img, title: res.title }));
+      setVisualConfig(prev => ({ 
+          ...prev, 
+          customImage: img, 
+          title: shortTitle, // Utilisation de la version sécurisée
+          subtitle: profile?.name || "" 
+      }));
+      
       setActiveTab("editor");
-    } catch (e) { alert("Erreur IA: " + e.message); } 
-    finally { setIsLoading(false); }
+    } catch (e) { 
+        console.error("❌ ERREUR DANS MARKETING:", e);
+        alert("Erreur IA: " + e.message); 
+    } finally { 
+        setIsLoading(false); 
+    }
   };
 
   const handleSave = async () => {
@@ -93,7 +113,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
 
   // --- RENDER ---
   return (
-    // CORRECTION VISIBILITÉ MOBILE : "h-auto" permet le scroll sur téléphone
+    // ICI : "h-auto" corrige le problème d'affichage sur mobile
     <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[calc(100vh-120px)] pb-20 lg:pb-4 animate-in fade-in">
       
       {/* ZONE GAUCHE (Outils) */}

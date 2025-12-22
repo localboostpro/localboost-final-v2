@@ -19,7 +19,12 @@ const TEMPLATES = [
     { id: 'bold', name: 'Impact', overlayColor: 'bg-indigo-900/60', textPos: 'items-center justify-center', font: 'font-black uppercase' },
 ];
 
-export default function Marketing({ posts, currentPost, setCurrentPost, profile, onUpdate, onUpsert, onDelete }) {
+// ✅ CORRECTION ICI : On retire currentPost/setCurrentPost des props pour les gérer en interne
+export default function Marketing({ posts, profile, onUpdate, onUpsert, onDelete }) {
+  
+  // ✅ AJOUT DE L'ÉTAT LOCAL (C'est ce qui manquait et causait l'erreur "r is not a function")
+  const [currentPost, setCurrentPost] = useState(null);
+
   const [activeTab, setActiveTab] = useState("generator");
   const [prompt, setPrompt] = useState("");
   const [activeNetwork, setActiveNetwork] = useState("Instagram");
@@ -40,7 +45,7 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
       const ratio = activeNetwork === 'Instagram' ? '1080' : '1200';
       const img = `https://image.pollinations.ai/prompt/${safeKeyword}?width=${ratio}&height=${ratio}&nologo=true`;
       
-      // Sécurisation du Titre (C'est souvent là que ça plante)
+      // Sécurisation du Titre
       const safeTitle = String(res.title || "Nouveau post");
       const shortTitle = safeTitle.length > 20 ? safeTitle.substring(0, 20) : safeTitle;
 
@@ -55,11 +60,13 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
           image_overlay: { ...visualConfig, title: safeTitle }
       };
       
+      // ✅ C'est cette ligne qui plantait avant la correction
       setCurrentPost(newPost);
+      
       setVisualConfig(prev => ({ 
           ...prev, 
           customImage: img, 
-          title: shortTitle, // Utilisation de la version sécurisée
+          title: shortTitle,
           subtitle: profile?.name || "" 
       }));
       
@@ -113,7 +120,6 @@ export default function Marketing({ posts, currentPost, setCurrentPost, profile,
 
   // --- RENDER ---
   return (
-    // ICI : "h-auto" corrige le problème d'affichage sur mobile
     <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[calc(100vh-120px)] pb-20 lg:pb-4 animate-in fade-in">
       
       {/* ZONE GAUCHE (Outils) */}

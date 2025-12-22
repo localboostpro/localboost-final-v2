@@ -127,29 +127,32 @@ export default function App() {
 
   if (!session) return <AuthForm />;
 
-return (
-  <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+  return (
+    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
 
-    {/* ✅ SIDEBAR */}
-    <Sidebar
-      profile={profile}
-      isAdmin={isAdmin}
-      isOpen={isMobileMenuOpen}
-      onClose={() => setIsMobileMenuOpen(false)}
-    />
+      {/* ✅ SIDEBAR */}
+      <Sidebar
+        profile={profile}
+        isAdmin={isAdmin}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
 
-    {/* ✅ HEADER MOBILE FIXE */}
-    <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3 border-b flex items-center">
-      <button
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="p-2 rounded-xl bg-slate-100 border shadow"
-        aria-label="Ouvrir le menu"
-      >
-        ☰
-      </button>
-    </header>
+      {/* ✅ HEADER MOBILE FIXE */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3 border-b flex items-center">
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 rounded-xl bg-slate-100 border shadow"
+          aria-label="Ouvrir le menu"
+        >
+          ☰
+        </button>
+      </header>
 
+      {/* ✅ CONTENU PRINCIPAL */}
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-14 md:pt-8 pb-10">
         <Routes>
+
           <Route
             path="/"
             element={

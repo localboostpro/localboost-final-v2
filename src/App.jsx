@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import { getPlanConfig } from "./lib/plans";
 
@@ -16,18 +16,20 @@ import AuthForm from "./components/AuthForm";
 
 import { Eye, LogOut, Menu } from "lucide-react";
 
-/* ---------------- ROUTE WRAPPER ---------------- */
+/* ---------------- MARKETING ROUTE WRAPPER ---------------- */
 
-function AppLayout() {
-  const navigate = useNavigate();
+function MarketingRoute(props) {
+  const { id } = useParams();
+  return <Marketing {...props} postId={id} />;
+}
 
+/* ---------------- MAIN APP ---------------- */
+
+export default function App() {
   const [session, setSession] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [impersonatedUserId, setImpersonatedUserId] = useState(null);
 
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -35,78 +37,21 @@ function AppLayout() {
   const [posts, setPosts] = useState([]);
   const [currentPost, setCurrentPost] = useState(null);
 
-  const timerRef = useRef(null);
-
-  const resetTimer = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      if (session) {
-        alert("🔒 Session expirée. Reconnexion requise.");
-        supabase.auth.signOut();
-        setSession(null);
-      }
-    }, 15 * 60 * 1000);
-  };
-
-  useEffect(() => {
-    if (session) {
-      ["mousemove", "keydown", "click", "scroll"].forEach(e =>
-        window.addEventListener(e, resetTimer)
-      );
-      resetTimer();
-    }
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      ["mousemove", "keydown", "click", "scroll"].forEach(e =>
-        window.removeEventListener(e, resetTimer)
-      );
-    };
-  }, [session]);
+  /* ---------- AUTH ---------- */
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) fetchAllData(session.user.id, session.user.email);
-      else setLoading(false);
+      if (!session) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setSession(session);
-      if (session) fetchAllData(session.user.id, session.user.email);
-      else setLoading(false);
+      if (!session) setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchAllData = async (userId, email) => {
-    try {
-      const { data: profileData } = await supabase
-        .from("business_profile")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      const enriched = profileData
-        ? { ...profileData, email }
-        : { name: "Nouveau Compte", email, subscription_tier: "basic" };
-
-      setProfile(enriched);
-
-      if (enriched.id) {
-        const [r, c, p] = await Promise.all([
-          supabase.from("reviews").select("*").eq("business_id", enriched.id),
-          supabase.from("customers").select("*").eq("business_id", enriched.id),
-          supabase.from("posts").select("*").eq("business_id", enriched.id).order("created_at", { ascending: false }),
-        ]);
-        if (r.data) setReviews(r.data);
-        if (c.data) setCustomers(c.data);
-        if (p.data) setPosts(p.data);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -122,6 +67,8 @@ function AppLayout() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+      
+      {/* MENU TOUJOURS PRÉSENT */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -131,42 +78,41 @@ function AppLayout() {
       />
 
       <main className="flex-1 overflow-y-auto px-4 md:px-8">
-        {activeTab === "dashboard" && (
-          <Dashboard
-            stats={{ reviews: reviews.length, clients: customers.length, posts: posts.length }}
-            posts={posts}
-            profile={profile}
-            onGenerate={() => setActiveTab("generator")}
-          />
-        )}
+        <Routes>
 
-        {activeTab === "generator" && (
-          <Marketing
-            posts={posts}
-            currentPost={currentPost}
-            setCurrentPost={setCurrentPost}
-            profile={profile}
+          <Route
+            path="/"
+            element={
+              <Dashboard
+                stats={{ reviews: reviews.length, clients: customers.length, posts: posts.length }}
+                posts={posts}
+                profile={profile}
+                onGenerate={() => setActiveTab("generator")}
+              />
+            }
           />
-        )}
 
-        {activeTab === "reviews" && <Reviews reviews={reviews} />}
-        {activeTab === "customers" && <Customers customers={customers} />}
-        {activeTab === "webpage" && <WebPage profile={profile} setProfile={setProfile} />}
-        {activeTab === "profile" && <Profile profile={profile} setProfile={setProfile} />}
-        {activeTab === "promotions" && <Promotions />}
-        {activeTab === "admin" && <Admin />}
+          <Route
+            path="/marketing/:id"
+            element={
+              <MarketingRoute
+                posts={posts}
+                currentPost={currentPost}
+                setCurrentPost={setCurrentPost}
+                profile={profile}
+              />
+            }
+          />
+
+          <Route path="/reviews" element={<Reviews reviews={reviews} />} />
+          <Route path="/customers" element={<Customers customers={customers} />} />
+          <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
+          <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+          <Route path="/promotions" element={<Promotions />} />
+          <Route path="/admin" element={<Admin />} />
+
+        </Routes>
       </main>
     </div>
-  );
-}
-
-/* ---------------- ROUTES ---------------- */
-
-export default function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<AppLayout />} />
-      <Route path="/marketing/:id" element={<Marketing />} />
-    </Routes>
   );
 }

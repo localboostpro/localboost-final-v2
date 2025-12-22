@@ -16,7 +16,7 @@ import {
   CloudRain
 } from "lucide-react";
 
-export default function Dashboard({ stats, posts, onGenerate, profile }) {
+export default function Dashboard({ stats = { clients: 0, reviews: 0, posts: 0 }, posts = [], profile, onGenerate }) {
   const [weather, setWeather] = useState(null);
   const socialConnected = profile?.instagram_url || profile?.facebook_url;
   const navigate = useNavigate();
@@ -101,7 +101,7 @@ export default function Dashboard({ stats, posts, onGenerate, profile }) {
               Base Clients
             </div>
             <div className="text-4xl font-black text-slate-900">
-              {stats.clients}
+              {stats?.clients ?? 0}
             </div>
           </div>
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">

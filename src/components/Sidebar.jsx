@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { supabase } from "./lib/supabase";
+import { supabase } from "../lib/supabase";
 
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";

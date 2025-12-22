@@ -1,7 +1,7 @@
 const RAW_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
 export const generatePostContent = async (prompt, profile) => {
-  console.log("👉 ÉTAPE 1: Démarrage IA");
+  console.log("👉 Démarrage IA (Mode Strict)");
 
   if (!RAW_KEY) throw new Error("Clé API manquante sur Vercel.");
   const apiKey = String(RAW_KEY).trim();
@@ -18,15 +18,21 @@ export const generatePostContent = async (prompt, profile) => {
         messages: [
           {
             role: "system",
-            content: `Tu es un expert marketing. Réponds UNIQUEMENT en JSON: { "title": "...", "content": "...", "hashtags": [], "image_keyword": "..." }`
+            content: `Tu es un expert marketing. 
+            RÈGLE ABSOLUE : Réponds UNIQUEMENT avec du JSON brut. Pas de phrase d'intro, pas de markdown (pas de \`\`\`json).
+            Format attendu :
+            {
+              "title": "Titre court et punchy (max 50 caractères)",
+              "content": "Contenu du post engageant avec emojis",
+              "hashtags": ["#tag1", "#tag2"],
+              "image_keyword": "mot clé anglais simple pour photo"
+            }`
           },
           { role: "user", content: `Sujet: ${prompt}. Entreprise: ${profile?.name || "Pro"}` }
         ],
-        temperature: 0.7
+        temperature: 0.7 
       })
     });
-
-    console.log("👉 ÉTAPE 4: Réponse reçue");
 
     if (!response.ok) {
       const err = await response.json();
@@ -34,32 +40,45 @@ export const generatePostContent = async (prompt, profile) => {
     }
 
     const data = await response.json();
-    const contentRaw = data.choices[0].message.content;
+    let contentRaw = data.choices[0].message.content;
+
+    console.log("📝 Réponse brute IA :", contentRaw);
+
+    // --- NETTOYAGE ANTI-BAFOUILLE ---
+    // 1. On enlève les balises Markdown ```json et ```
+    contentRaw = contentRaw.replace(/```json/g, "").replace(/```/g, "");
+    // 2. On enlève le texte avant le premier "{" et après le dernier "}"
+    const firstBrace = contentRaw.indexOf("{");
+    const lastBrace = contentRaw.lastIndexOf("}");
+    
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      contentRaw = contentRaw.substring(firstBrace, lastBrace + 1);
+    }
 
     let parsed;
     try {
         parsed = JSON.parse(contentRaw);
     } catch (e) {
-        console.warn("⚠️ JSON invalide, mode secours activé");
+        console.warn("⚠️ JSON toujours invalide malgré nettoyage.");
+        // Mode secours propre
         return { 
-          title: "Nouveau Post", 
-          content: contentRaw, 
-          image_keyword: "business" 
+          title: "Idée Marketing", 
+          content: contentRaw, // On affiche le texte brut si ça rate
+          image_keyword: "office",
+          hashtags: []
         };
     }
 
-    // --- SÉCURISATION DES DONNÉES (C'est ici qu'on évite le bug) ---
-    // On s'assure que tout est du texte ou un tableau, sinon ça plante après.
-    const safeHashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags.join(" ") : "";
-    
+    // Sécurisation finale des champs
     return {
-      title: String(parsed.title || "Sans titre"), // Force le texte
-      content: String(parsed.content || "") + "\n\n" + safeHashtags,
-      image_keyword: String(parsed.image_keyword || "work")
+      title: String(parsed.title || "Nouveau Post").substring(0, 60), // On coupe si trop long
+      content: String(parsed.content || ""),
+      image_keyword: String(parsed.image_keyword || "business"),
+      hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : []
     };
 
   } catch (error) {
-    console.error("❌ CRASH:", error);
+    console.error("❌ CRASH IA:", error);
     throw error;
   }
 };

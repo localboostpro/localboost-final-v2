@@ -2,29 +2,30 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Icônes
-import { 
+import {
   Users,
   MessageSquare,
   TrendingUp,
-  Calendar,
   ArrowRight,
-  CheckCircle,
-  AlertCircle,
   Sparkles,
   Sun,
   Cloud,
   CloudRain
 } from "lucide-react";
 
-export default function Dashboard({ stats = { clients: 0, reviews: 0, posts: 0 }, posts = [], profile, onGenerate }) {
+export default function Dashboard({
+  stats = { clients: 0, reviews: 0, posts: 0 },
+  posts = [],
+  profile,
+  onGenerate
+}) {
   const [weather, setWeather] = useState(null);
-  const socialConnected = profile?.instagram_url || profile?.facebook_url;
   const navigate = useNavigate();
 
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
+        (position) => {
           fetchWeather(position.coords.latitude, position.coords.longitude);
         },
         () => fetchWeather(48.8566, 2.3522)
@@ -53,8 +54,9 @@ export default function Dashboard({ stats = { clients: 0, reviews: 0, posts: 0 }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      
+    /* ✅ SUPPRESSION DU space-y GLOBAL */
+    <div className="animate-in fade-in duration-500">
+
       {/* EN-TÊTE */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
@@ -93,8 +95,8 @@ export default function Dashboard({ stats = { clients: 0, reviews: 0, posts: 0 }
         </div>
       </div>
 
-      {/* KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* KPI — ✅ marge contrôlée */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center justify-between">
           <div>
             <div className="text-sm font-bold text-slate-400 uppercase mb-1">
@@ -115,7 +117,7 @@ export default function Dashboard({ stats = { clients: 0, reviews: 0, posts: 0 }
               Avis Reçus
             </div>
             <div className="text-4xl font-black text-slate-900">
-              {stats.reviews}
+              {stats?.reviews ?? 0}
             </div>
           </div>
           <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
@@ -137,8 +139,8 @@ export default function Dashboard({ stats = { clients: 0, reviews: 0, posts: 0 }
         </div>
       </div>
 
-      {/* Dernières créations */}
-      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+      {/* Dernières créations — ✅ marge contrôlée */}
+      <div className="mt-10 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
         <h3 className="font-black text-xl mb-6 flex items-center gap-2">
           <TrendingUp className="text-indigo-600" />
           Dernières Créations

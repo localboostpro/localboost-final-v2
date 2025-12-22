@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import React, { useMemo } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Wand2,
@@ -15,18 +15,15 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-// CORRECTION 1 : Valeur par défaut pour onClose pour éviter le crash "r is not a function"
 export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = () => {} }) {
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // Ferme le menu quand on change de page
-  useEffect(() => {
-    if (isOpen) {
-      onClose();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  // --- SUPPRESSION DU USEEFFECT (C'est lui qui faisait clignoter le menu) ---
+  
+  // Nouvelle fonction pour fermer le menu UNIQUEMENT quand on clique sur un lien
+  const handleLinkClick = () => {
+    if (isOpen) onClose();
+  };
 
   const menuItems = useMemo(() => {
     const items = [
@@ -50,20 +47,19 @@ export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = ()
 
   return (
     <>
-      {/* CORRECTION 2 : L'overlay n'existe dans le DOM que si isOpen est True.
-          Cela empêche les clics accidentels immédiats. */}
+      {/* OVERLAY (FOND NOIR) - Z-INDEX TRÈS ÉLEVÉ */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] md:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] md:hidden animate-in fade-in duration-200"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
-      {/* SIDEBAR PANEL */}
+      {/* SIDEBAR - Z-INDEX MAXIMUM */}
       <aside
         className={`
-          fixed top-0 left-0 bottom-0 z-[70] w-72 bg-white border-r border-slate-100 flex flex-col
+          fixed top-0 left-0 bottom-0 z-[9999] w-72 bg-white border-r border-slate-100 flex flex-col
           transition-transform duration-300 ease-out shadow-2xl md:shadow-none
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0 md:static md:h-screen md:z-0
@@ -102,6 +98,7 @@ export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = ()
             <NavLink
               key={to}
               to={to}
+              onClick={handleLinkClick} // <--- C'est ICI qu'on ferme le menu maintenant
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-200 ${
                   isActive
@@ -120,7 +117,7 @@ export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = ()
         <div className="p-4 border-t border-slate-50 bg-slate-50/50 shrink-0 pb-8 md:pb-4">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 rounded-xl transition shadow-sm"
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 rounded-xl transition shadow-sm active:scale-95"
           >
             <LogOut size={16} />
             Déconnexion

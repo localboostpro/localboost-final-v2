@@ -15,12 +15,12 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-// SÉCURITÉ : On met une fonction vide par défaut pour éviter le crash "is not a function"
+// CORRECTION 1 : Valeur par défaut pour onClose pour éviter le crash "r is not a function"
 export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = () => {} }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Ferme le menu mobile uniquement quand on change VRAIMENT de page
+  // Ferme le menu quand on change de page
   useEffect(() => {
     if (isOpen) {
       onClose();
@@ -50,25 +50,26 @@ export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = ()
 
   return (
     <>
-      {/* OVERLAY MOBILE (Fond noir) */}
-      <div
-        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 md:hidden transition-all duration-300 ${
-          isOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
-        }`}
-        onClick={onClose} // C'est ici que ça pouvait planter avant
-        aria-hidden="true"
-      />
+      {/* CORRECTION 2 : L'overlay n'existe dans le DOM que si isOpen est True.
+          Cela empêche les clics accidentels immédiats. */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] md:hidden animate-in fade-in duration-200"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
       {/* SIDEBAR PANEL */}
       <aside
         className={`
-          fixed top-0 left-0 bottom-0 z-[60] w-72 bg-white border-r border-slate-100 flex flex-col
+          fixed top-0 left-0 bottom-0 z-[70] w-72 bg-white border-r border-slate-100 flex flex-col
           transition-transform duration-300 ease-out shadow-2xl md:shadow-none
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0 md:static md:h-screen md:z-0
         `}
       >
-        {/* HEADER SIDEBAR */}
+        {/* HEADER */}
         <div className="p-6 border-b border-slate-50 flex items-center justify-between shrink-0 h-20">
           <div className="flex items-center gap-3">
             <div className="bg-slate-900 p-2 rounded-xl text-white shadow-lg">
@@ -86,10 +87,10 @@ export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = ()
             </div>
           </div>
 
-          {/* Bouton Fermer (Mobile uniquement) */}
+          {/* Bouton Fermer (Mobile) */}
           <button
             onClick={onClose}
-            className="md:hidden p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition active:scale-90"
+            className="md:hidden p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition"
           >
             <X size={24} />
           </button>
@@ -119,7 +120,7 @@ export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = ()
         <div className="p-4 border-t border-slate-50 bg-slate-50/50 shrink-0 pb-8 md:pb-4">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 rounded-xl transition shadow-sm active:scale-95"
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 rounded-xl transition shadow-sm"
           >
             <LogOut size={16} />
             Déconnexion

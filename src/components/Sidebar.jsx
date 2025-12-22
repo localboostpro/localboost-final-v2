@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
+// SÉCURITÉ : On met une fonction vide par défaut pour éviter le crash "is not a function"
+export default function Sidebar({ profile, isAdmin, isOpen = false, onClose = () => {} }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -49,27 +50,26 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
 
   return (
     <>
-      {/* OVERLAY (MOBILE) : Visible uniquement si isOpen est true */}
-      {/* Utilisation de "fixed inset-0" pour couvrir tout l'écran */}
+      {/* OVERLAY MOBILE (Fond noir) */}
       <div
-        className={`fixed inset-0 bg-slate-900/50 z-40 md:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 md:hidden transition-all duration-300 ${
           isOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
         }`}
-        onClick={onClose}
+        onClick={onClose} // C'est ici que ça pouvait planter avant
         aria-hidden="true"
       />
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR PANEL */}
       <aside
         className={`
-          fixed top-0 left-0 bottom-0 z-50 w-72 bg-white border-r border-slate-100 flex flex-col
-          transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none
+          fixed top-0 left-0 bottom-0 z-[60] w-72 bg-white border-r border-slate-100 flex flex-col
+          transition-transform duration-300 ease-out shadow-2xl md:shadow-none
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0 md:static md:h-screen
+          md:translate-x-0 md:static md:h-screen md:z-0
         `}
       >
-        {/* HEADER */}
-        <div className="p-6 border-b border-slate-50 flex items-center justify-between shrink-0">
+        {/* HEADER SIDEBAR */}
+        <div className="p-6 border-b border-slate-50 flex items-center justify-between shrink-0 h-20">
           <div className="flex items-center gap-3">
             <div className="bg-slate-900 p-2 rounded-xl text-white shadow-lg">
               <Zap size={20} fill="currentColor" />
@@ -86,16 +86,16 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Bouton Fermer (Mobile) */}
+          {/* Bouton Fermer (Mobile uniquement) */}
           <button
             onClick={onClose}
-            className="md:hidden p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition"
+            className="md:hidden p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition active:scale-90"
           >
-            <X size={20} />
+            <X size={24} />
           </button>
         </div>
 
-        {/* MENU SCROLLABLE */}
+        {/* MENU */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
           {menuItems.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -119,7 +119,7 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
         <div className="p-4 border-t border-slate-50 bg-slate-50/50 shrink-0 pb-8 md:pb-4">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 rounded-xl transition shadow-sm"
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 rounded-xl transition shadow-sm active:scale-95"
           >
             <LogOut size={16} />
             Déconnexion

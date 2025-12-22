@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+// ✅ VERIFIEZ AUSSI CET IMPORT :
 import { supabase } from "./lib/supabase";
 
 import Sidebar from "./components/Sidebar";
@@ -22,10 +23,10 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
   
-  // MENU MOBILE
+  // ÉTAT DU MENU
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // AUTH
+  // AUTHENTIFICATION
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -43,12 +44,13 @@ export default function App() {
 
   const isAdmin = session?.user?.email === "admin@demo.fr";
 
-  // DATA FETCHING
+  // CHARGEMENT DONNÉES
   const fetchAllData = async (userId, email) => {
     try {
       const { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
       const finalProfile = profileData ? { ...profileData, email, is_admin: isAdmin } : { name: "Nouveau compte", email, is_admin: isAdmin };
       setProfile(finalProfile);
+      
       if (!profileData?.id) return;
 
       const [r, c, p] = await Promise.all([
@@ -59,7 +61,7 @@ export default function App() {
       if (r.data) setReviews(r.data);
       if (c.data) setCustomers(c.data);
       if (p.data) setPosts(p.data);
-    } catch (e) { console.error("Erreur data", e); }
+    } catch (e) { console.error("Erreur", e); }
   };
 
   const upsertPostInState = (post) => {
@@ -79,7 +81,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
       
-      {/* 1. SIDEBAR (Gère le mobile et le desktop) */}
+      {/* 1. SIDEBAR (Gère les deux affichages) */}
       <Sidebar 
         profile={profile} 
         isAdmin={isAdmin} 
@@ -87,20 +89,14 @@ export default function App() {
         onClose={() => setIsMobileMenuOpen(false)} 
       />
 
-      {/* 2. HEADER MOBILE (Visible uniquement < 768px) */}
-      {/* J'ai mis une bordure JAUNE pour DEBUG. Si vous ne la voyez pas, le code ne s'est pas mis à jour. */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b-2 border-yellow-400 px-4 py-3 flex items-center justify-between h-16 shadow-sm">
+      {/* 2. HEADER MOBILE (Bouton Rouge de Debug) */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between h-16 shadow-sm">
         <div className="font-black text-lg text-slate-900">LocalBoost</div>
         <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log("Clic Menu !"); // Regardez la console
-            setIsMobileMenuOpen(true);
-          }}
-          className="p-2 bg-slate-100 rounded-lg active:bg-slate-200"
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 bg-red-100 text-red-600 rounded-lg border border-red-200 font-bold"
         >
-          {/* Hamburger Icon */}
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          MENU
         </button>
       </header>
 
@@ -108,10 +104,8 @@ export default function App() {
       <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-20 md:pt-8 pb-10 w-full">
         <Routes>
           <Route path="/" element={<Dashboard stats={stats} posts={posts} profile={profile} onGenerate={() => navigate("/marketing")} />} />
-          
           <Route path="/marketing" element={<Marketing posts={posts} profile={profile} onUpdate={upsertPostInState} onUpsert={upsertPostInState} onDelete={deletePostInState} />} />
           <Route path="/marketing/:id" element={<Marketing posts={posts} profile={profile} onUpdate={upsertPostInState} onUpsert={upsertPostInState} onDelete={deletePostInState} />} />
-          
           <Route path="/reviews" element={<Reviews reviews={reviews} />} />
           <Route path="/customers" element={<Customers customers={customers} />} />
           <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />

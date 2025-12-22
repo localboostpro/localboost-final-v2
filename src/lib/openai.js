@@ -1,16 +1,18 @@
-import { supabase } from "./supabase";
-
+// On n'importe PAS supabase ici pour éviter les conflits
+// On récupère juste la clé sécurisée
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
 export const generatePostContent = async (prompt, profile) => {
-  console.log("🧠 Démarrage IA avec le prompt :", prompt);
+  console.log("🚀 Démarrage IA...");
 
+  // 1. Vérification de sécurité
   if (!OPENAI_API_KEY) {
-    console.error("❌ CRITIQUE : Clé API manquante !");
-    throw new Error("Clé API introuvable. Vérifiez les variables Vercel.");
+    console.error("ERREUR: Clé API manquante (VITE_OPENAI_API_KEY).");
+    throw new Error("Clé API manquante sur Vercel.");
   }
 
   try {
+    // 2. Appel direct à OpenAI
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -22,15 +24,10 @@ export const generatePostContent = async (prompt, profile) => {
         messages: [
           {
             role: "system",
-            content: `Tu es un expert marketing. Réponds UNIQUEMENT en JSON valide :
-            {
-              "title": "Titre court",
-              "content": "Texte du post",
-              "image_keyword": "mot clé anglais",
-              "hashtags": ["#tag"]
-            }`
+            content: `Tu es un expert réseaux sociaux pour ${profile?.name || "une entreprise"}.
+            Format JSON requis : { "title": "...", "content": "...", "hashtags": ["#tag"], "image_keyword": "..." }`
           },
-          { role: "user", content: `Sujet: ${prompt}. Entreprise: ${profile?.name || "Pro"}. Ville: ${profile?.city || "France"}` }
+          { role: "user", content: prompt }
         ],
         temperature: 0.7
       })
@@ -38,18 +35,24 @@ export const generatePostContent = async (prompt, profile) => {
 
     const data = await response.json();
 
+    // 3. Gestion des erreurs OpenAI (Crédit, Quota, etc.)
     if (data.error) {
-      console.error("❌ Erreur OpenAI reçue :", data.error);
-      throw new Error(`OpenAI Error: ${data.error.message}`);
+      console.error("❌ Erreur OpenAI:", data.error);
+      throw new Error(data.error.message || "Erreur de l'API IA");
     }
 
-    const rawContent = data.choices[0].message.content;
+    // 4. Traitement du résultat
+    const contentRaw = data.choices[0].message.content;
     let parsed;
     try {
-      parsed = JSON.parse(rawContent);
+        parsed = JSON.parse(contentRaw);
     } catch (e) {
-      console.error("❌ Erreur de parsing JSON :", rawContent);
-      throw new Error("L'IA a renvoyé un format invalide.");
+        // Fallback si l'IA n'envoie pas du JSON pur
+        return {
+            title: "Nouveau Post",
+            content: contentRaw,
+            image_keyword: "business"
+        };
     }
 
     return {
@@ -59,7 +62,7 @@ export const generatePostContent = async (prompt, profile) => {
     };
 
   } catch (error) {
-    console.error("❌ CRASH FINAL :", error);
+    console.error("❌ CRASH IA:", error);
     throw error;
   }
 };

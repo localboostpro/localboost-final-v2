@@ -39,19 +39,28 @@ export default function App() {
 
   /* ---------- AUTH ---------- */
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+useEffect(() => {
+  let mounted = true;
+
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!mounted) return;
+    setSession(session);
+    setLoading(false);
+  });
+
+  const { data: { subscription } } =
+    supabase.auth.onAuthStateChange((_e, session) => {
+      if (!mounted) return;
       setSession(session);
-      if (!session) setLoading(false);
+      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setSession(session);
-      if (!session) setLoading(false);
-    });
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, []);
 
-    return () => subscription.unsubscribe();
-  }, []);
 
   if (loading) {
     return (

@@ -10,7 +10,7 @@ import {
   User,
   Shield,
   LogOut,
-  X
+  X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -43,26 +43,28 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
 
   return (
     <>
-      {/* OVERLAY MOBILE */}
-      <div
-        onClick={onClose}
-        className={`fixed inset-0 z-40 bg-black/40 transition-opacity md:hidden ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      />
+      {/* OVERLAY — seul élément qui ferme */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={onClose}
+        />
+      )}
 
       {/* SIDEBAR */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full w-72 bg-white border-r border-slate-100
-          transform transition-transform duration-300
+          fixed inset-y-0 left-0 z-50 w-72 bg-white
+          transform transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0 md:static md:z-auto
+          md:static md:translate-x-0
+          flex flex-col
         `}
+        onClick={(e) => e.stopPropagation()} // ⛔ empêche fermeture interne
       >
         {/* HEADER */}
         <div className="p-6 border-b flex justify-between items-center">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-xl font-black text-slate-900">
               LocalBoost <span className="text-indigo-600">Pro</span>
             </h1>
@@ -74,18 +76,22 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
           </div>
 
           {/* CLOSE MOBILE */}
-          <button onClick={onClose} className="md:hidden">
-            <X />
+          <button
+            onClick={onClose}
+            className="md:hidden p-2 rounded-lg hover:bg-slate-100"
+            aria-label="Fermer le menu"
+          >
+            <X size={20} />
           </button>
         </div>
 
         {/* MENU */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menuItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
-              onClick={onClose}
+              onClick={onClose} // ✅ fermeture volontaire après navigation
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
                   isActive

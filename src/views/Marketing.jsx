@@ -4,12 +4,13 @@ import { supabase } from "../lib/supabase";
 import { generatePostContent } from "../lib/openai";
 import canvasConfetti from "canvas-confetti";
 import {
-  Wand2, Instagram, Facebook, Linkedin,
-  Trash2, Lock, ArrowRight, Sparkles,
-  Save, RefreshCw, Upload, LayoutList,
-  Calendar as CalendarIcon,
-  Image as ImageIcon,
-  ChevronLeft, ChevronRight
+  Wand2,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Trash2,
+  Lock,
+  Save,
 } from "lucide-react";
 
 /* ---------------- CONSTANTES ---------------- */
@@ -38,12 +39,10 @@ export default function Marketing({
   profile,
   onUpdate,
 }) {
-  const { id } = useParams(); // ✅ lecture de l’ID URL
+  const { id } = useParams();
 
   /* ---------- STATES ---------- */
   const [activeTab, setActiveTab] = useState("generator");
-  const [historyView, setHistoryView] = useState("list");
-
   const [prompt, setPrompt] = useState("");
   const [activeNetwork, setActiveNetwork] = useState("Instagram");
   const [style, setStyle] = useState("Amical");
@@ -63,18 +62,18 @@ export default function Marketing({
 
   /* ---------- SYNC URL → POST ---------- */
   useEffect(() => {
-    if (!id || !posts.length) return;
+    if (!id || !posts.length || !setCurrentPost) return;
+
     const found = posts.find((p) => String(p.id) === String(id));
     if (found) {
       setCurrentPost(found);
-      setActiveTab("generator");
     }
   }, [id, posts, setCurrentPost]);
 
   /* ---------- PROTECTION BASIC ---------- */
   if (profile?.subscription_tier === "basic") {
     return (
-      <div className="pt-6 md:pt-8 h-[calc(100vh-120px)] flex items-center justify-center bg-slate-900 rounded-[2rem] text-white">
+      <div className="h-[calc(100vh-120px)] flex items-center justify-center bg-slate-900 rounded-[2rem] text-white">
         <div className="text-center">
           <Lock size={48} className="mx-auto mb-6 text-indigo-400" />
           <h2 className="text-3xl font-black mb-3">Studio Créatif IA</h2>
@@ -113,7 +112,6 @@ export default function Marketing({
           : generatedImage;
 
       const newPost = {
-        id: Date.now(),
         title: ai.title,
         content: ai.content,
         image_url: img,
@@ -123,7 +121,12 @@ export default function Marketing({
         image_overlay: imageOverlay,
       };
 
-      setCurrentPost(newPost);
+      // ✅ FUSION SÉCURISÉE (corrige le bug majeur)
+      setCurrentPost((prev) => ({
+        ...(prev || {}),
+        ...newPost,
+      }));
+
       setGeneratedImage(img);
     } catch (e) {
       alert("Erreur IA");
@@ -153,7 +156,7 @@ export default function Marketing({
   /* ---------------- RENDER ---------------- */
 
   return (
-    <div className="pt-6 md:pt-8 flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)] pb-4">
+    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)] pb-4">
 
       {/* -------- COLONNE GAUCHE -------- */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
@@ -168,71 +171,27 @@ export default function Marketing({
               <Trash2 size={12} /> Effacer
             </button>
           </div>
-
-          <div className="flex p-1 bg-slate-100 rounded-xl">
-            {["generator", "editor", "history"].map((t) => (
-              <button
-                key={t}
-                onClick={() => setActiveTab(t)}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold ${
-                  activeTab === t
-                    ? "bg-white shadow text-indigo-600"
-                    : "text-slate-500"
-                }`}
-              >
-                {t === "generator" && "IA"}
-                {t === "editor" && "Visuel"}
-                {t === "history" && "Historique"}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* CONTENU */}
         <div className="flex-1 overflow-y-auto pr-2">
 
-          {activeTab === "generator" && (
-            <div className="bg-white p-6 rounded-[2rem] border space-y-6">
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Sujet du post…"
-                className="w-full h-28 p-4 bg-slate-50 border rounded-xl"
-              />
+          <div className="bg-white p-6 rounded-[2rem] border space-y-6">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Sujet du post…"
+              className="w-full h-28 p-4 bg-slate-50 border rounded-xl"
+            />
 
-              <button
-                onClick={handleGenerate}
-                disabled={isLoading}
-                className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black"
-              >
-                {isLoading ? "Génération…" : "Générer le post"}
-              </button>
-            </div>
-          )}
-
-          {activeTab === "history" && (
-            <div className="bg-white p-6 rounded-[2rem] border space-y-2">
-              {posts.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => setCurrentPost(p)}
-                  className="flex gap-3 p-3 rounded-xl hover:bg-slate-50 cursor-pointer"
-                >
-                  <img
-                    src={p.image_url}
-                    className="w-14 h-14 rounded-lg object-cover"
-                    alt=""
-                  />
-                  <div className="flex-1">
-                    <div className="font-bold truncate">{p.title}</div>
-                    <div className="text-xs text-slate-500">
-                      {new Date(p.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            <button
+              onClick={handleGenerate}
+              disabled={isLoading}
+              className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black"
+            >
+              {isLoading ? "Génération…" : "Générer le post"}
+            </button>
+          </div>
         </div>
       </div>
 

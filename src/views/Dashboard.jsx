@@ -55,7 +55,7 @@ export default function Dashboard({
 
   return (
     /* ✅ SUPPRESSION DU space-y GLOBAL */
-    <div className="animate-in fade-in duration-500">
+    <div className="animate-in fade-in duration-500 pt-6 md:pt-8">
 
       {/* EN-TÊTE */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">

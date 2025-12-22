@@ -9,13 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^4.0.0",
+    "@supabase/supabase-js": "latest",
+    "canvas-confetti": "^1.9.3",
+    "lucide-react": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@supabase/supabase-js": "latest",
-    "lucide-react": "latest",
-    "recharts": "latest",
-    "canvas-confetti": "^1.9.3",
-    "@stripe/stripe-js": "^4.0.0"
+    "react-router-dom": "^7.11.0",
+    "recharts": "latest"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

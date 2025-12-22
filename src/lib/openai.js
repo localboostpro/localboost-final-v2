@@ -1,18 +1,23 @@
-// On n'importe PAS supabase ici pour éviter les conflits
-// On récupère juste la clé sécurisée
+// ⚠️ NE RIEN IMPORTER D'AUTRE ICI (Pas de Supabase, pas de lib)
+// Cela évite l'erreur "r is not a function" due aux conflits de fichiers.
+
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
 export const generatePostContent = async (prompt, profile) => {
-  console.log("🚀 Démarrage IA...");
+  console.log("🔵 Démarrage fonction IA...");
 
-  // 1. Vérification de sécurité
+  // 1. Vérification de la clé
   if (!OPENAI_API_KEY) {
-    console.error("ERREUR: Clé API manquante (VITE_OPENAI_API_KEY).");
-    throw new Error("Clé API manquante sur Vercel.");
+    console.error("⛔ CLÉ MANQUANTE : VITE_OPENAI_API_KEY est introuvable.");
+    throw new Error("Clé API manquante sur Vercel. Vérifiez vos variables d'environnement.");
   }
 
+  // 2. Préparation des données (Ville/Nom) avec valeurs par défaut de sécurité
+  const businessName = profile?.name || "Mon Entreprise";
+  const businessCity = profile?.city || "France";
+
   try {
-    // 2. Appel direct à OpenAI
+    // 3. Appel direct à l'API (Sans passer par une librairie tierce qui pourrait planter)
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -24,8 +29,15 @@ export const generatePostContent = async (prompt, profile) => {
         messages: [
           {
             role: "system",
-            content: `Tu es un expert réseaux sociaux pour ${profile?.name || "une entreprise"}.
-            Format JSON requis : { "title": "...", "content": "...", "hashtags": ["#tag"], "image_keyword": "..." }`
+            content: `Tu es un expert marketing pour "${businessName}" situé à "${businessCity}".
+            Tu dois répondre UNIQUEMENT avec un objet JSON valide.
+            Format attendu:
+            {
+              "title": "Titre accrocheur",
+              "content": "Texte du post (engageant, avec emojis)",
+              "hashtags": ["#tag1", "#tag2"],
+              "image_keyword": "mot clé pour décrire l'image en anglais"
+            }`
           },
           { role: "user", content: prompt }
         ],
@@ -33,36 +45,42 @@ export const generatePostContent = async (prompt, profile) => {
       })
     });
 
-    const data = await response.json();
-
-    // 3. Gestion des erreurs OpenAI (Crédit, Quota, etc.)
-    if (data.error) {
-      console.error("❌ Erreur OpenAI:", data.error);
-      throw new Error(data.error.message || "Erreur de l'API IA");
+    // 4. Lecture de la réponse
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("❌ Erreur API OpenAI :", errorData);
+      // Gestion spécifique du quota
+      if (response.status === 429) throw new Error("Quota OpenAI dépassé ou crédit insuffisant.");
+      if (response.status === 401) throw new Error("Clé API invalide.");
+      throw new Error(errorData.error?.message || "Erreur serveur OpenAI");
     }
 
-    // 4. Traitement du résultat
+    const data = await response.json();
     const contentRaw = data.choices[0].message.content;
+
+    // 5. Nettoyage et Parsing du JSON
     let parsed;
     try {
         parsed = JSON.parse(contentRaw);
     } catch (e) {
-        // Fallback si l'IA n'envoie pas du JSON pur
+        console.warn("⚠️ Le format JSON est imparfait, tentative de récupération...");
+        // Fallback manuel si l'IA bavarde
         return {
-            title: "Nouveau Post",
+            title: "Suggestion IA",
             content: contentRaw,
-            image_keyword: "business"
+            image_keyword: "business",
+            hashtags: []
         };
     }
 
     return {
       title: parsed.title,
       content: parsed.content + "\n\n" + (parsed.hashtags?.join(" ") || ""),
-      image_keyword: parsed.image_keyword
+      image_keyword: parsed.image_keyword || "work"
     };
 
   } catch (error) {
-    console.error("❌ CRASH IA:", error);
-    throw error;
+    console.error("❌ CRASH DANS OPENAI.JS :", error);
+    throw error; // Renvoie l'erreur pour l'afficher dans l'alerte
   }
 };

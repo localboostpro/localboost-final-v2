@@ -56,9 +56,10 @@ export default function App() {
   }, []);
 
   /* ---------------- FERMETURE MENU AU CHANGEMENT DE PAGE ---------------- */
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
+useEffect(() => {
+  setIsMobileMenuOpen(false);
+}, []);
+
 
   /* ---------------- ADMIN CHECK ---------------- */
   const isAdmin = session?.user?.email === "admin@demo.fr";

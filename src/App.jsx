@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Routes, Route, useNavigate, useParams } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import { getPlanConfig } from "./lib/plans";
 
@@ -14,105 +14,47 @@ import Promotions from "./views/Promotions";
 import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
 
-import { Eye, LogOut, Menu } from "lucide-react";
-
-/* ---------------- MARKETING ROUTE WRAPPER ---------------- */
-
-function MarketingRoute(props) {
-  const { id } = useParams();
-  return <Marketing {...props} postId={id} />;
-}
-
-/* ---------------- MAIN APP ---------------- */
-
 export default function App() {
   const [session, setSession] = useState(null);
-  const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
-  const [currentPost, setCurrentPost] = useState(null);
 
   /* ---------- AUTH ---------- */
-
-useEffect(() => {
-  let mounted = true;
-
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (!mounted) return;
-    setSession(session);
-    setLoading(false);
-  });
-
-  const { data: { subscription } } =
-    supabase.auth.onAuthStateChange((_e, session) => {
-      if (!mounted) return;
-      setSession(session);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
       setLoading(false);
     });
 
-  return () => {
-    mounted = false;
-    subscription.unsubscribe();
-  };
-}, []);
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange((_e, session) => {
+        setSession(session);
+        setLoading(false);
+      });
 
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        Chargement…
-      </div>
-    );
+    return <div className="h-screen flex items-center justify-center">Chargement…</div>;
   }
 
   if (!session) return <AuthForm />;
 
-  const currentPlan = getPlanConfig(profile?.subscription_tier || "basic");
-
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-      
-      {/* MENU TOUJOURS PRÉSENT */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        profile={profile}
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
+
+      <Sidebar />
 
       <main className="flex-1 overflow-y-auto px-4 md:px-8">
         <Routes>
-
-          <Route
-            path="/"
-            element={
-              <Dashboard
-                stats={{ reviews: reviews.length, clients: customers.length, posts: posts.length }}
-                posts={posts}
-                profile={profile}
-                onGenerate={() => setActiveTab("generator")}
-              />
-            }
-          />
-
-          <Route
-            path="/marketing/:id"
-            element={
-              <MarketingRoute
-                posts={posts}
-                currentPost={currentPost}
-                setCurrentPost={setCurrentPost}
-                profile={profile}
-              />
-            }
-          />
-
+          <Route path="/" element={<Dashboard posts={posts} profile={profile} />} />
+          <Route path="/marketing" element={<Marketing posts={posts} profile={profile} />} />
+          <Route path="/marketing/:id" element={<Marketing posts={posts} profile={profile} />} />
           <Route path="/reviews" element={<Reviews reviews={reviews} />} />
           <Route path="/customers" element={<Customers customers={customers} />} />
           <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
@@ -120,6 +62,8 @@ useEffect(() => {
           <Route path="/promotions" element={<Promotions />} />
           <Route path="/admin" element={<Admin />} />
 
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
     </div>

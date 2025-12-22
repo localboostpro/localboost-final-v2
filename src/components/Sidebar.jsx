@@ -15,6 +15,8 @@ import {
 import { supabase } from "../lib/supabase";
 import { useNavigate, useLocation } from "react-router-dom";
 
+export default function Sidebar({ profile, isAdmin }) {
+
 export default function Sidebar({ profile, isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +30,10 @@ export default function Sidebar({ profile, isOpen, onClose }) {
     { path: "/promotions", label: "Offres & Promo", icon: <Ticket size={20} /> },
     { path: "/profile", label: "Mon Établissement", icon: <User size={20} /> },
   ];
-
+// ⬇️ AJOUT ADMIN
+if (isAdmin) {
+  menuItems.push({ to: "/admin", label: "Administration" });
+}
   const isActive = (path) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);

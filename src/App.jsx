@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 
 import Sidebar from "./components/Sidebar";
@@ -15,6 +15,7 @@ import AuthForm from "./components/AuthForm";
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,10 +25,7 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
 
-  // ✅ ÉTAT CENTRAL
-  const [currentPost, setCurrentPost] = useState(null);
-
-  /* ---------- AUTH ---------- */
+  /* ---------------- AUTH ---------------- */
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -37,20 +35,27 @@ export default function App() {
       }
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, session) => {
-      setSession(session);
-      setLoading(false);
-      if (session) {
-        fetchAllData(session.user.id, session.user.email);
-      }
-    });
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange((_e, s) => {
+        setSession(s);
+        setLoading(false);
+        if (s) {
+          fetchAllData(s.user.id, s.user.email);
+        } else {
+          setProfile(null);
+          setReviews([]);
+          setCustomers([]);
+          setPosts([]);
+        }
+      });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  /* ---------- DATA ---------- */
+  /* ---------------- ADMIN CHECK ---------------- */
+  const isAdmin = session?.user?.email === "admin@demo.fr";
+
+  /* ---------------- DATA ---------------- */
   const fetchAllData = async (userId, email) => {
     try {
       const { data: profileData } = await supabase
@@ -60,8 +65,8 @@ export default function App() {
         .maybeSingle();
 
       const finalProfile = profileData
-        ? { ...profileData, email }
-        : { name: "Nouveau compte", email };
+        ? { ...profileData, email, is_admin: isAdmin }
+        : { name: "Nouveau compte", email, is_admin: isAdmin };
 
       setProfile(finalProfile);
 
@@ -85,6 +90,27 @@ export default function App() {
     }
   };
 
+  /* ---------------- POSTS HELPERS ---------------- */
+  const upsertPostInState = (post) => {
+    setPosts((prev) => {
+      const idx = prev.findIndex((p) => String(p.id) === String(post.id));
+      if (idx === -1) return [post, ...prev];
+      const next = [...prev];
+      next[idx] = post;
+      return next;
+    });
+  };
+
+  const deletePostInState = (id) => {
+    setPosts((prev) => prev.filter((p) => String(p.id) !== String(id)));
+  };
+
+  const stats = useMemo(() => ({
+    clients: customers.length,
+    reviews: reviews.length,
+    posts: posts.length,
+  }), [customers, reviews, posts]);
+
   if (loading) {
     return <div className="h-screen flex items-center justify-center">Chargement…</div>;
   }
@@ -93,20 +119,17 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-      <Sidebar profile={profile} />
 
-      {/* ✅ LE PADDING DOIT ÊTRE ICI */}
-      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-6 md:pt-8">
+      <Sidebar profile={profile} isAdmin={isAdmin} />
+
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-6 md:pt-8 pb-10">
         <Routes>
+
           <Route
             path="/"
             element={
               <Dashboard
-                stats={{
-                  clients: customers.length,
-                  reviews: reviews.length,
-                  posts: posts.length,
-                }}
+                stats={stats}
                 posts={posts}
                 profile={profile}
                 onGenerate={() => navigate("/marketing")}
@@ -120,9 +143,8 @@ export default function App() {
               <Marketing
                 posts={posts}
                 profile={profile}
-                currentPost={currentPost}
-                setCurrentPost={setCurrentPost}
-                onUpdate={(p) => setPosts((prev) => [p, ...prev])}
+                onUpsert={upsertPostInState}
+                onDelete={deletePostInState}
               />
             }
           />
@@ -133,9 +155,8 @@ export default function App() {
               <Marketing
                 posts={posts}
                 profile={profile}
-                currentPost={currentPost}
-                setCurrentPost={setCurrentPost}
-                onUpdate={(p) => setPosts((prev) => [p, ...prev])}
+                onUpsert={upsertPostInState}
+                onDelete={deletePostInState}
               />
             }
           />
@@ -145,7 +166,12 @@ export default function App() {
           <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
           <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
           <Route path="/promotions" element={<Promotions />} />
-          <Route path="/admin" element={<Admin />} />
+
+          {/* 🔐 ADMIN PROTÉGÉ */}
+          <Route
+            path="/admin"
+            element={isAdmin ? <Admin /> : <Navigate to="/" />}
+          />
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

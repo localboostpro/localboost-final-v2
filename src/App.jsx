@@ -121,13 +121,16 @@ export default function App() {
       />
 
       {/* HEADER MOBILE */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3 border-b">
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2 rounded-xl bg-slate-100 border shadow"
-        >
-          ☰
-        </button>
+<button
+  onClick={(e) => {
+    e.stopPropagation();       // ⛔ empêche le clic de remonter
+    setIsMobileMenuOpen(true);
+  }}
+  className="p-2 rounded-xl bg-slate-100 border shadow"
+  aria-label="Ouvrir le menu"
+>
+  ☰
+</button>
       </header>
 
       {/* MAIN */}

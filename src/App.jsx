@@ -120,7 +120,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50 text-slate-400 font-medium">
-        Chargement de l'espace pro...
+        Chargement...
       </div>
     );
   }
@@ -151,7 +151,7 @@ export default function App() {
           className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-slate-100 active:scale-95 transition"
           aria-label="Ouvrir le menu"
         >
-          {/* Icône Menu Hamburger (SVG inline pour éviter les dépendances) */}
+          {/* Icône Menu Hamburger */}
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -161,7 +161,7 @@ export default function App() {
       </header>
 
       {/* CONTENU PRINCIPAL */}
-      {/* pt-20 permet de ne pas cacher le contenu sous le header mobile */}
+      {/* pt-20 pour compenser le header mobile */}
       <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-20 md:pt-8 pb-10">
         <Routes>
           <Route
@@ -182,18 +182,23 @@ export default function App() {
               <Marketing
                 posts={posts}
                 profile={profile}
-                onUpsert={upsertPostInState}
+                onUpdate={upsertPostInState} // Correction ici: onUpdate, pas onUpsert (dépend de votre Marketing.jsx)
+                // Si votre Marketing.jsx attend "onUpsert", gardez "onUpsert". 
+                // Dans ma V3.1 j'avais mis "onUpdate". Je mets les deux pour la compatibilité.
+                onUpsert={upsertPostInState} 
                 onDelete={deletePostInState}
               />
             }
           />
 
+          {/* Route avec ID (optionnelle si vous gérez l'édition dans la page principale) */}
           <Route
             path="/marketing/:id"
             element={
               <Marketing
                 posts={posts}
                 profile={profile}
+                onUpdate={upsertPostInState}
                 onUpsert={upsertPostInState}
                 onDelete={deletePostInState}
               />

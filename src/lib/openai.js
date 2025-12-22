@@ -1,19 +1,16 @@
 import { supabase } from "./supabase";
 
-// Access the environment variable
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
 export const generatePostContent = async (prompt, profile) => {
-  console.log("🚀 Starting AI Generation...");
+  console.log("🧠 Démarrage IA avec le prompt :", prompt);
 
-  // 1. Check if Key exists
   if (!OPENAI_API_KEY) {
-    console.error("CRITICAL: Missing API Key. Please add VITE_OPENAI_API_KEY to Vercel Environment Variables.");
-    throw new Error("Clé API manquante. Configuration requise sur Vercel.");
+    console.error("❌ CRITIQUE : Clé API manquante !");
+    throw new Error("Clé API introuvable. Vérifiez les variables Vercel.");
   }
 
   try {
-    // 2. Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -25,11 +22,15 @@ export const generatePostContent = async (prompt, profile) => {
         messages: [
           {
             role: "system",
-            content: `You are a marketing expert for a local business named "${profile?.name || 'Local Business'}". 
-            City: "${profile?.city || 'France'}".
-            Output JSON only: { "title": "...", "content": "...", "hashtags": ["#tag"], "image_keyword": "..." }`
+            content: `Tu es un expert marketing. Réponds UNIQUEMENT en JSON valide :
+            {
+              "title": "Titre court",
+              "content": "Texte du post",
+              "image_keyword": "mot clé anglais",
+              "hashtags": ["#tag"]
+            }`
           },
-          { role: "user", content: prompt }
+          { role: "user", content: `Sujet: ${prompt}. Entreprise: ${profile?.name || "Pro"}. Ville: ${profile?.city || "France"}` }
         ],
         temperature: 0.7
       })
@@ -37,20 +38,18 @@ export const generatePostContent = async (prompt, profile) => {
 
     const data = await response.json();
 
-    // 3. Handle OpenAI Errors (Quota, Invalid Key, etc.)
     if (data.error) {
-      console.error("❌ OpenAI API Error:", data.error);
-      throw new Error(data.error.message || "Erreur lors de l'appel à l'IA");
+      console.error("❌ Erreur OpenAI reçue :", data.error);
+      throw new Error(`OpenAI Error: ${data.error.message}`);
     }
 
-    // 4. Parse Response
-    const contentRaw = data.choices[0].message.content;
+    const rawContent = data.choices[0].message.content;
     let parsed;
     try {
-        parsed = JSON.parse(contentRaw);
+      parsed = JSON.parse(rawContent);
     } catch (e) {
-        console.error("❌ JSON Parse Error:", contentRaw);
-        throw new Error("L'IA a généré un format invalide.");
+      console.error("❌ Erreur de parsing JSON :", rawContent);
+      throw new Error("L'IA a renvoyé un format invalide.");
     }
 
     return {
@@ -60,7 +59,7 @@ export const generatePostContent = async (prompt, profile) => {
     };
 
   } catch (error) {
-    console.error("❌ FINAL ERROR:", error);
+    console.error("❌ CRASH FINAL :", error);
     throw error;
   }
 };

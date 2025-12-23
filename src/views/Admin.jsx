@@ -3,75 +3,84 @@ import { supabase } from '../lib/supabase';
 import { 
   Building2, 
   Users, 
-  Star, 
-  MessageSquare, 
   TrendingUp,
-  Calendar,
+  Search,
   Filter,
-  Download
+  MoreVertical,
+  CheckCircle,
+  XCircle,
+  Clock,
+  DollarSign,
+  Calendar,
+  Mail,
+  Phone,
+  Globe,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 
 export default function Admin() {
+  const [activeTab, setActiveTab] = useState('overview'); // overview, businesses, clients, reviews
+  const [businesses, setBusinesses] = useState([]);
   const [stats, setStats] = useState({
     totalBusinesses: 0,
-    totalCustomers: 0,
-    totalReviews: 0,
-    averageRating: 0,
-    recentActivity: []
+    activeSubscriptions: 0,
+    trialUsers: 0,
+    mrr: 0,
+    growth: 0
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterTier, setFilterTier] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('7d'); // 7d, 30d, 90d, all
 
   useEffect(() => {
-    loadAdminData();
-  }, [timeRange]);
+    fetchDashboardData();
+  }, []);
 
-  async function loadAdminData() {
+  async function fetchDashboardData() {
     try {
-      // Get all businesses
-      const { data: businesses, error: bizError } = await supabase
+      // Fetch businesses with their subscription info
+      const { data: bizData, error: bizError } = await supabase
         .from('businesses')
-        .select('*');
+        .select(`
+          *,
+          subscription_tier,
+          subscription_status,
+          subscription_start_date,
+          subscription_end_date
+        `)
+        .order('created_at', { ascending: false });
 
       if (bizError) throw bizError;
 
-      // Get all customers
-      const { data: customers, error: custError } = await supabase
-        .from('customers')
-        .select('*');
-
-      if (custError) throw custError;
-
-      // Get all reviews
-      const { data: reviews, error: revError } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (revError) throw revError;
+      setBusinesses(bizData || []);
 
       // Calculate stats
-      const totalReviews = reviews?.length || 0;
-      const averageRating = totalReviews > 0
-        ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews).toFixed(1)
-        : 0;
-
-      // Get recent activity (last 10 reviews)
-      const recentActivity = reviews?.slice(0, 10) || [];
+      const active = bizData?.filter(b => b.subscription_status === 'active').length || 0;
+      const trial = bizData?.filter(b => b.subscription_status === 'trial').length || 0;
 
       setStats({
-        totalBusinesses: businesses?.length || 0,
-        totalCustomers: customers?.length || 0,
-        totalReviews,
-        averageRating,
-        recentActivity
+        totalBusinesses: bizData?.length || 0,
+        activeSubscriptions: active,
+        trialUsers: trial,
+        mrr: active * 49, // Simplified MRR calculation
+        growth: 12 // Mock growth %
       });
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
   }
+
+  const filteredBusinesses = businesses.filter(biz => {
+    const matchesSearch = biz.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         biz.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || biz.subscription_status === filterStatus;
+    const matchesTier = filterTier === 'all' || biz.subscription_tier === filterTier;
+    return matchesSearch && matchesStatus && matchesTier;
+  });
 
   if (loading) {
     return (
@@ -84,166 +93,244 @@ export default function Admin() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Administration</h1>
-          <p className="mt-2 text-gray-600">Vue d'ensemble de la plateforme</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="7d">7 derniers jours</option>
-            <option value="30d">30 derniers jours</option>
-            <option value="90d">90 derniers jours</option>
-            <option value="all">Tout</option>
-          </select>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <Download className="w-4 h-4" />
-            Exporter
-          </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Administration</h1>
+        <p className="mt-2 text-gray-600">Gestion des commerces et abonnements</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-8">
+        <div className="flex gap-8">
+          {[
+            { id: 'overview', label: 'Vue d\'ensemble', icon: TrendingUp },
+            { id: 'businesses', label: 'Commerces', icon: Building2 },
+            { id: 'clients', label: 'Clients', icon: Users },
+            { id: 'reviews', label: 'Avis', icon: MessageSquare }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 pb-4 border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600 font-medium'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <tab.icon className="w-5 h-5" />
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Total Commerces"
-          value={stats.totalBusinesses}
-          icon={<Building2 className="w-6 h-6" />}
-          color="blue"
-          trend="+12%"
+      {/* Content */}
+      {activeTab === 'overview' && <OverviewTab stats={stats} />}
+      {activeTab === 'businesses' && (
+        <BusinessesTab
+          businesses={filteredBusinesses}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+          filterTier={filterTier}
+          setFilterTier={setFilterTier}
+          onRefresh={fetchDashboardData}
         />
-        <StatCard
-          title="Total Clients"
-          value={stats.totalCustomers}
-          icon={<Users className="w-6 h-6" />}
-          color="green"
-          trend="+8%"
-        />
-        <StatCard
-          title="Total Avis"
-          value={stats.totalReviews}
-          icon={<MessageSquare className="w-6 h-6" />}
-          color="purple"
-          trend="+15%"
-        />
-        <StatCard
-          title="Note Moyenne"
-          value={stats.averageRating}
-          icon={<Star className="w-6 h-6" />}
-          color="yellow"
-          suffix="/5"
-        />
+      )}
+      {activeTab === 'clients' && <ClientsTab businesses={businesses} />}
+      {activeTab === 'reviews' && <ReviewsTab />}
+    </div>
+  );
+}
+
+// Overview Tab
+function OverviewTab({ stats }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatCard
+        title="Total Commerces"
+        value={stats.totalBusinesses}
+        icon={<Building2 className="w-6 h-6" />}
+        color="blue"
+        trend={`+${stats.growth}%`}
+      />
+      <StatCard
+        title="Abonnements Actifs"
+        value={stats.activeSubscriptions}
+        icon={<CheckCircle className="w-6 h-6" />}
+        color="green"
+      />
+      <StatCard
+        title="Utilisateurs Trial"
+        value={stats.trialUsers}
+        icon={<Clock className="w-6 h-6" />}
+        color="yellow"
+      />
+      <StatCard
+        title="MRR"
+        value={`${stats.mrr}€`}
+        icon={<DollarSign className="w-6 h-6" />}
+        color="purple"
+      />
+    </div>
+  );
+}
+
+// Businesses Tab
+function BusinessesTab({ 
+  businesses, 
+  searchQuery, 
+  setSearchQuery, 
+  filterStatus, 
+  setFilterStatus,
+  filterTier,
+  setFilterTier,
+  onRefresh 
+}) {
+  return (
+    <div>
+      {/* Filters */}
+      <div className="flex gap-4 mb-6">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Rechercher un commerce..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Tous statuts</option>
+          <option value="active">Actif</option>
+          <option value="trial">Trial</option>
+          <option value="expired">Expiré</option>
+        </select>
+        <select
+          value={filterTier}
+          onChange={(e) => setFilterTier(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Tous forfaits</option>
+          <option value="starter">Starter</option>
+          <option value="pro">Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Activité Récente</h2>
-          <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-            Voir tout →
-          </button>
-        </div>
-
-        {stats.recentActivity.length === 0 ? (
-          <div className="text-center py-12">
-            <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">Aucune activité récente</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {stats.recentActivity.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                    {(activity.author || 'A')[0].toUpperCase()}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900">
-                      {activity.author || 'Anonyme'}
-                    </span>
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3 h-3 ${
-                            i < (activity.rating || 5)
-                              ? 'text-yellow-400 fill-yellow-400'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
+      {/* Businesses List */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commerce</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Forfait</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clients</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Créé le</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {businesses.map(biz => (
+              <tr key={biz.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+                      {biz.name?.[0]?.toUpperCase() || 'B'}
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        activity.status === 'approved'
-                          ? 'bg-green-100 text-green-800'
-                          : activity.status === 'rejected'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}
-                    >
-                      {activity.status}
-                    </span>
+                    <div>
+                      <div className="font-medium text-gray-900">{biz.name}</div>
+                      <div className="text-sm text-gray-500">{biz.email}</div>
+                    </div>
                   </div>
-                  <p className="text-gray-600 text-sm line-clamp-2">
-                    {activity.text || 'Pas de commentaire'}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Calendar className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-500">
-                      {new Date(activity.created_at).toLocaleDateString('fr-FR')}
-                    </span>
-                    {activity.platform && (
-                      <span className="px-2 py-0.5 bg-white rounded text-xs text-gray-600 border border-gray-200">
-                        {activity.platform}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    biz.subscription_tier === 'pro' ? 'bg-purple-100 text-purple-800' :
+                    biz.subscription_tier === 'enterprise' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {biz.subscription_tier || 'Starter'}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`flex items-center gap-1 w-fit px-3 py-1 rounded-full text-xs font-medium ${
+                    biz.subscription_status === 'active' ? 'bg-green-100 text-green-800' :
+                    biz.subscription_status === 'trial' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {biz.subscription_status === 'active' && <CheckCircle className="w-3 h-3" />}
+                    {biz.subscription_status === 'trial' && <Clock className="w-3 h-3" />}
+                    {biz.subscription_status === 'expired' && <XCircle className="w-3 h-3" />}
+                    {biz.subscription_status || 'Trial'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-gray-900">{biz.customer_count || 0}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {new Date(biz.created_at).toLocaleDateString('fr-FR')}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <MoreVertical className="w-4 h-4 text-gray-600" />
+                  </button>
+                </td>
+              </tr>
             ))}
-          </div>
-        )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-function StatCard({ title, value, icon, color, trend, suffix = '' }) {
+// Clients Tab
+function ClientsTab({ businesses }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <h2 className="text-xl font-bold mb-4">Liste des clients par commerce</h2>
+      <p className="text-gray-600">Section en développement...</p>
+    </div>
+  );
+}
+
+// Reviews Tab
+function ReviewsTab() {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <h2 className="text-xl font-bold mb-4">Modération des avis</h2>
+      <p className="text-gray-600">Section en développement...</p>
+    </div>
+  );
+}
+
+// StatCard Component
+function StatCard({ title, value, icon, color, trend }) {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
     green: 'bg-green-50 text-green-600',
+    yellow: 'bg-yellow-50 text-yellow-600',
     purple: 'bg-purple-50 text-purple-600'
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
           {icon}
         </div>
         {trend && (
-          <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
-            <TrendingUp className="w-4 h-4" />
-            {trend}
-          </span>
+          <span className="text-green-600 text-sm font-medium">{trend}</span>
         )}
       </div>
       <div>
         <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-gray-900">
-          {value}{suffix}
-        </p>
+        <p className="text-3xl font-bold text-gray-900">{value}</p>
       </div>
     </div>
   );

@@ -1,79 +1,69 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  ShoppingBag, 
-  Star,
-  Calendar,
-  DollarSign
-} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Star, TrendingUp, Users, MessageSquare, Calendar, MapPin } from 'lucide-react';
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalReviews: 0,
     averageRating: 0,
-    totalRevenue: 0,
     totalCustomers: 0,
     recentReviews: []
   });
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    loadDashboard();
+  }, [user]);
 
-  const fetchDashboardData = async () => {
+  async function loadDashboard() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-
-      const { data: profileData } = await supabase
+      // Load user profile
+      const { data: profileData, error: profileError } = await supabase
         .from('business_profile')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (profileData) {
-        setProfile(profileData);
+      if (profileError) throw profileError;
+      setProfile(profileData);
 
-        const { data: reviews } = await supabase
-          .from('reviews')
-          .select('*')
-          .eq('business_id', profileData.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
+      // Load reviews
+      const { data: reviews, error: reviewsError } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('business_id', profileData.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-        const { data: customers } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('business_id', profileData.id);
+      if (reviewsError) throw reviewsError;
 
-        const avgRating = reviews?.length > 0
-          ? reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length
-          : 0;
+      // Calculate stats
+      const totalReviews = reviews.length;
+      const averageRating = totalReviews > 0
+        ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews).toFixed(1)
+        : 0;
 
-        setStats({
-          totalReviews: reviews?.length || 0,
-          averageRating: avgRating.toFixed(1),
-          totalRevenue: 320,
-          totalCustomers: customers?.length || 0,
-          recentReviews: reviews || []
-        });
-      }
+      // Get unique customers
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('business_id', profileData.id);
+
+      setStats({
+        totalReviews,
+        averageRating,
+        totalCustomers: customers?.length || 0,
+        recentReviews: reviews
+      });
     } catch (error) {
-      console.error('Erreur chargement dashboard:', error);
+      console.error('Erreur:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -84,137 +74,158 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Admin</h1>
-        <p className="text-gray-600 mt-2">
-          Gérez vos commerces, avis et clients
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
+        <p className="mt-2 text-gray-600">
+          Bienvenue, {profile?.name || user.email}
         </p>
       </div>
 
+      {/* Business Info Card */}
+      {profile && (
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 mb-8 text-white">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{profile.name}</h2>
+              {profile.location && (
+                <div className="flex items-center gap-2 text-blue-100">
+                  <MapPin className="w-4 h-4" />
+                  <span>{profile.location}</span>
+                </div>
+              )}
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold">{stats.averageRating}</div>
+              <div className="text-blue-100 text-sm">Note moyenne</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <StatCard
-          title="Avis Total"
+          title="Total Avis"
           value={stats.totalReviews}
-          icon={<Star className="w-6 h-6" />}
+          icon={<MessageSquare className="w-6 h-6" />}
           color="blue"
+          trend="+12%"
         />
         <StatCard
           title="Note Moyenne"
-          value={`${stats.averageRating}/5`}
-          icon={<TrendingUp className="w-6 h-6" />}
-          color="green"
+          value={stats.averageRating}
+          icon={<Star className="w-6 h-6" />}
+          color="yellow"
+          suffix="/5"
         />
         <StatCard
-          title="Clients"
+          title="Total Clients"
           value={stats.totalCustomers}
           icon={<Users className="w-6 h-6" />}
-          color="purple"
+          color="green"
+          trend="+8%"
         />
-        <StatCard
-          title="MRR Total"
-          value={`${stats.totalRevenue}€`}
-          icon={<DollarSign className="w-6 h-6" />}
-          color="orange"
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-blue-600" />
-          Vue d'ensemble
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button
-            onClick={() => navigate('/commerces')}
-            className="flex items-center gap-3 p-4 rounded-lg border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-all"
-          >
-            <ShoppingBag className="w-8 h-8 text-blue-600" />
-            <div className="text-left">
-              <div className="font-semibold text-gray-900">Commerces</div>
-              <div className="text-sm text-gray-500">{stats.totalReviews} avis</div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/avis-clients')}
-            className="flex items-center gap-3 p-4 rounded-lg border-2 border-green-100 hover:border-green-300 hover:bg-green-50 transition-all"
-          >
-            <Star className="w-8 h-8 text-green-600" />
-            <div className="text-left">
-              <div className="font-semibold text-gray-900">Avis</div>
-              <div className="text-sm text-gray-500">Gérer les avis</div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/fichier-clients')}
-            className="flex items-center gap-3 p-4 rounded-lg border-2 border-purple-100 hover:border-purple-300 hover:bg-purple-50 transition-all"
-          >
-            <Users className="w-8 h-8 text-purple-600" />
-            <div className="text-left">
-              <div className="font-semibold text-gray-900">Clients</div>
-              <div className="text-sm text-gray-500">{stats.totalCustomers} clients</div>
-            </div>
-          </button>
-        </div>
       </div>
 
       {/* Recent Reviews */}
-      {stats.recentReviews.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-600" />
-            Derniers avis
-          </h2>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Avis Récents</h2>
+          <a
+            href="/reviews"
+            className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+          >
+            Voir tous →
+          </a>
+        </div>
+
+        {stats.recentReviews.length === 0 ? (
+          <div className="text-center py-12">
+            <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">Aucun avis pour le moment</p>
+          </div>
+        ) : (
           <div className="space-y-4">
             {stats.recentReviews.map((review) => (
-              <div key={review.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+              <div
+                key={review.id}
+                className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Star className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                    {(review.author || 'A')[0].toUpperCase()}
                   </div>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium">{review.customer_name}</span>
-                    <span className="text-yellow-500">{'★'.repeat(review.rating)}</span>
+                    <span className="font-medium text-gray-900">
+                      {review.author || 'Anonyme'}
+                    </span>
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-3 h-3 ${
+                            i < (review.rating || 5)
+                              ? 'text-yellow-400 fill-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-gray-600 text-sm">{review.comment}</p>
-                  <span className="text-xs text-gray-400 mt-1">
-                    {new Date(review.created_at).toLocaleDateString('fr-FR')}
-                  </span>
+                  <p className="text-gray-600 text-sm line-clamp-2">
+                    {review.text || 'Pas de commentaire'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-500">
+                      {new Date(review.created_at).toLocaleDateString('fr-FR')}
+                    </span>
+                    {review.platform && (
+                      <span className="px-2 py-0.5 bg-white rounded text-xs text-gray-600 border border-gray-200">
+                        {review.platform}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-function StatCard({ title, value, icon, color }) {
+function StatCard({ title, value, icon, color, trend, suffix = '' }) {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600',
+    yellow: 'bg-yellow-50 text-yellow-600',
     green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600'
+    purple: 'bg-purple-50 text-purple-600'
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
-        </div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-4">
         <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
           {icon}
         </div>
+        {trend && (
+          <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+            <TrendingUp className="w-4 h-4" />
+            {trend}
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+        <p className="text-3xl font-bold text-gray-900">
+          {value}{suffix}
+        </p>
       </div>
     </div>
   );

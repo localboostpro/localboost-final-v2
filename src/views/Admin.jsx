@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
+// 💎 PLANS AVEC PRIX (en attendant votre plans.js)
+const PLANS = {
+  basic: { name: 'BASIC', price: 9.99, color: 'blue' },
+  pro: { name: 'PRO', price: 29.99, color: 'purple' },
+  premium: { name: 'PREMIUM', price: 49.99, color: 'pink' }
+};
+
 export default function Admin() {
   const [businesses, setBusinesses] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('businesses');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBusiness, setSelectedBusiness] = useState(null);
 
@@ -17,36 +24,63 @@ export default function Admin() {
   async function fetchAllData() {
     try {
       setLoading(true);
-      const [bizRes, revRes, custRes] = await Promise.all([
-        supabase.from('business_profile').select('*').order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*, business_profile(name)'),
-        supabase.from('customers').select('*, business_profile(name)')
-      ]);
+      
+      // Fetch businesses
+      const { data: bizData, error: bizError } = await supabase
+        .from('business_profile')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      setBusinesses(bizRes.data || []);
-      setReviews(revRes.data || []);
-      setCustomers(custRes.data || []);
+      if (bizError) throw bizError;
+
+      // Fetch reviews (sans jointure pour éviter l'erreur)
+      const { data: revData } = await supabase
+        .from('reviews')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // Fetch customers (sans jointure)
+      const { data: custData } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      setBusinesses(bizData || []);
+      setReviews(revData || []);
+      setCustomers(custData || []);
     } catch (err) {
-      console.error('Erreur:', err);
+      console.error('Erreur fetchAllData:', err);
+      alert('❌ Erreur : ' + err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  async function updateBusinessPlan(businessId, newPlan, newPrice) {
+  async function updateBusinessPlan(businessId, newPlan) {
     try {
+      const planInfo = PLANS[newPlan] || PLANS.basic;
+      
       const { error } = await supabase
         .from('business_profile')
-        .update({ plan: newPlan, price: newPrice })
+        .update({ 
+          plan: newPlan,
+          subscription_status: 'active'
+        })
         .eq('id', businessId);
 
       if (error) throw error;
       
+      // Mise à jour locale
       setBusinesses(prev => 
-        prev.map(b => b.id === businessId ? { ...b, plan: newPlan, price: newPrice } : b)
+        prev.map(b => b.id === businessId 
+          ? { ...b, plan: newPlan, subscription_status: 'active' } 
+          : b
+        )
       );
-      alert('✅ Plan mis à jour !');
+      
+      alert(`✅ Plan changé vers ${planInfo.name} (${planInfo.price}€/mois)`);
     } catch (err) {
+      console.error('Erreur updateBusinessPlan:', err);
       alert('❌ Erreur : ' + err.message);
     }
   }
@@ -79,10 +113,13 @@ export default function Admin() {
     totalBusinesses: businesses.length,
     proPlan: businesses.filter(b => b.plan === 'pro').length,
     basicPlan: businesses.filter(b => b.plan === 'basic' || !b.plan).length,
-    totalRevenue: businesses.reduce((sum, b) => sum + (parseFloat(b.price) || 0), 0),
+    totalRevenue: businesses.reduce((sum, b) => {
+      const plan = PLANS[b.plan] || PLANS.basic;
+      return sum + plan.price;
+    }, 0),
     totalReviews: reviews.length,
     avgRating: reviews.length > 0 
-      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+      ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
       : 0,
     totalCustomers: customers.length
   };
@@ -138,7 +175,7 @@ export default function Admin() {
           <StatCard 
             icon="💰" 
             label="Revenus/mois" 
-            value={`${stats.totalRevenue}€`}
+            value={`${stats.totalRevenue.toFixed(2)}€`}
             color="from-green-500 to-emerald-500"
           />
           <StatCard 
@@ -271,19 +308,23 @@ function OverviewTab({ stats, businesses }) {
       <div className="bg-slate-50 rounded-xl p-6">
         <h3 className="text-xl font-bold text-slate-900 mb-4">🆕 Derniers commerces inscrits</h3>
         <div className="space-y-3">
-          {recentBusinesses.map(biz => (
-            <div key={biz.id} className="bg-white rounded-lg p-4 flex items-center justify-between hover:shadow-md transition-shadow">
-              <div>
-                <p className="font-bold text-slate-900">{biz.name || 'Sans nom'}</p>
-                <p className="text-sm text-slate-500">{biz.email}</p>
+          {recentBusinesses.map(biz => {
+            const planInfo = PLANS[biz.plan] || PLANS.basic;
+            return (
+              <div key={biz.id} className="bg-white rounded-lg p-4 flex items-center justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <p className="font-bold text-slate-900">{biz.name || 'Sans nom'}</p>
+                  <p className="text-sm text-slate-500">{biz.email}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold bg-${planInfo.color}-100 text-${planInfo.color}-700`}>
+                    {planInfo.name}
+                  </span>
+                  <p className="text-sm font-bold text-slate-700 mt-1">{planInfo.price}€/mois</p>
+                </div>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                biz.plan === 'pro' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-              }`}>
-                {biz.plan?.toUpperCase() || 'BASIC'}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -301,50 +342,51 @@ function BusinessesTab({ businesses, onUpdatePlan, onDelete, onSelect }) {
             <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">Email</th>
             <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">Ville</th>
             <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">Plan</th>
-            <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">Prix</th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">Prix/mois</th>
             <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
-          {businesses.map(biz => (
-            <tr key={biz.id} className="hover:bg-slate-50 transition-colors">
-              <td className="px-6 py-4">
-                <button 
-                  onClick={() => onSelect(biz)}
-                  className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
-                >
-                  {biz.name || 'Sans nom'}
-                </button>
-              </td>
-              <td className="px-6 py-4 text-sm text-slate-600">{biz.email || 'N/A'}</td>
-              <td className="px-6 py-4 text-sm text-slate-600">{biz.city || 'N/A'}</td>
-              <td className="px-6 py-4">
-                <select
-                  value={biz.plan || 'basic'}
-                  onChange={(e) => {
-                    const newPlan = e.target.value;
-                    const newPrice = newPlan === 'pro' ? 29.99 : 9.99;
-                    onUpdatePlan(biz.id, newPlan, newPrice);
-                  }}
-                  className="px-3 py-1.5 border-2 border-slate-200 rounded-lg font-semibold text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                >
-                  <option value="basic">BASIC</option>
-                  <option value="pro">PRO</option>
-                </select>
-              </td>
-              <td className="px-6 py-4 font-bold text-slate-900">
-                {biz.price ? `${biz.price}€` : 'N/A'}
-              </td>
-              <td className="px-6 py-4">
-                <button
-                  onClick={() => onDelete(biz.id)}
-                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-colors"
-                >
-                  🗑️ Supprimer
-                </button>
-              </td>
-            </tr>
-          ))}
+          {businesses.map(biz => {
+            const planInfo = PLANS[biz.plan] || PLANS.basic;
+            
+            return (
+              <tr key={biz.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4">
+                  <button 
+                    onClick={() => onSelect(biz)}
+                    className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                  >
+                    {biz.name || 'Sans nom'}
+                  </button>
+                </td>
+                <td className="px-6 py-4 text-sm text-slate-600">{biz.email || 'N/A'}</td>
+                <td className="px-6 py-4 text-sm text-slate-600">{biz.city || 'N/A'}</td>
+                <td className="px-6 py-4">
+                  <select
+                    value={biz.plan || 'basic'}
+                    onChange={(e) => onUpdatePlan(biz.id, e.target.value)}
+                    className="px-3 py-1.5 border-2 border-slate-200 rounded-lg font-semibold text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  >
+                    {Object.entries(PLANS).map(([key, plan]) => (
+                      <option key={key} value={key}>{plan.name}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="font-bold text-green-600">{planInfo.price}€</span>
+                </td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => onDelete(biz.id)}
+                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-colors"
+                  >
+                    🗑️ Supprimer
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -355,27 +397,35 @@ function BusinessesTab({ businesses, onUpdatePlan, onDelete, onSelect }) {
 function ReviewsTab({ reviews }) {
   return (
     <div className="space-y-4">
-      {reviews.map(review => (
-        <div key={review.id} className="bg-slate-50 rounded-xl p-6 hover:shadow-lg transition-shadow">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="font-bold text-slate-900">{review.customer_name}</p>
-              <p className="text-sm text-slate-500">{review.business_profile?.name}</p>
+      {reviews.length === 0 ? (
+        <p className="text-center text-slate-500 py-12">Aucun avis pour le moment</p>
+      ) : (
+        reviews.map(review => (
+          <div key={review.id} className="bg-slate-50 rounded-xl p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="font-bold text-slate-900">{review.customer_name || 'Client anonyme'}</p>
+                <p className="text-sm text-slate-500">{review.business_id}</p>
+              </div>
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className={i < review.rating ? 'text-yellow-400 text-xl' : 'text-slate-300 text-xl'}>
+                    ★
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-1">
-              {[...Array(5)].map((_, i) => (
-                <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-slate-300'}>
-                  ⭐
-                </span>
-              ))}
-            </div>
+            <p className="text-slate-700">{review.comment || 'Pas de commentaire'}</p>
+            <p className="text-xs text-slate-400 mt-2">
+              {new Date(review.created_at).toLocaleDateString('fr-FR', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              })}
+            </p>
           </div>
-          <p className="text-slate-700">{review.comment}</p>
-          <p className="text-xs text-slate-400 mt-2">
-            {new Date(review.created_at).toLocaleDateString('fr-FR')}
-          </p>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
@@ -384,21 +434,29 @@ function ReviewsTab({ reviews }) {
 function CustomersTab({ customers }) {
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {customers.map(customer => (
-        <div key={customer.id} className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 border-2 border-slate-200 hover:border-indigo-300 transition-all">
-          <div className="text-4xl mb-3">👤</div>
-          <p className="font-bold text-slate-900 text-lg">{customer.name}</p>
-          <p className="text-sm text-slate-600">{customer.email}</p>
-          <p className="text-sm text-slate-600">{customer.phone}</p>
-          <p className="text-xs text-slate-400 mt-2">{customer.business_profile?.name}</p>
-        </div>
-      ))}
+      {customers.length === 0 ? (
+        <p className="col-span-full text-center text-slate-500 py-12">Aucun client enregistré</p>
+      ) : (
+        customers.map(customer => (
+          <div key={customer.id} className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 border-2 border-slate-200 hover:border-indigo-300 transition-all">
+            <div className="text-4xl mb-3">👤</div>
+            <p className="font-bold text-slate-900 text-lg">{customer.name || 'Client'}</p>
+            <p className="text-sm text-slate-600">{customer.email || 'N/A'}</p>
+            <p className="text-sm text-slate-600">{customer.phone || 'N/A'}</p>
+            <p className="text-xs text-slate-400 mt-2">
+              Inscrit le {new Date(customer.created_at).toLocaleDateString('fr-FR')}
+            </p>
+          </div>
+        ))
+      )}
     </div>
   );
 }
 
 // 🔍 MODAL DÉTAILS
 function BusinessModal({ business, onClose }) {
+  const planInfo = PLANS[business.plan] || PLANS.basic;
+  
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -411,10 +469,17 @@ function BusinessModal({ business, onClose }) {
           <InfoRow label="📍 Adresse" value={business.address || 'N/A'} />
           <InfoRow label="🏙️ Ville" value={business.city || 'N/A'} />
           <InfoRow label="📞 Téléphone" value={business.phone || 'N/A'} />
-          <InfoRow label="💎 Plan" value={business.plan?.toUpperCase() || 'BASIC'} />
-          <InfoRow label="💰 Prix" value={business.price ? `${business.price}€/mois` : 'N/A'} />
+          <InfoRow label="💎 Plan" value={`${planInfo.name} (${planInfo.price}€/mois)`} />
+          <InfoRow label="📊 Statut" value={business.subscription_status || 'Inconnu'} />
+          <InfoRow label="🆔 Stripe Customer" value={business.stripe_customer_id || 'Non lié'} />
           <InfoRow label="📝 Description" value={business.description || 'Aucune description'} />
-          <InfoRow label="📅 Inscrit le" value={new Date(business.created_at).toLocaleDateString('fr-FR')} />
+          <InfoRow label="📅 Inscrit le" value={new Date(business.created_at).toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })} />
           
           <button
             onClick={onClose}

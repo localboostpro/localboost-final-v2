@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-// ✅ VERIFIEZ L'IMPORT ICI AUSSI :
 import { supabase } from "./lib/supabase";
 
 import Sidebar from "./components/Sidebar";
@@ -28,28 +27,22 @@ export default function App() {
   // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // AUTH
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-      if (data.session) fetchAllData(data.session.user.id, data.session.user.email);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setLoading(false);
-      if (s) { fetchAllData(s.user.id, s.user.email); } 
-      else { setProfile(null); setReviews([]); setCustomers([]); setPosts([]); }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
+  // ✅ DÉPLACER isAdmin ICI (avant fetchAllData)
   const isAdmin = session?.user?.email === "admin@demo.fr";
 
+  // ✅ FONCTION fetchAllData CORRIGÉE
   const fetchAllData = async (userId, email) => {
     try {
-      const { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
-      const finalProfile = profileData ? { ...profileData, email, is_admin: isAdmin } : { name: "Nouveau compte", email, is_admin: isAdmin };
+      const { data: profileData } = await supabase
+        .from("business_profile")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const finalProfile = profileData 
+        ? { ...profileData, email, is_admin: isAdmin } 
+        : { name: "Nouveau compte", email, is_admin: isAdmin };
+      
       setProfile(finalProfile);
       
       if (!profileData?.id) return;
@@ -59,30 +52,76 @@ export default function App() {
         supabase.from("customers").select("*").eq("business_id", profileData.id),
         supabase.from("posts").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false }),
       ]);
+
       if (r.data) setReviews(r.data);
       if (c.data) setCustomers(c.data);
       if (p.data) setPosts(p.data);
-    } catch (e) { console.error("Erreur", e); }
+    } catch (e) { 
+      console.error("Erreur fetchAllData:", e); 
+    }
   };
+
+  // AUTH
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+      if (data.session) {
+        fetchAllData(data.session.user.id, data.session.user.email);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      setLoading(false);
+      if (s) { 
+        fetchAllData(s.user.id, s.user.email); 
+      } else { 
+        setProfile(null); 
+        setReviews([]); 
+        setCustomers([]); 
+        setPosts([]); 
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); // ✅ Enlever isAdmin des dépendances
 
   const upsertPostInState = (post) => {
     setPosts((prev) => {
       const idx = prev.findIndex((p) => String(p.id) === String(post.id));
       if (idx === -1) return [post, ...prev];
-      const next = [...prev]; next[idx] = post; return next;
+      const next = [...prev]; 
+      next[idx] = post; 
+      return next;
     });
   };
+
   const deletePostInState = (id) => setPosts((prev) => prev.filter((p) => String(p.id) !== String(id)));
 
-  const stats = useMemo(() => ({ clients: customers.length, reviews: reviews.length, posts: posts.length }), [customers, reviews, posts]);
+  const stats = useMemo(() => ({ 
+    clients: customers.length, 
+    reviews: reviews.length, 
+    posts: posts.length 
+  }), [customers, reviews, posts]);
 
-  if (loading) return <div className="h-screen flex items-center justify-center">Chargement...</div>;
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!session) return <AuthForm />;
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
       
-      {/* 1. SIDEBAR (Invisible sur mobile par CSS, gérée dans le composant) */}
+      {/* SIDEBAR */}
       <Sidebar 
         profile={profile} 
         isAdmin={isAdmin} 
@@ -90,13 +129,12 @@ export default function App() {
         onClose={() => setIsMobileMenuOpen(false)} 
       />
 
-      {/* 2. HEADER MOBILE (Le Hamburger) */}
+      {/* HEADER MOBILE */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200 px-4 h-16 flex items-center justify-between shadow-sm">
         <div className="font-black text-lg text-slate-900 flex items-center gap-2">
-           LocalBoost <span className="text-indigo-600 text-xs bg-indigo-50 px-2 py-0.5 rounded">PRO</span>
+          LocalBoost <span className="text-indigo-600 text-xs bg-indigo-50 px-2 py-0.5 rounded">PRO</span>
         </div>
         
-        {/* BOUTON HAMBURGER */}
         <button 
           onClick={(e) => {
             e.stopPropagation();
@@ -104,23 +142,65 @@ export default function App() {
           }}
           className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 active:scale-95 transition-transform"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"/>
+            <line x1="4" x2="20" y1="6" y2="6"/>
+            <line x1="4" x2="20" y1="18" y2="18"/>
+          </svg>
         </button>
       </header>
 
-      {/* 3. CONTENU PRINCIPAL */}
+      {/* CONTENU PRINCIPAL */}
       <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-20 md:pt-8 pb-10 w-full">
         <Routes>
-          <Route path="/" element={<Dashboard stats={stats} posts={posts} profile={profile} onGenerate={() => navigate("/marketing")} />} />
-          <Route path="/marketing" element={<Marketing posts={posts} profile={profile} onUpdate={upsertPostInState} onUpsert={upsertPostInState} onDelete={deletePostInState} />} />
-          <Route path="/marketing/:id" element={<Marketing posts={posts} profile={profile} onUpdate={upsertPostInState} onUpsert={upsertPostInState} onDelete={deletePostInState} />} />
+          <Route 
+            path="/" 
+            element={
+              <Dashboard 
+                stats={stats} 
+                posts={posts} 
+                profile={profile} 
+                onGenerate={() => navigate("/marketing")} 
+              />
+            } 
+          />
+          <Route 
+            path="/marketing" 
+            element={
+              <Marketing 
+                posts={posts} 
+                profile={profile} 
+                onUpdate={upsertPostInState} 
+                onUpsert={upsertPostInState} 
+                onDelete={deletePostInState} 
+              />
+            } 
+          />
+          <Route 
+            path="/marketing/:id" 
+            element={
+              <Marketing 
+                posts={posts} 
+                profile={profile} 
+                onUpdate={upsertPostInState} 
+                onUpsert={upsertPostInState} 
+                onDelete={deletePostInState} 
+              />
+            } 
+          />
           <Route path="/reviews" element={<Reviews reviews={reviews} />} />
           <Route path="/customers" element={<Customers customers={customers} />} />
           <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
           <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
           <Route path="/promotions" element={<Promotions />} />
-          <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/" />} />
-          <Route path="*" element={<Navigate to="/" />} />
+          
+          {/* ✅ ROUTE ADMIN PROTÉGÉE */}
+          <Route 
+            path="/admin" 
+            element={isAdmin ? <Admin /> : <Navigate to="/" replace />} 
+          />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
 import Dashboard from './components/Dashboard';
@@ -66,31 +66,27 @@ export default function App() {
 
   if (isAdmin) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="*" element={<Navigate to="/admin" replace />} />
-        </Routes>
-      </Router>
+      <Routes>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes>
     );
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Navigation profile={profile} />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Routes>
-            <Route path="/" element={<Dashboard profile={profile} />} />
-            <Route path="/studio" element={<StudioAI profile={profile} />} />
-            <Route path="/social" element={<SocialMedia profile={profile} />} />
-            <Route path="/reviews" element={<Reviews profile={profile} />} />
-            <Route path="/customers" element={<Customers profile={profile} />} />
-            <Route path="/settings" element={<Settings profile={profile} />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation profile={profile} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Routes>
+          <Route path="/" element={<Dashboard profile={profile} />} />
+          <Route path="/studio" element={<StudioAI profile={profile} />} />
+          <Route path="/social" element={<SocialMedia profile={profile} />} />
+          <Route path="/reviews" element={<Reviews profile={profile} />} />
+          <Route path="/customers" element={<Customers profile={profile} />} />
+          <Route path="/settings" element={<Settings profile={profile} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 }

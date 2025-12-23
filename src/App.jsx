@@ -3,11 +3,14 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
 import Dashboard from './views/Dashboard';
-import StudioAI from './views/StudioAI';
-import SocialMedia from './views/SocialMedia';
+import Marketing from './views/Marketing';
 import Reviews from './views/Reviews';
 import Customers from './views/Customers';
 import Settings from './views/Settings';
+import Profile from './views/Profile';
+import Promotions from './views/Promotions';
+import WebPage from './views/WebPage';
+import Commentaires from './views/Commentaires';
 import Navigation from './components/Navigation';
 import AdminDashboard from './components/AdminDashboard';
 
@@ -79,11 +82,14 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Routes>
           <Route path="/" element={<Dashboard profile={profile} />} />
-          <Route path="/studio" element={<StudioAI profile={profile} />} />
-          <Route path="/social" element={<SocialMedia profile={profile} />} />
+          <Route path="/marketing" element={<Marketing profile={profile} />} />
           <Route path="/reviews" element={<Reviews profile={profile} />} />
           <Route path="/customers" element={<Customers profile={profile} />} />
           <Route path="/settings" element={<Settings profile={profile} />} />
+          <Route path="/profile" element={<Profile profile={profile} />} />
+          <Route path="/promotions" element={<Promotions profile={profile} />} />
+          <Route path="/webpage" element={<WebPage profile={profile} />} />
+          <Route path="/commentaires" element={<Commentaires profile={profile} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

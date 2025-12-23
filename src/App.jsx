@@ -32,35 +32,80 @@ export default function App() {
   const isAdmin = session?.user?.email === "admin@demo.fr";
 
   // ✅ FONCTION fetchAllData CORRIGÉE
-  const fetchAllData = async (userId, email) => {
+const fetchAllData = async (userId, email) => {
+  try {
+    const { data: profileData } = await supabase
+      .from("business_profile")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const finalProfile = profileData 
+      ? { ...profileData, email, is_admin: isAdmin } 
+      : { name: "Nouveau compte", email, is_admin: isAdmin };
+    
+    setProfile(finalProfile);
+    
+    if (!profileData?.id) return;
+
+    // ✅ GESTION D'ERREUR POUR CHAQUE TABLE
     try {
-      const { data: profileData } = await supabase
-        .from("business_profile")
+      const { data: reviewsData, error: reviewsError } = await supabase
+        .from("reviews")
         .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      const finalProfile = profileData 
-        ? { ...profileData, email, is_admin: isAdmin } 
-        : { name: "Nouveau compte", email, is_admin: isAdmin };
+        .eq("business_id", profileData.id);
       
-      setProfile(finalProfile);
-      
-      if (!profileData?.id) return;
-
-      const [r, c, p] = await Promise.all([
-        supabase.from("reviews").select("*").eq("business_id", profileData.id),
-        supabase.from("customers").select("*").eq("business_id", profileData.id),
-        supabase.from("posts").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false }),
-      ]);
-
-      if (r.data) setReviews(r.data);
-      if (c.data) setCustomers(c.data);
-      if (p.data) setPosts(p.data);
-    } catch (e) { 
-      console.error("Erreur fetchAllData:", e); 
+      if (!reviewsError && reviewsData) {
+        setReviews(reviewsData);
+      } else {
+        console.warn("Table reviews introuvable ou erreur:", reviewsError);
+        setReviews([]);
+      }
+    } catch (e) {
+      console.warn("Erreur reviews:", e);
+      setReviews([]);
     }
-  };
+
+    try {
+      const { data: customersData, error: customersError } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("business_id", profileData.id);
+      
+      if (!customersError && customersData) {
+        setCustomers(customersData);
+      } else {
+        console.warn("Table customers introuvable ou erreur:", customersError);
+        setCustomers([]);
+      }
+    } catch (e) {
+      console.warn("Erreur customers:", e);
+      setCustomers([]);
+    }
+
+    try {
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("business_id", profileData.id)
+        .order("created_at", { ascending: false });
+      
+      if (!postsError && postsData) {
+        setPosts(postsData);
+      } else {
+        console.warn("Table posts introuvable ou erreur:", postsError);
+        setPosts([]);
+      }
+    } catch (e) {
+      console.warn("Erreur posts:", e);
+      setPosts([]);
+    }
+
+  } catch (e) { 
+    console.error("Erreur fetchAllData:", e); 
+  }
+};
+
 
   // AUTH
   useEffect(() => {

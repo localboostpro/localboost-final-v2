@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { PLANS, getPlanConfig } from '../lib/plans';
 
 // 💎 PLANS AVEC PRIX (en attendant votre plans.js)
 const PLANS = {
@@ -56,34 +57,34 @@ export default function Admin() {
     }
   }
 
-  async function updateBusinessPlan(businessId, newPlan) {
-    try {
-      const planInfo = PLANS[newPlan] || PLANS.basic;
-      
-      const { error } = await supabase
-        .from('business_profile')
-        .update({ 
-          plan: newPlan,
-          subscription_status: 'active'
-        })
-        .eq('id', businessId);
+async function updateBusinessPlan(businessId, newPlan) {
+  try {
+    const planConfig = getPlanConfig(newPlan);
+    
+    const { error } = await supabase
+      .from('business_profile')
+      .update({ 
+        plan: newPlan,
+        subscription_status: 'active'
+      })
+      .eq('id', businessId);
 
-      if (error) throw error;
-      
-      // Mise à jour locale
-      setBusinesses(prev => 
-        prev.map(b => b.id === businessId 
-          ? { ...b, plan: newPlan, subscription_status: 'active' } 
-          : b
-        )
-      );
-      
-      alert(`✅ Plan changé vers ${planInfo.name} (${planInfo.price}€/mois)`);
-    } catch (err) {
-      console.error('Erreur updateBusinessPlan:', err);
-      alert('❌ Erreur : ' + err.message);
-    }
+    if (error) throw error;
+    
+    // Mise à jour locale
+    setBusinesses(prev => 
+      prev.map(b => b.id === businessId 
+        ? { ...b, plan: newPlan, subscription_status: 'active' } 
+        : b
+      )
+    );
+    
+    alert(`✅ Plan changé vers ${planConfig.name} (${planConfig.price}€/mois)`);
+  } catch (err) {
+    console.error('Erreur updateBusinessPlan:', err);
+    alert('❌ Erreur : ' + err.message);
   }
+}
 
   async function deleteBusiness(businessId) {
     if (!confirm('⚠️ Supprimer ce commerce ? Cette action est irréversible.')) return;
@@ -113,10 +114,10 @@ export default function Admin() {
     totalBusinesses: businesses.length,
     proPlan: businesses.filter(b => b.plan === 'pro').length,
     basicPlan: businesses.filter(b => b.plan === 'basic' || !b.plan).length,
-    totalRevenue: businesses.reduce((sum, b) => {
-      const plan = PLANS[b.plan] || PLANS.basic;
-      return sum + plan.price;
-    }, 0),
+totalRevenue: businesses.reduce((sum, b) => {
+  const planConfig = getPlanConfig(b.plan);
+  return sum + planConfig.price;
+}, 0),
     totalReviews: reviews.length,
     avgRating: reviews.length > 0 
       ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
@@ -309,7 +310,7 @@ function OverviewTab({ stats, businesses }) {
         <h3 className="text-xl font-bold text-slate-900 mb-4">🆕 Derniers commerces inscrits</h3>
         <div className="space-y-3">
           {recentBusinesses.map(biz => {
-            const planInfo = PLANS[biz.plan] || PLANS.basic;
+            const planConfig = getPlanConfig(biz.plan);
             return (
               <div key={biz.id} className="bg-white rounded-lg p-4 flex items-center justify-between hover:shadow-md transition-shadow">
                 <div>
@@ -317,10 +318,14 @@ function OverviewTab({ stats, businesses }) {
                   <p className="text-sm text-slate-500">{biz.email}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold bg-${planInfo.color}-100 text-${planInfo.color}-700`}>
-                    {planInfo.name}
-                  </span>
-                  <p className="text-sm font-bold text-slate-700 mt-1">{planInfo.price}€/mois</p>
+<span className={`px-3 py-1 rounded-full text-xs font-bold ${
+  planConfig.color === 'blue' ? 'bg-blue-100 text-blue-700' :
+  planConfig.color === 'purple' ? 'bg-purple-100 text-purple-700' :
+  'bg-pink-100 text-pink-700'
+}`}>
+  {planConfig.name}
+</span>
+<p className="text-sm font-bold text-slate-700 mt-1">{planConfig.price}€/mois</p>
                 </div>
               </div>
             );
@@ -348,7 +353,7 @@ function BusinessesTab({ businesses, onUpdatePlan, onDelete, onSelect }) {
         </thead>
         <tbody className="divide-y divide-slate-200">
           {businesses.map(biz => {
-            const planInfo = PLANS[biz.plan] || PLANS.basic;
+            const planConfig = getPlanConfig(biz.plan);
             
             return (
               <tr key={biz.id} className="hover:bg-slate-50 transition-colors">
@@ -374,7 +379,7 @@ function BusinessesTab({ businesses, onUpdatePlan, onDelete, onSelect }) {
                   </select>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="font-bold text-green-600">{planInfo.price}€</span>
+                  <span className="font-bold text-green-600">{planConfig.price}€</span>
                 </td>
                 <td className="px-6 py-4">
                   <button
@@ -455,7 +460,7 @@ function CustomersTab({ customers }) {
 
 // 🔍 MODAL DÉTAILS
 function BusinessModal({ business, onClose }) {
-  const planInfo = PLANS[business.plan] || PLANS.basic;
+  const planConfig = getPlanConfig(business.plan);
   
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -469,7 +474,7 @@ function BusinessModal({ business, onClose }) {
           <InfoRow label="📍 Adresse" value={business.address || 'N/A'} />
           <InfoRow label="🏙️ Ville" value={business.city || 'N/A'} />
           <InfoRow label="📞 Téléphone" value={business.phone || 'N/A'} />
-          <InfoRow label="💎 Plan" value={`${planInfo.name} (${planInfo.price}€/mois)`} />
+          <InfoRow label="💎 Plan" value={`${planConfig.name} (${planConfig.price}€/mois)`} />
           <InfoRow label="📊 Statut" value={business.subscription_status || 'Inconnu'} />
           <InfoRow label="🆔 Stripe Customer" value={business.stripe_customer_id || 'Non lié'} />
           <InfoRow label="📝 Description" value={business.description || 'Aucune description'} />

@@ -2,81 +2,23 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Star, TrendingUp, Users, MessageSquare, Calendar, MapPin } from 'lucide-react';
 
-export default function Dashboard() {
-  const [stats, setStats] = useState({
-    totalReviews: 0,
-    averageRating: 0,
-    totalCustomers: 0,
-    recentReviews: []
-  });
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
+export default function Dashboard({ stats, posts, profile }) {
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  // Si pas de stats passées en props, on affiche des valeurs par défaut
+  const displayStats = stats || {
+    clients: 0,
+    reviews: 0,
+    posts: 0
+  };
 
-  async function loadDashboard() {
-    try {
-      // ✅ GET USER FROM SESSION
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Load user profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('business_profile')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileError) throw profileError;
-      setProfile(profileData);
-
-      // Load reviews
-      const { data: reviews, error: reviewsError } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('business_id', profileData.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (reviewsError) throw reviewsError;
-
-      // Calculate stats
-      const totalReviews = reviews.length;
-      const averageRating = totalReviews > 0
-        ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews).toFixed(1)
-        : 0;
-
-      // Get unique customers
-      const { data: customers } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('business_id', profileData.id);
-
-      setStats({
-        totalReviews,
-        averageRating,
-        totalCustomers: customers?.length || 0,
-        recentReviews: reviews
-      });
-    } catch (error) {
-      console.error('Erreur:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const recentReviews = posts?.filter(p => p.rating).slice(0, 5) || [];
+  const averageRating = recentReviews.length > 0
+    ? (recentReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / recentReviews.length).toFixed(1)
+    : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
@@ -91,106 +33,108 @@ export default function Dashboard() {
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-2xl font-bold mb-2">{profile.name}</h2>
-              {profile.location && (
-                <div className="flex items-center gap-2 text-blue-100">
-                  <MapPin className="w-4 h-4" />
-                  <span>{profile.location}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-blue-100">
+                <MapPin className="w-4 h-4" />
+                <span>{profile.address}</span>
+              </div>
+              <p className="mt-2 text-blue-100">{profile.category}</p>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold">{stats.averageRating}</div>
-              <div className="text-blue-100 text-sm">Note moyenne</div>
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                <span className="text-3xl font-bold">{averageRating}</span>
+              </div>
+              <p className="text-blue-100 text-sm">{displayStats.reviews} avis</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
-          title="Total Avis"
-          value={stats.totalReviews}
-          icon={<MessageSquare className="w-6 h-6" />}
+          title="Clients"
+          value={displayStats.clients}
+          icon={<Users className="w-6 h-6" />}
           color="blue"
           trend="+12%"
         />
         <StatCard
-          title="Note Moyenne"
-          value={stats.averageRating}
+          title="Note moyenne"
+          value={averageRating}
           icon={<Star className="w-6 h-6" />}
           color="yellow"
           suffix="/5"
         />
         <StatCard
-          title="Total Clients"
-          value={stats.totalCustomers}
-          icon={<Users className="w-6 h-6" />}
+          title="Avis reçus"
+          value={displayStats.reviews}
+          icon={<MessageSquare className="w-6 h-6" />}
           color="green"
           trend="+8%"
+        />
+        <StatCard
+          title="Publications"
+          value={displayStats.posts}
+          icon={<TrendingUp className="w-6 h-6" />}
+          color="purple"
         />
       </div>
 
       {/* Recent Reviews */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Avis Récents</h2>
-          <a
-            href="/reviews"
-            className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-          >
-            Voir tous →
-          </a>
+          <h3 className="text-lg font-semibold text-gray-900">Avis récents</h3>
+          <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+            Voir tout →
+          </button>
         </div>
 
-        {stats.recentReviews.length === 0 ? (
+        {recentReviews.length === 0 ? (
           <div className="text-center py-12">
-            <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">Aucun avis pour le moment</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {stats.recentReviews.map((review) => (
-              <div
-                key={review.id}
-                className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                    {(review.author || 'A')[0].toUpperCase()}
+            {recentReviews.map((review) => (
+              <div key={review.id} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                    {review.customer_name?.[0]?.toUpperCase() || '?'}
                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900">
-                      {review.author || 'Anonyme'}
-                    </span>
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3 h-3 ${
-                            i < (review.rating || 5)
-                              ? 'text-yellow-400 fill-yellow-400'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-gray-600 text-sm line-clamp-2">
-                    {review.text || 'Pas de commentaire'}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Calendar className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-500">
-                      {new Date(review.created_at).toLocaleDateString('fr-FR')}
-                    </span>
-                    {review.platform && (
-                      <span className="px-2 py-0.5 bg-white rounded text-xs text-gray-600 border border-gray-200">
-                        {review.platform}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-gray-900">
+                        {review.customer_name || 'Client anonyme'}
                       </span>
-                    )}
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < (review.rating || 5)
+                                ? 'text-yellow-400 fill-yellow-400'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-2">
+                      {review.text || 'Pas de commentaire'}
+                    </p>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(review.created_at).toLocaleDateString('fr-FR')}
+                      </div>
+                      {review.platform && (
+                        <span className="px-2 py-0.5 bg-gray-100 rounded text-gray-600">
+                          {review.platform}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

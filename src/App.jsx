@@ -1,159 +1,134 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { supabase } from "./lib/supabase";
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { supabase } from './lib/supabase';
 
-import Sidebar from "./components/Sidebar";
-import Dashboard from "./views/Dashboard";
-import Marketing from "./views/Marketing";
-import Reviews from "./views/Reviews";
-import Customers from "./views/Customers";
-import WebPage from "./views/WebPage";
-import Profile from "./views/Profile";
-import Promotions from "./views/Promotions";
-import Admin from "./views/Admin";
-import Commerces from "./views/Commerces";  // ✅ AJOUTÉ
-import AuthForm from "./components/AuthForm";
+// Pages
+import AuthForm from './components/AuthForm';
+import Dashboard from './views/Dashboard';
+import Marketing from './views/Marketing';
+import Reviews from './views/Reviews';
+import Customers from './views/Customers';
+import Profile from './views/Profile';
+import WebPage from './views/WebPage';
+import Promotions from './views/Promotions';
+import Admin from './views/Admin';
+import Commerces from './views/Commerces';
 
-export default function App() {
+// Components
+import Sidebar from './components/Sidebar';
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+}
+
+function AppContent() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Données
   const [profile, setProfile] = useState(null);
-  const [reviews, setReviews] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [posts, setPosts] = useState([]);
-  
-  // ÉTAT DU MENU MOBILE
+  const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // ✅ DÉPLACER isAdmin ICI (avant fetchAllData)
-  const isAdmin = session?.user?.email === "admin@demo.fr";
+  // Data states
+  const [customers, setCustomers] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [posts, setPosts] = useState([]);
 
-  // ✅ FONCTION fetchAllData CORRIGÉE
-const fetchAllData = async (userId, email) => {
-  try {
-    const { data: profileData } = await supabase
-      .from("business_profile")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const finalProfile = profileData 
-      ? { ...profileData, email, is_admin: isAdmin } 
-      : { name: "Nouveau compte", email, is_admin: isAdmin };
-    
-    setProfile(finalProfile);
-    
-    if (!profileData?.id) return;
-
-    // ✅ GESTION D'ERREUR POUR CHAQUE TABLE
-    try {
-      const { data: reviewsData, error: reviewsError } = await supabase
-        .from("reviews")
-        .select("*")
-        .eq("business_id", profileData.id);
-      
-      if (!reviewsError && reviewsData) {
-        setReviews(reviewsData);
-      } else {
-        console.warn("Table reviews introuvable ou erreur:", reviewsError);
-        setReviews([]);
-      }
-    } catch (e) {
-      console.warn("Erreur reviews:", e);
-      setReviews([]);
-    }
-
-    try {
-      const { data: customersData, error: customersError } = await supabase
-        .from("customers")
-        .select("*")
-        .eq("business_id", profileData.id);
-      
-      if (!customersError && customersData) {
-        setCustomers(customersData);
-      } else {
-        console.warn("Table customers introuvable ou erreur:", customersError);
-        setCustomers([]);
-      }
-    } catch (e) {
-      console.warn("Erreur customers:", e);
-      setCustomers([]);
-    }
-
-    try {
-      const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("business_id", profileData.id)
-        .order("created_at", { ascending: false });
-      
-      if (!postsError && postsData) {
-        setPosts(postsData);
-      } else {
-        console.warn("Table posts introuvable ou erreur:", postsError);
-        setPosts([]);
-      }
-    } catch (e) {
-      console.warn("Erreur posts:", e);
-      setPosts([]);
-    }
-
-  } catch (e) { 
-    console.error("Erreur fetchAllData:", e); 
-  }
-};
-
-
-  // AUTH
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-      if (data.session) {
-        fetchAllData(data.session.user.id, data.session.user.email);
+    // Check session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        loadUserData(session.user);
+      } else {
+        setLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setLoading(false);
-      if (s) { 
-        fetchAllData(s.user.id, s.user.email); 
-      } else { 
-        setProfile(null); 
-        setReviews([]); 
-        setCustomers([]); 
-        setPosts([]); 
+    // Listen to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        loadUserData(session.user);
+      } else {
+        setProfile(null);
+        setIsAdmin(false);
+        setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  async function loadUserData(user) {
+    try {
+      // Load profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('business_profile')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      
+      setProfile(profileData);
+      setIsAdmin(profileData?.role === 'admin');
+
+      // Load customers
+      const { data: customersData } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('business_id', profileData.id);
+      
+      setCustomers(customersData || []);
+
+      // Load reviews
+      const { data: reviewsData } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('business_id', profileData.id)
+        .order('created_at', { ascending: false });
+      
+      setReviews(reviewsData || []);
+
+      // Load posts
+      const { data: postsData } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('business_id', profileData.id)
+        .order('created_at', { ascending: false });
+      
+      setPosts(postsData || []);
+
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const upsertPostInState = (post) => {
     setPosts((prev) => {
-      const idx = prev.findIndex((p) => String(p.id) === String(post.id));
-      if (idx === -1) return [post, ...prev];
-      const next = [...prev]; 
-      next[idx] = post; 
-      return next;
+      const exists = prev.find((p) => String(p.id) === String(post.id));
+      if (exists) {
+        return prev.map((p) => (String(p.id) === String(post.id) ? post : p));
+      }
+      return [post, ...prev];
     });
   };
 
-  const deletePostInState = (id) => setPosts((prev) => prev.filter((p) => String(p.id) !== String(id)));
+  const deletePostInState = (id) => {
+    setPosts((prev) => prev.filter((p) => String(p.id) !== String(id)));
+  };
 
-  const stats = useMemo(() => ({ 
-    clients: customers.length, 
-    reviews: reviews.length, 
-    posts: posts.length 
-  }), [customers, reviews, posts]);
-
+  // Loading screen
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Chargement...</p>
@@ -162,10 +137,20 @@ const fetchAllData = async (userId, email) => {
     );
   }
 
-  if (!session) return <AuthForm />;
+  // Not authenticated
+  if (!session) {
+    return <AuthForm />;
+  }
+
+  // Stats
+  const stats = {
+    clients: customers.length,
+    reviews: reviews.length,
+    posts: posts.length
+  };
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       
       {/* SIDEBAR */}
       <Sidebar 
@@ -176,19 +161,16 @@ const fetchAllData = async (userId, email) => {
       />
 
       {/* HEADER MOBILE */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200 px-4 h-16 flex items-center justify-between shadow-sm">
-        <div className="font-black text-lg text-slate-900 flex items-center gap-2">
-          LocalBoost <span className="text-indigo-600 text-xs bg-indigo-50 px-2 py-0.5 rounded">PRO</span>
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 h-16 flex items-center justify-between shadow-sm">
+        <div className="font-bold text-lg text-gray-900">
+          LocalBoost
         </div>
         
         <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsMobileMenuOpen(true);
-          }}
-          className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 active:scale-95 transition-transform"
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 bg-gray-100 rounded-lg"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="4" x2="20" y1="12" y2="12"/>
             <line x1="4" x2="20" y1="6" y2="6"/>
             <line x1="4" x2="20" y1="18" y2="18"/>
@@ -196,8 +178,8 @@ const fetchAllData = async (userId, email) => {
         </button>
       </header>
 
-      {/* CONTENU PRINCIPAL */}
-      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-20 md:pt-8 pb-10 w-full">
+      {/* MAIN CONTENT */}
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-20 md:pt-8 pb-10">
         <Routes>
           <Route 
             path="/" 
@@ -206,7 +188,6 @@ const fetchAllData = async (userId, email) => {
                 stats={stats} 
                 posts={posts} 
                 profile={profile} 
-                onGenerate={() => navigate("/marketing")} 
               />
             } 
           />
@@ -240,17 +221,12 @@ const fetchAllData = async (userId, email) => {
           <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
           <Route path="/promotions" element={<Promotions />} />
           
-          {/* ✅ ROUTE ADMIN PROTÉGÉE */}
+          {/* Admin routes */}
           <Route 
             path="/admin" 
             element={isAdmin ? <Admin /> : <Navigate to="/" replace />} 
           />
-          
-          {/* ✅ NOUVELLE ROUTE COMMERCES */}
-          <Route 
-            path="/commerces" 
-            element={<Commerces />} 
-          />
+          <Route path="/commerces" element={<Commerces />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -258,3 +234,5 @@ const fetchAllData = async (userId, email) => {
     </div>
   );
 }
+
+export default App;

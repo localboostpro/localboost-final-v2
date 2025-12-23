@@ -11,6 +11,7 @@ import WebPage from "./views/WebPage";
 import Profile from "./views/Profile";
 import Promotions from "./views/Promotions";
 import Admin from "./views/Admin";
+import Commerces from "./views/Commerces";  // ✅ AJOUTÉ
 import AuthForm from "./components/AuthForm";
 
 export default function App() {
@@ -85,7 +86,7 @@ export default function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, []); // ✅ Enlever isAdmin des dépendances
+  }, []);
 
   const upsertPostInState = (post) => {
     setPosts((prev) => {
@@ -198,6 +199,12 @@ export default function App() {
           <Route 
             path="/admin" 
             element={isAdmin ? <Admin /> : <Navigate to="/" replace />} 
+          />
+          
+          {/* ✅ NOUVELLE ROUTE COMMERCES */}
+          <Route 
+            path="/commerces" 
+            element={<Commerces />} 
           />
           
           <Route path="*" element={<Navigate to="/" replace />} />

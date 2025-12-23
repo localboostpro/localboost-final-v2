@@ -1,7 +1,5 @@
 import React, { useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Link } from "react-router-dom";
-
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, Wand2, MessageSquare, Users, Globe, Ticket, User, Shield, LogOut, X, Zap
 } from "lucide-react";
@@ -9,6 +7,7 @@ import { supabase } from "../lib/supabase";
 
 export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -35,7 +34,6 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
       {/* HEADER AVEC LOGO */}
       <div className="p-6 border-b border-slate-100 flex items-center justify-between h-20 shrink-0">
         <div className="flex items-center gap-3">
-          {/* LOGIQUE LOGO : Si image, on affiche l'image, sinon l'icône */}
           {profile?.logo_url ? (
             <img 
               src={profile.logo_url} 
@@ -68,20 +66,22 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {menuItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            onClick={mobile ? onClose : undefined}
-            className={({ isActive }) => 
-              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+        {menuItems.map(({ to, label, icon: Icon }) => {
+          const isActive = location.pathname === to;
+          
+          return (
+            <Link
+              key={to}
+              to={to}
+              onClick={mobile ? onClose : undefined}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                 isActive ? "bg-indigo-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
-              }`
-            }
-          >
-            <Icon size={18} /> {label}
-          </NavLink>
-        ))}
+              }`}
+            >
+              <Icon size={18} /> {label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="p-4 border-t border-slate-100 bg-slate-50">

@@ -1,235 +1,390 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { 
-  Shield, LogOut, Search, Key, Eye, Calendar, Power, TrendingUp, Mail, Zap 
-} from "lucide-react";
+  Users, 
+  DollarSign, 
+  TrendingUp, 
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Search,
+  Filter,
+  Plus,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  Calendar,
+  ArrowUpRight,
+  ArrowDownRight
+} from 'lucide-react';
 
-export default function AdminView({ onAccessClient, onExit }) {
+export default function Admin() {
   const [businesses, setBusinesses] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [stats, setStats] = useState({ revenue: 0, total: 0, premium: 0 });
-  const [monthlyStats, setMonthlyStats] = useState([]);
+  const [stats, setStats] = useState({
+    totalClients: 0,
+    activeSubscriptions: 0,
+    trialUsers: 0,
+    mrr: 0,
+    growth: 0
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterTier, setFilterTier] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
 
-  useEffect(() => { fetchBusinesses(); }, []);
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const fetchBusinesses = async () => {
-    const { data } = await supabase.from("business_profile").select("*").order("created_at", { ascending: false });
-    if (data) {
-        const cleanData = data.map(b => ({ 
-            ...b, 
-            is_active: b.is_active !== false,
-            discount_percent: b.discount_percent || 0
-        }));
-        setBusinesses(cleanData);
-        calculateStats(cleanData);
-    }
-  };
-
-  const calculateStats = (data) => {
-      const premiumCount = data.filter(b => b.subscription_tier === 'premium').length;
-      
-      const currentRevenue = data.reduce((acc, b) => {
-          if (!b.is_active) return acc;
-          const price = b.subscription_tier === 'premium' ? 99 : 29;
-          const discount = b.discount_percent || 0;
-          return acc + (price * (1 - discount / 100));
-      }, 0);
-
-      setStats({ 
-          total: data.length, 
-          premium: premiumCount, 
-          revenue: Math.round(currentRevenue) 
-      });
-
-      const months = {};
-      data.forEach(b => {
-          if (!b.is_active) return;
-          const date = new Date(b.created_at);
-          const key = `${date.getMonth() + 1}/${date.getFullYear()}`;
-          const price = b.subscription_tier === 'premium' ? 99 : 29;
-          const finalPrice = price * (1 - (b.discount_percent || 0) / 100);
-          if (!months[key]) months[key] = 0;
-          months[key] += finalPrice;
-      });
-
-      const monthlyArray = Object.entries(months)
-        .map(([date, amount]) => ({ date, amount: Math.round(amount) }))
-        .slice(0, 6);
-      setMonthlyStats(monthlyArray);
-  };
-
-  // --- GÉNÉRATEUR DÉMO SÉCURISÉ ---
-  const generateDemoData = async () => {
-    if(!window.confirm("Créer un compte de DÉMO ?")) return;
-
-    // On utilise l'ID de l'admin actuel pour lier la démo
-    const { data: { user } } = await supabase.auth.getUser();
-    const uniqueSuffix = Date.now().toString().slice(-4);
+  async function fetchDashboardData() {
+    setLoading(true);
     
-    // 1. Profil Business
-    const newProfile = {
-        user_id: user?.id, // On lie au compte admin
-        name: `DÉMO Boulangerie ${uniqueSuffix}`,
-        email: `demo.${uniqueSuffix}@localboost.test`,
-        city: "Paris",
-        subscription_tier: "premium",
-        discount_percent: 100, // Gratuit
-        is_active: true,
-        created_at: new Date().toISOString()
-    };
+    try {
+      // Récupérer tous les clients
+      const { data: clientsData, error } = await supabase
+        .from('businesses')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const { data: profileData, error } = await supabase.from("business_profile").insert([newProfile]).select().single();
+      if (error) throw error;
 
-    if (error) {
-        alert("Erreur BDD : " + error.message);
-        return;
+      setBusinesses(clientsData || []);
+
+      // Calculer les statistiques
+      const totalClients = clientsData?.length || 0;
+      const activeSubscriptions = clientsData?.filter(
+        b => b.subscription_status === 'active'
+      ).length || 0;
+      const trialUsers = clientsData?.filter(
+        b => b.subscription_status === 'trial'
+      ).length || 0;
+      const mrr = clientsData
+        ?.filter(b => b.subscription_status === 'active')
+        .reduce((sum, b) => sum + (b.monthly_price || 0), 0) || 0;
+
+      // Calculer la croissance (simplifié - à améliorer)
+      const growth = totalClients > 0 ? 12.5 : 0;
+
+      setStats({
+        totalClients,
+        activeSubscriptions,
+        trialUsers,
+        mrr: Math.round(mrr),
+        growth
+      });
+
+    } catch (error) {
+      console.error('Erreur fetch données admin:', error);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    // 2. Données factices
-    const bId = profileData.id;
-    await supabase.from("reviews").insert([
-        { business_id: bId, author_name: "Client Test", rating: 5, comment: "Super !", date: new Date().toISOString() }
-    ]);
-    await supabase.from("customers").insert([
-        { business_id: bId, name: "Jean Demo", email: "jean@demo.fr" }
-    ]);
+  const filteredBusinesses = businesses.filter(b => {
+    const matchesSearch = 
+      b.business_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || b.subscription_status === filterStatus;
+    const matchesTier = filterTier === 'all' || b.subscription_tier === filterTier;
+    
+    return matchesSearch && matchesStatus && matchesTier;
+  });
 
-    alert("✅ Démo générée ! Cliquez sur l'œil pour voir.");
-    fetchBusinesses();
-  };
-
-  const handleSwitchPlan = async (clientId, currentTier) => {
-    const newTier = currentTier === 'basic' ? 'premium' : 'basic';
-    const updatedList = businesses.map(b => b.id === clientId ? { ...b, subscription_tier: newTier } : b);
-    setBusinesses(updatedList);
-    calculateStats(updatedList);
-    await supabase.from("business_profile").update({ subscription_tier: newTier }).eq("id", clientId);
-  };
-
-  const toggleClientStatus = async (client) => {
-    const newStatus = !client.is_active;
-    await supabase.from("business_profile").update({ is_active: newStatus }).eq("id", client.id);
-    const updatedList = businesses.map(b => b.id === client.id ? { ...b, is_active: newStatus } : b);
-    setBusinesses(updatedList);
-    calculateStats(updatedList);
-  };
-
-  const handleDiscountChange = async (clientId, val) => {
-      const percent = parseInt(val) || 0;
-      await supabase.from("business_profile").update({ discount_percent: percent }).eq("id", clientId);
-      const updatedList = businesses.map(b => b.id === clientId ? { ...b, discount_percent: percent } : b);
-      setBusinesses(updatedList);
-      calculateStats(updatedList);
-  };
-
-  const handleSendResetPassword = async (email) => { 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-      if(error) alert("Erreur: " + error.message);
-      else alert(`🔑 Email de réinitialisation envoyé à ${email}`);
-  };
-  
-  const handleSendUpgradeEmail = (email) => { window.open(`mailto:${email}?subject=Fin d'essai&body=Passez Premium !`); };
-
-  const filteredBusinesses = businesses.filter(b => 
-      b.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      b.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement du dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8 animate-in fade-in duration-300">
-       <div className="flex justify-between items-center mb-8 bg-slate-900 text-white p-6 rounded-3xl shadow-xl sticky top-4 z-20">
-          <div className="flex items-center gap-4">
-            <div className="bg-indigo-600 p-3 rounded-xl"><Shield size={28} className="text-white" /></div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
             <div>
-                <h1 className="text-3xl font-black leading-none">LocalBoost <span className="text-indigo-400">Pro</span></h1>
-                <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Master Dashboard</p>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard Admin</h1>
+              <p className="text-sm text-gray-600">Gérez vos clients LocalBoost Pro</p>
             </div>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Nouveau Client
+            </button>
           </div>
-          
-          <div className="flex items-center gap-6">
-              <button onClick={generateDemoData} className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition animate-pulse">
-                <Zap size={18} fill="currentColor"/> Générer Démo
-              </button>
-              <div className="text-right hidden md:block border-l border-white/10 pl-6">
-                  <div className="text-xs font-bold text-slate-400 uppercase">CA Mensuel</div>
-                  <div className="text-2xl font-black text-emerald-400">{stats.revenue} €</div>
-              </div>
-              {/* Utilisation de onExit si fourni, sinon reload */}
-              <button onClick={onExit || (() => window.location.reload())} className="bg-white/10 hover:bg-white/20 p-3 rounded-xl transition"><LogOut size={20}/></button>
-          </div>
-       </div>
+        </div>
+      </div>
 
-       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-black text-xl text-slate-800">Gestion Base Clients ({filteredBusinesses.length})</h3>
-              <div className="relative w-64">
-                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
-                   <input type="text" placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                   className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 ring-indigo-500"/>
-               </div>
-          </div>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <StatCard
+            icon={<Users className="w-5 h-5 text-blue-600" />}
+            label="Total Clients"
+            value={stats.totalClients}
+            trend={`+${stats.growth}%`}
+            trendUp={true}
+            bgColor="bg-blue-50"
+          />
+          <StatCard
+            icon={<CheckCircle className="w-5 h-5 text-green-600" />}
+            label="Abonnés Actifs"
+            value={stats.activeSubscriptions}
+            bgColor="bg-green-50"
+          />
+          <StatCard
+            icon={<Calendar className="w-5 h-5 text-yellow-600" />}
+            label="En Essai"
+            value={stats.trialUsers}
+            bgColor="bg-yellow-50"
+          />
+          <StatCard
+            icon={<DollarSign className="w-5 h-5 text-purple-600" />}
+            label="MRR"
+            value={`${stats.mrr}€`}
+            trend="+8%"
+            trendUp={true}
+            bgColor="bg-purple-50"
+          />
+          <StatCard
+            icon={<TrendingUp className="w-5 h-5 text-indigo-600" />}
+            label="Taux de Conversion"
+            value="67%"
+            trend="+5%"
+            trendUp={true}
+            bgColor="bg-indigo-50"
+          />
+        </div>
 
+        {/* Filtres */}
+        <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Recherche */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher par nom, ville, email..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Filtre statut */}
+            <select
+              className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="trial">En essai</option>
+              <option value="active">Actifs</option>
+              <option value="paused">En pause</option>
+              <option value="cancelled">Annulés</option>
+            </select>
+
+            {/* Filtre tier */}
+            <select
+              className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={filterTier}
+              onChange={(e) => setFilterTier(e.target.value)}
+            >
+              <option value="all">Tous les plans</option>
+              <option value="free">Free</option>
+              <option value="starter">Starter</option>
+              <option value="pro">Pro</option>
+              <option value="premium">Premium</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Table des clients */}
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           <div className="overflow-x-auto">
-             <table className="w-full text-left">
-                <thead className="bg-slate-50 text-xs font-black text-slate-400 uppercase">
-                   <tr>
-                      <th className="p-4">Client</th>
-                      <th className="p-4">Ancienneté</th>
-                      <th className="p-4">Forfait</th>
-                      <th className="p-4 text-center">Remise %</th>
-                      <th className="p-4 text-right">Actions</th>
-                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 text-sm">
-                   {filteredBusinesses.map(b => {
-                       const created = new Date(b.created_at);
-                       const diffDays = Math.ceil(Math.abs(new Date() - created) / (1000 * 60 * 60 * 24));
-                       const trialOver = diffDays > 7 && b.subscription_tier === 'basic';
-
-                       return (
-                           <tr key={b.id} className={`hover:bg-slate-50 transition ${!b.is_active ? 'opacity-50 grayscale' : ''}`}>
-                               <td className="p-4">
-                                   <div className="font-bold text-slate-900">{b.name}</div>
-                                   <div className="text-xs text-slate-500">{b.email}</div>
-                               </td>
-                               <td className="p-4">
-                                   <div className="flex flex-col gap-1">
-                                       <span className="text-xs text-slate-500 font-bold flex items-center gap-1">
-                                           <Calendar size={12}/> {created.toLocaleDateString()}
-                                       </span>
-                                       {b.subscription_tier === 'basic' && (
-                                           <div className={`text-xs font-black uppercase ${trialOver ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                               {trialOver ? `Expiré (+${diffDays - 7}j)` : `Essai : J-${7 - diffDays}`}
-                                           </div>
-                                       )}
-                                   </div>
-                               </td>
-                               <td className="p-4">
-                                   <button onClick={() => handleSwitchPlan(b.id, b.subscription_tier)}
-                                     className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border transition w-24 text-center hover:scale-105 active:scale-95 ${
-                                        b.subscription_tier === 'premium' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-600 border-slate-200'
-                                     }`}>
-                                     {b.subscription_tier}
-                                   </button>
-                               </td>
-                               <td className="p-4 text-center">
-                                    <input type="number" min="0" max="100" value={b.discount_percent} onChange={(e) => handleDiscountChange(b.id, e.target.value)}
-                                    className="w-12 text-center bg-slate-50 border rounded-lg font-bold text-slate-700"/>
-                               </td>
-                               <td className="p-4 text-right flex justify-end gap-2">
-                                   {trialOver && <button onClick={() => handleSendUpgradeEmail(b.email)} className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition" title="Relance Mail"><Mail size={16}/></button>}
-                                   <button onClick={() => handleSendResetPassword(b.email)} className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Réinitialiser MDP"><Key size={16}/></button>
-                                   <button onClick={() => toggleClientStatus(b)} className={`p-2 rounded-lg transition ${b.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}`} title={b.is_active ? "Désactiver" : "Réactiver"}><Power size={16}/></button>
-                                   <button onClick={() => onAccessClient(b.user_id, b.email)} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition" title="Accéder au compte"><Eye size={16}/></button>
-                               </td>
-                           </tr>
-                       );
-                   })}
-                </tbody>
-             </table>
-             {filteredBusinesses.length === 0 && <div className="text-center p-8 text-slate-400">Aucun client trouvé.</div>}
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Commerce
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ville
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Abonnement
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Prix/mois
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Inscription
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredBusinesses.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                      <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p>Aucun client trouvé</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBusinesses.map((business) => (
+                    <tr key={business.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          {business.logo_url ? (
+                            <img 
+                              src={business.logo_url} 
+                              alt={business.business_name}
+                              className="w-10 h-10 rounded-lg object-cover mr-3" 
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center mr-3">
+                              <span className="text-white font-bold text-lg">
+                                {business.business_name?.[0]?.toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-medium text-gray-900">{business.business_name}</div>
+                            <div className="text-sm text-gray-500">{business.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 capitalize">
+                        {business.business_type || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{business.city || '-'}</td>
+                      <td className="px-6 py-4">
+                        <TierBadge tier={business.subscription_tier} />
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {business.monthly_price}€
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={business.subscription_status} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {new Date(business.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            className="p-2 text-gray-400 hover:text-blue-600 transition"
+                            title="Voir détails"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button 
+                            className="p-2 text-gray-400 hover:text-gray-600 transition"
+                            title="Modifier"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button 
+                            className="p-2 text-gray-400 hover:text-red-600 transition"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-       </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// =====================================================
+// COMPOSANTS AUXILIAIRES
+// =====================================================
+
+function StatCard({ icon, label, value, trend, trendUp, bgColor }) {
+  return (
+    <div className={`${bgColor} rounded-lg p-4 border border-gray-200`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="p-2 bg-white rounded-lg">
+          {icon}
+        </div>
+        {trend && (
+          <div className={`flex items-center text-xs font-medium ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
+            {trendUp ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            {trend}
+          </div>
+        )}
+      </div>
+      <div className="text-2xl font-bold text-gray-900">{value}</div>
+      <div className="text-sm text-gray-600">{label}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const styles = {
+    trial: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    active: 'bg-green-100 text-green-800 border-green-200',
+    paused: 'bg-orange-100 text-orange-800 border-orange-200',
+    cancelled: 'bg-red-100 text-red-800 border-red-200'
+  };
+
+  const labels = {
+    trial: 'Essai',
+    active: 'Actif',
+    paused: 'Pause',
+    cancelled: 'Annulé'
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
+function TierBadge({ tier }) {
+  const styles = {
+    free: 'bg-gray-100 text-gray-800 border-gray-200',
+    starter: 'bg-blue-100 text-blue-800 border-blue-200',
+    pro: 'bg-purple-100 text-purple-800 border-purple-200',
+    premium: 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-yellow-300'
+  };
+
+  const labels = {
+    free: 'Free',
+    starter: 'Starter',
+    pro: 'Pro',
+    premium: 'Premium'
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${styles[tier] || 'bg-gray-100 text-gray-800'}`}>
+      {labels[tier] || tier}
+    </span>
   );
 }

@@ -2,13 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { PLANS, getPlanConfig } from '../lib/plans';
 
-// 💎 PLANS AVEC PRIX (en attendant votre plans.js)
-const PLANS = {
-  basic: { name: 'BASIC', price: 9.99, color: 'blue' },
-  pro: { name: 'PRO', price: 29.99, color: 'purple' },
-  premium: { name: 'PREMIUM', price: 49.99, color: 'pink' }
-};
-
 export default function Admin() {
   const [businesses, setBusinesses] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -26,7 +19,6 @@ export default function Admin() {
     try {
       setLoading(true);
       
-      // Fetch businesses
       const { data: bizData, error: bizError } = await supabase
         .from('business_profile')
         .select('*')
@@ -34,13 +26,11 @@ export default function Admin() {
 
       if (bizError) throw bizError;
 
-      // Fetch reviews (sans jointure pour éviter l'erreur)
       const { data: revData } = await supabase
         .from('reviews')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Fetch customers (sans jointure)
       const { data: custData } = await supabase
         .from('customers')
         .select('*')
@@ -57,34 +47,33 @@ export default function Admin() {
     }
   }
 
-async function updateBusinessPlan(businessId, newPlan) {
-  try {
-    const planConfig = getPlanConfig(newPlan);
-    
-    const { error } = await supabase
-      .from('business_profile')
-      .update({ 
-        plan: newPlan,
-        subscription_status: 'active'
-      })
-      .eq('id', businessId);
+  async function updateBusinessPlan(businessId, newPlan) {
+    try {
+      const planConfig = getPlanConfig(newPlan);
+      
+      const { error } = await supabase
+        .from('business_profile')
+        .update({ 
+          plan: newPlan,
+          subscription_status: 'active'
+        })
+        .eq('id', businessId);
 
-    if (error) throw error;
-    
-    // Mise à jour locale
-    setBusinesses(prev => 
-      prev.map(b => b.id === businessId 
-        ? { ...b, plan: newPlan, subscription_status: 'active' } 
-        : b
-      )
-    );
-    
-    alert(`✅ Plan changé vers ${planConfig.name} (${planConfig.price}€/mois)`);
-  } catch (err) {
-    console.error('Erreur updateBusinessPlan:', err);
-    alert('❌ Erreur : ' + err.message);
+      if (error) throw error;
+      
+      setBusinesses(prev => 
+        prev.map(b => b.id === businessId 
+          ? { ...b, plan: newPlan, subscription_status: 'active' } 
+          : b
+        )
+      );
+      
+      alert(`✅ Plan changé vers ${planConfig.name} (${planConfig.price}€/mois)`);
+    } catch (err) {
+      console.error('Erreur updateBusinessPlan:', err);
+      alert('❌ Erreur : ' + err.message);
+    }
   }
-}
 
   async function deleteBusiness(businessId) {
     if (!confirm('⚠️ Supprimer ce commerce ? Cette action est irréversible.')) return;
@@ -114,10 +103,10 @@ async function updateBusinessPlan(businessId, newPlan) {
     totalBusinesses: businesses.length,
     proPlan: businesses.filter(b => b.plan === 'pro').length,
     basicPlan: businesses.filter(b => b.plan === 'basic' || !b.plan).length,
-totalRevenue: businesses.reduce((sum, b) => {
-  const planConfig = getPlanConfig(b.plan);
-  return sum + planConfig.price;
-}, 0),
+    totalRevenue: businesses.reduce((sum, b) => {
+      const planConfig = getPlanConfig(b.plan);
+      return sum + planConfig.price;
+    }, 0),
     totalReviews: reviews.length,
     avgRating: reviews.length > 0 
       ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
@@ -140,7 +129,7 @@ totalRevenue: businesses.reduce((sum, b) => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* 🎯 HEADER */}
+        {/* HEADER */}
         <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl p-8 mb-8 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -159,7 +148,7 @@ totalRevenue: businesses.reduce((sum, b) => {
           </div>
         </div>
 
-        {/* 📊 STATISTIQUES */}
+        {/* STATISTIQUES */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard 
             icon="🏪" 
@@ -187,7 +176,7 @@ totalRevenue: businesses.reduce((sum, b) => {
           />
         </div>
 
-        {/* 🔍 BARRE DE RECHERCHE */}
+        {/* BARRE DE RECHERCHE */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <div className="relative">
             <input
@@ -211,7 +200,7 @@ totalRevenue: businesses.reduce((sum, b) => {
           </p>
         </div>
 
-        {/* 📋 TABS */}
+        {/* TABS */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="flex border-b border-slate-200">
             <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
@@ -245,7 +234,7 @@ totalRevenue: businesses.reduce((sum, b) => {
 
       </div>
 
-      {/* 🔍 MODAL DÉTAILS COMMERCE */}
+      {/* MODAL DÉTAILS */}
       {selectedBusiness && (
         <BusinessModal business={selectedBusiness} onClose={() => setSelectedBusiness(null)} />
       )}
@@ -253,7 +242,7 @@ totalRevenue: businesses.reduce((sum, b) => {
   );
 }
 
-// 📊 COMPOSANT STAT CARD
+// STAT CARD
 function StatCard({ icon, label, value, color }) {
   return (
     <div className={`bg-gradient-to-br ${color} rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform`}>
@@ -264,7 +253,7 @@ function StatCard({ icon, label, value, color }) {
   );
 }
 
-// 🔘 COMPOSANT TAB BUTTON
+// TAB BUTTON
 function TabButton({ active, onClick, children }) {
   return (
     <button
@@ -280,7 +269,7 @@ function TabButton({ active, onClick, children }) {
   );
 }
 
-// 📊 ONGLET VUE D'ENSEMBLE
+// OVERVIEW TAB
 function OverviewTab({ stats, businesses }) {
   const recentBusinesses = businesses.slice(0, 5);
   
@@ -318,14 +307,14 @@ function OverviewTab({ stats, businesses }) {
                   <p className="text-sm text-slate-500">{biz.email}</p>
                 </div>
                 <div className="text-right">
-<span className={`px-3 py-1 rounded-full text-xs font-bold ${
-  planConfig.color === 'blue' ? 'bg-blue-100 text-blue-700' :
-  planConfig.color === 'purple' ? 'bg-purple-100 text-purple-700' :
-  'bg-pink-100 text-pink-700'
-}`}>
-  {planConfig.name}
-</span>
-<p className="text-sm font-bold text-slate-700 mt-1">{planConfig.price}€/mois</p>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    planConfig.color === 'blue' ? 'bg-blue-100 text-blue-700' :
+                    planConfig.color === 'purple' ? 'bg-purple-100 text-purple-700' :
+                    'bg-pink-100 text-pink-700'
+                  }`}>
+                    {planConfig.name}
+                  </span>
+                  <p className="text-sm font-bold text-slate-700 mt-1">{planConfig.price}€/mois</p>
                 </div>
               </div>
             );
@@ -336,7 +325,7 @@ function OverviewTab({ stats, businesses }) {
   );
 }
 
-// 🏪 ONGLET COMMERCES
+// BUSINESSES TAB
 function BusinessesTab({ businesses, onUpdatePlan, onDelete, onSelect }) {
   return (
     <div className="overflow-x-auto">
@@ -398,7 +387,7 @@ function BusinessesTab({ businesses, onUpdatePlan, onDelete, onSelect }) {
   );
 }
 
-// ⭐ ONGLET AVIS
+// REVIEWS TAB
 function ReviewsTab({ reviews }) {
   return (
     <div className="space-y-4">
@@ -435,7 +424,7 @@ function ReviewsTab({ reviews }) {
   );
 }
 
-// 👥 ONGLET CLIENTS
+// CUSTOMERS TAB
 function CustomersTab({ customers }) {
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -458,7 +447,7 @@ function CustomersTab({ customers }) {
   );
 }
 
-// 🔍 MODAL DÉTAILS
+// BUSINESS MODAL
 function BusinessModal({ business, onClose }) {
   const planConfig = getPlanConfig(business.plan);
   

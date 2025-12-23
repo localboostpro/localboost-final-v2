@@ -11,14 +11,30 @@ import {
   Pause,
   Play,
   Trash2,
-  ChevronDown,
   DollarSign,
   MapPin,
   Mail,
   Phone,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  BarChart3,
+  Euro
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 export default function Admin() {
   const [businesses, setBusinesses] = useState([]);
@@ -80,7 +96,7 @@ export default function Admin() {
         prev.map(b => b.id === businessId ? { ...b, plan: newPlan } : b)
       );
       
-      alert(`✅ Plan changé vers ${planConfig.name} (${planConfig.price}€/mois)`);
+      alert(`✅ Plan changé vers  $ {planConfig.name} ( $ {planConfig.price}€/mois)`);
     } catch (err) {
       console.error('Erreur updateBusinessPlan:', err);
       alert('❌ Erreur : ' + err.message);
@@ -90,7 +106,7 @@ export default function Admin() {
   async function toggleBusinessStatus(businessId, currentStatus) {
     const newStatus = !currentStatus;
     
-    if (!confirm(`⚠️ ${newStatus ? 'Réactiver' : 'Désactiver'} ce commerce ?`)) return;
+    if (!confirm(`⚠️  $ {newStatus ? 'Réactiver' : 'Désactiver'} ce commerce ?`)) return;
     
     try {
       const { error } = await supabase
@@ -104,7 +120,7 @@ export default function Admin() {
         prev.map(b => b.id === businessId ? { ...b, is_active: newStatus } : b)
       );
       
-      alert(`✅ Commerce ${newStatus ? 'activé' : 'désactivé'} !`);
+      alert(`✅ Commerce  $ {newStatus ? 'activé' : 'désactivé'} !`);
     } catch (err) {
       console.error('Erreur toggleBusinessStatus:', err);
       alert('❌ Erreur : ' + err.message);
@@ -130,16 +146,114 @@ export default function Admin() {
     }
   }
 
+  // Calculs financiers
+  const calculateRevenue = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Revenus par mois (12 derniers mois)
+    const monthlyRevenue = Array.from({ length: 12 }, (_, i) => {
+      const month = new Date(currentYear, currentMonth - (11 - i), 1);
+      const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+      const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+
+      const revenue = businesses
+        .filter(b => {
+          const createdDate = new Date(b.created_at);
+          return createdDate >= monthStart && 
+                 createdDate <= monthEnd && 
+                 b.is_active !== false;
+        })
+        .reduce((sum, b) => {
+          const planConfig = getPlanConfig(b.plan);
+          return sum + planConfig.price;
+        }, 0);
+
+      return {
+        month: month.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }),
+        revenue,
+        shortMonth: month.toLocaleDateString('fr-FR', { month: 'short' })
+      };
+    });
+
+    // MRR actuel
+    const currentMRR = businesses
+      .filter(b => b.is_active !== false)
+      .reduce((sum, b) => {
+        const planConfig = getPlanConfig(b.plan);
+        return sum + planConfig.price;
+      }, 0);
+
+    // Revenus du mois en cours
+    const currentMonthRevenue = businesses
+      .filter(b => {
+        const createdDate = new Date(b.created_at);
+        return createdDate.getMonth() === currentMonth && 
+               createdDate.getFullYear() === currentYear &&
+               b.is_active !== false;
+      })
+      .reduce((sum, b) => {
+        const planConfig = getPlanConfig(b.plan);
+        return sum + planConfig.price;
+      }, 0);
+
+    // Revenus annuels par année
+    const yearlyRevenue = {};
+    businesses.forEach(b => {
+      if (b.is_active === false) return;
+      
+      const year = new Date(b.created_at).getFullYear();
+      const planConfig = getPlanConfig(b.plan);
+      
+      if (!yearlyRevenue[year]) {
+        yearlyRevenue[year] = 0;
+      }
+      yearlyRevenue[year] += planConfig.price * 12; // ARR
+    });
+
+    const yearlyData = Object.entries(yearlyRevenue)
+      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+      .map(([year, revenue]) => ({
+        year,
+        revenue: Math.round(revenue)
+      }));
+
+    // Répartition par plan
+    const planDistribution = [
+      { name: 'BASIC', value: 0, color: '#3B82F6' },
+      { name: 'PRO', value: 0, color: '#8B5CF6' },
+      { name: 'PREMIUM', value: 0, color: '#EC4899' }
+    ];
+
+    businesses.forEach(b => {
+      if (b.is_active === false) return;
+      
+      const plan = b.plan.toUpperCase();
+      const planConfig = getPlanConfig(b.plan);
+      const item = planDistribution.find(p => p.name === plan);
+      if (item) {
+        item.value += planConfig.price;
+      }
+    });
+
+    return {
+      monthlyRevenue,
+      yearlyData,
+      planDistribution: planDistribution.filter(p => p.value > 0),
+      currentMRR,
+      currentMonthRevenue,
+      currentYearRevenue: yearlyData.find(y => y.year === currentYear.toString())?.revenue || 0
+    };
+  };
+
+  const revenueData = calculateRevenue();
+
   const filteredBusinesses = businesses.filter(b => 
     b.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const totalRevenue = businesses.reduce((sum, b) => {
-    const planConfig = getPlanConfig(b.plan);
-    return sum + (b.is_active !== false ? planConfig.price : 0);
-  }, 0);
 
   const activeBusinesses = businesses.filter(b => b.is_active !== false).length;
   const suspendedBusinesses = businesses.filter(b => b.is_active === false).length;
@@ -172,7 +286,10 @@ export default function Admin() {
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <div className="text-2xl font-black text-slate-900">{totalRevenue}€</div>
+                <div className="text-2xl font-black text-slate-900 flex items-center gap-1">
+                  {revenueData.currentMRR}
+                  <Euro className="w-6 h-6" />
+                </div>
                 <div className="text-xs text-slate-500 font-semibold">MRR Total</div>
               </div>
             </div>
@@ -205,11 +322,11 @@ export default function Admin() {
             trend={reviews.length + " avis"}
           />
           <StatCard 
-            icon={<DollarSign className="w-6 h-6" />}
-            label="Revenus MRR" 
-            value={totalRevenue + '€'}
+            icon={<Euro className="w-6 h-6" />}
+            label="CA Mois en cours" 
+            value={revenueData.currentMonthRevenue + '€'}
             color="purple"
-            trend="Ce mois"
+            trend="Nouveaux clients"
           />
         </div>
 
@@ -241,6 +358,12 @@ export default function Admin() {
               onClick={() => setActiveTab('businesses')} 
             />
             <TabButton 
+              label="Finances" 
+              icon={<BarChart3 className="w-4 h-4" />}
+              active={activeTab === 'finances'} 
+              onClick={() => setActiveTab('finances')} 
+            />
+            <TabButton 
               label="Avis" 
               icon={<Star className="w-4 h-4" />}
               count={reviews.length} 
@@ -263,7 +386,7 @@ export default function Admin() {
             businesses={businesses} 
             reviews={reviews} 
             customers={customers} 
-            totalRevenue={totalRevenue}
+            revenueData={revenueData}
             activeBusinesses={activeBusinesses}
             suspendedBusinesses={suspendedBusinesses}
           />
@@ -279,6 +402,10 @@ export default function Admin() {
             onDelete={deleteBusiness} 
             onViewDetails={setSelectedBusiness} 
           />
+        )}
+
+        {activeTab === 'finances' && (
+          <FinancesTab revenueData={revenueData} businesses={businesses} />
         )}
         
         {activeTab === 'reviews' && (
@@ -298,6 +425,217 @@ export default function Admin() {
             onClose={() => setSelectedBusiness(null)} 
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+// 📊 FINANCES TAB (NOUVEAU)
+function FinancesTab({ revenueData, businesses }) {
+  const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899'];
+
+  return (
+    <div className="space-y-6">
+      {/* CA Mensuels + Annuels */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
+          <div className="flex items-center gap-3 mb-2">
+            <Euro className="w-8 h-8" />
+            <div className="text-sm font-semibold opacity-90">MRR Actuel</div>
+          </div>
+          <div className="text-4xl font-black">{revenueData.currentMRR}€</div>
+          <div className="text-sm opacity-80 mt-1">Revenus mensuels récurrents</div>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
+          <div className="flex items-center gap-3 mb-2">
+            <TrendingUp className="w-8 h-8" />
+            <div className="text-sm font-semibold opacity-90">CA Mois en cours</div>
+          </div>
+          <div className="text-4xl font-black">{revenueData.currentMonthRevenue}€</div>
+          <div className="text-sm opacity-80 mt-1">Nouveaux abonnements</div>
+        </div>
+
+        <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl shadow-lg p-6 text-white">
+          <div className="flex items-center gap-3 mb-2">
+            <BarChart3 className="w-8 h-8" />
+            <div className="text-sm font-semibold opacity-90">ARR {new Date().getFullYear()}</div>
+          </div>
+          <div className="text-4xl font-black">{revenueData.currentYearRevenue}€</div>
+          <div className="text-sm opacity-80 mt-1">Revenus annuels récurrents</div>
+        </div>
+      </div>
+
+      {/* Graphique Mensuel */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-blue-600" />
+          Chiffre d'affaires mensuel (12 derniers mois)
+        </h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={revenueData.monthlyRevenue}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+            <XAxis 
+              dataKey="shortMonth" 
+              stroke="#64748B"
+              style={{ fontSize: '12px', fontWeight: 600 }}
+            />
+            <YAxis 
+              stroke="#64748B"
+              style={{ fontSize: '12px', fontWeight: 600 }}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#1E293B', 
+                border: 'none', 
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: 'bold'
+              }}
+              formatter={(value) => [` $ {value}€`, 'CA']}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="revenue" 
+              stroke="#3B82F6" 
+              strokeWidth={3}
+              dot={{ fill: '#3B82F6', r: 5 }}
+              activeDot={{ r: 8 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Graphique Annuel */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-purple-600" />
+            Évolution ARR par année
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={revenueData.yearlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis 
+                dataKey="year" 
+                stroke="#64748B"
+                style={{ fontSize: '12px', fontWeight: 600 }}
+              />
+              <YAxis 
+                stroke="#64748B"
+                style={{ fontSize: '12px', fontWeight: 600 }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1E293B', 
+                  border: 'none', 
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}
+                formatter={(value) => [` $ {value}€`, 'ARR']}
+              />
+              <Bar dataKey="revenue" fill="#8B5CF6" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Répartition par plan */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-6">
+            Répartition MRR par plan
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={revenueData.planDistribution}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => ` $ {name}  $ {(percent * 100).toFixed(0)}%`}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {revenueData.planDistribution.map((entry, index) => (
+                  <Cell key={`cell- $ {index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1E293B', 
+                  border: 'none', 
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}
+                formatter={(value) => [` $ {value}€/mois`]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          
+          <div className="grid grid-cols-3 gap-3 mt-6">
+            {revenueData.planDistribution.map((plan) => (
+              <div key={plan.name} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
+                <div 
+                  className="w-4 h-4 rounded-full mx-auto mb-2" 
+                  style={{ backgroundColor: plan.color }}
+                />
+                <div className="text-xs text-slate-500 font-semibold mb-1">{plan.name}</div>
+                <div className="text-lg font-black text-slate-900">{plan.value}€</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Comparaison années */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h2 className="text-xl font-bold text-slate-900 mb-6">
+          Comparaison annuelle
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b-2 border-slate-200">
+                <th className="text-left p-4 text-slate-600 font-bold">Année</th>
+                <th className="text-right p-4 text-slate-600 font-bold">ARR</th>
+                <th className="text-right p-4 text-slate-600 font-bold">Croissance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenueData.yearlyData.map((year, index) => {
+                const prevYear = revenueData.yearlyData[index - 1];
+                const growth = prevYear 
+                  ? (((year.revenue - prevYear.revenue) / prevYear.revenue) * 100).toFixed(1)
+                  : null;
+
+                return (
+                  <tr key={year.year} className="border-b border-slate-100">
+                    <td className="p-4 font-bold text-slate-900">{year.year}</td>
+                    <td className="p-4 text-right font-bold text-slate-900">
+                      {year.revenue.toLocaleString('fr-FR')}€
+                    </td>
+                    <td className="p-4 text-right">
+                      {growth ? (
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold  $ {
+                          parseFloat(growth) >= 0 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {parseFloat(growth) >= 0 ? '↗' : '↘'}
+                          {Math.abs(parseFloat(growth))}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-sm font-semibold">-</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -329,7 +667,7 @@ function StatCard({ icon, label, value, color, trend }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-lg transition-all duration-300">
       <div className="flex items-start justify-between mb-4">
-        <div className={`${bgColors[color]} p-3 rounded-xl ${iconColors[color]}`}>
+        <div className={` $ {bgColors[color]} p-3 rounded-xl  $ {iconColors[color]}`}>
           {icon}
         </div>
         {trend && (
@@ -349,7 +687,7 @@ function TabButton({ label, icon, count, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
+      className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold whitespace-nowrap transition-all  $ {
         active
           ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
           : 'text-slate-600 hover:bg-slate-50'
@@ -358,7 +696,7 @@ function TabButton({ label, icon, count, active, onClick }) {
       {icon}
       <span>{label}</span>
       {count !== undefined && (
-        <span className={`text-xs px-2 py-0.5 rounded-full ${
+        <span className={`text-xs px-2 py-0.5 rounded-full  $ {
           active ? 'bg-white/20' : 'bg-slate-200'
         }`}>
           {count}
@@ -369,7 +707,7 @@ function TabButton({ label, icon, count, active, onClick }) {
 }
 
 // 📊 OVERVIEW TAB
-function OverviewTab({ businesses, reviews, customers, totalRevenue, activeBusinesses, suspendedBusinesses }) {
+function OverviewTab({ businesses, reviews, customers, revenueData, activeBusinesses, suspendedBusinesses }) {
   const recentBusinesses = businesses.slice(0, 5);
   const recentReviews = reviews.slice(0, 8);
 
@@ -394,7 +732,7 @@ function OverviewTab({ businesses, reviews, customers, totalRevenue, activeBusin
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="font-bold text-slate-900">{biz.name || 'Sans nom'}</div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold  $ {
                       isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                     }`}>
                       {isActive ? '✓ Actif' : '✕ Suspendu'}
@@ -404,14 +742,18 @@ function OverviewTab({ businesses, reviews, customers, totalRevenue, activeBusin
                   <div className="text-xs text-slate-400 mt-1">{biz.city || 'Ville non renseignée'}</div>
                 </div>
                 <div className="text-right ml-4">
-                  <div className={`text-sm font-bold px-3 py-1 rounded-lg ${
+                  <div className={`text-sm font-bold px-3 py-1 rounded-lg  $ {
                     planConfig.color === 'blue' ? 'bg-blue-100 text-blue-700' :
                     planConfig.color === 'purple' ? 'bg-purple-100 text-purple-700' :
                     'bg-pink-100 text-pink-700'
                   }`}>
                     {planConfig.name}
                   </div>
-                  <div className="text-xs text-slate-500 mt-1 font-semibold">{planConfig.price}€/mois</div>
+                  <div className="text-xs text-slate-500 mt-1 font-semibold flex items-center gap-1 justify-end">
+                    {planConfig.price}
+                    <Euro className="w-3 h-3" />
+                    /mois
+                  </div>
                 </div>
               </div>
             );
@@ -440,7 +782,7 @@ function OverviewTab({ businesses, reviews, customers, totalRevenue, activeBusin
                       {[...Array(5)].map((_, i) => (
                         <Star 
                           key={i} 
-                          className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} 
+                          className={`w-4 h-4  $ {i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} 
                         />
                       ))}
                     </div>
@@ -486,7 +828,7 @@ function OverviewTab({ businesses, reviews, customers, totalRevenue, activeBusin
   );
 }
 
-// 🏢 BUSINESSES TAB
+// 🏢 BUSINESSES TAB (Code identique, juste ajout symbole €)
 function BusinessesTab({ businesses, reviews, customers, onUpdatePlan, onToggleStatus, onDelete, onViewDetails }) {
   if (businesses.length === 0) {
     return <EmptyState icon={<Store className="w-16 h-16" />} message="Aucun commerce trouvé" />;
@@ -518,7 +860,7 @@ function BusinessesTab({ businesses, reviews, customers, onUpdatePlan, onToggleS
               return (
                 <tr key={biz.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="p-4">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold  $ {
                       isActive 
                         ? 'bg-green-100 text-green-700' 
                         : 'bg-red-100 text-red-700'
@@ -553,11 +895,11 @@ function BusinessesTab({ businesses, reviews, customers, onUpdatePlan, onToggleS
                       value={biz.plan}
                       onChange={(e) => onUpdatePlan(biz.id, e.target.value)}
                       disabled={!isActive}
-                      className={`px-3 py-2 rounded-lg text-sm font-bold border-2 cursor-pointer transition-all ${
+                      className={`px-3 py-2 rounded-lg text-sm font-bold border-2 cursor-pointer transition-all  $ {
                         planConfig.color === 'blue' ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100' :
                         planConfig.color === 'purple' ? 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100' :
                         'bg-pink-50 border-pink-300 text-pink-700 hover:bg-pink-100'
-                      } ${!isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      }  $ {!isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <option value="basic">BASIC - 29€</option>
                       <option value="pro">PRO - 59€</option>
@@ -579,7 +921,7 @@ function BusinessesTab({ businesses, reviews, customers, onUpdatePlan, onToggleS
                   <td className="p-4">
                     <div className="flex gap-2 justify-center">
                       <a
-                        href={`/${biz.slug || biz.id}`}
+                        href={`/ $ {biz.slug || biz.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
@@ -589,7 +931,7 @@ function BusinessesTab({ businesses, reviews, customers, onUpdatePlan, onToggleS
                       </a>
                       <button
                         onClick={() => onToggleStatus(biz.id, isActive)}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-2 rounded-lg transition-colors  $ {
                           isActive 
                             ? 'bg-orange-100 hover:bg-orange-200 text-orange-700' 
                             : 'bg-green-100 hover:bg-green-200 text-green-700'
@@ -617,7 +959,7 @@ function BusinessesTab({ businesses, reviews, customers, onUpdatePlan, onToggleS
   );
 }
 
-// ⭐ REVIEWS TAB
+// ⭐ REVIEWS TAB (identique)
 function ReviewsTab({ reviews, businesses }) {
   if (reviews.length === 0) {
     return <EmptyState icon={<Star className="w-16 h-16" />} message="Aucun avis trouvé" />;
@@ -643,7 +985,7 @@ function ReviewsTab({ reviews, businesses }) {
               </div>
             </div>
             <a
-              href={`/${business.slug || business.id}`}
+              href={`/ $ {business.slug || business.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors"
@@ -667,7 +1009,7 @@ function ReviewsTab({ reviews, businesses }) {
                     {[...Array(5)].map((_, i) => (
                       <Star 
                         key={i} 
-                        className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} 
+                        className={`w-4 h-4  $ {i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} 
                       />
                     ))}
                   </div>
@@ -684,7 +1026,7 @@ function ReviewsTab({ reviews, businesses }) {
   );
 }
 
-// 👥 CUSTOMERS TAB
+// 👥 CUSTOMERS TAB (identique)
 function CustomersTab({ customers, businesses }) {
   if (customers.length === 0) {
     return <EmptyState icon={<Users className="w-16 h-16" />} message="Aucun client trouvé" />;
@@ -747,7 +1089,7 @@ function CustomersTab({ customers, businesses }) {
   );
 }
 
-// 🔍 BUSINESS MODAL
+// 🔍 BUSINESS MODAL (identique avec symbole €)
 function BusinessModal({ business, reviews, customers, onClose }) {
   const planConfig = getPlanConfig(business.plan);
   const isActive = business.is_active !== false;
@@ -759,24 +1101,26 @@ function BusinessModal({ business, reviews, customers, onClose }) {
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {/* HEADER */}
-        <div className={`bg-gradient-to-r ${isActive ? 'from-blue-600 to-purple-600' : 'from-gray-500 to-gray-700'} p-8 text-white rounded-t-3xl`}>
+        <div className={`bg-gradient-to-r  $ {isActive ? 'from-blue-600 to-purple-600' : 'from-gray-500 to-gray-700'} p-8 text-white rounded-t-3xl`}>
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
               <h2 className="text-3xl font-black mb-2">{business.name || 'Commerce'}</h2>
               <p className="text-white/90 text-lg">{business.email}</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`px-4 py-2 rounded-xl text-sm font-bold ${
+              <span className={`px-4 py-2 rounded-xl text-sm font-bold  $ {
                 isActive ? 'bg-green-500' : 'bg-red-500'
               }`}>
                 {isActive ? '✓ Actif' : '✕ Suspendu'}
               </span>
-              <span className={`px-4 py-2 rounded-xl text-sm font-bold ${
+              <span className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1  $ {
                 planConfig.color === 'blue' ? 'bg-blue-700' :
                 planConfig.color === 'purple' ? 'bg-purple-700' :
                 'bg-pink-700'
               }`}>
-                {planConfig.name} - {planConfig.price}€/mois
+                {planConfig.name} - {planConfig.price}
+                <Euro className="w-4 h-4" />
+                /mois
               </span>
             </div>
           </div>
@@ -853,7 +1197,7 @@ function BusinessModal({ business, reviews, customers, onClose }) {
                         {[...Array(5)].map((_, i) => (
                           <Star 
                             key={i} 
-                            className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} 
+                            className={`w-4 h-4  $ {i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} 
                           />
                         ))}
                       </div>
@@ -892,7 +1236,7 @@ function BusinessModal({ business, reviews, customers, onClose }) {
           {/* ACTIONS */}
           <div className="flex gap-4">
             <a
-              href={`/${business.slug || business.id}`}
+              href={`/ $ {business.slug || business.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all text-center shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2"
@@ -927,9 +1271,4 @@ function InfoItem({ icon, label, value }) {
 
 function EmptyState({ icon, message }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-16 text-center">
-      <div className="text-slate-300 mb-4 flex justify-center">{icon}</div>
-      <p className="text-slate-400 text-xl font-bold">{message}</p>
-    </div>
-  );
-}
+    <div className="bg-white rounded-2xl shadow-sm border border-slate

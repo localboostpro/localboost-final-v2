@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import AuthForm from './components/AuthForm';
-import Dashboard from './components/Dashboard';
-import StudioAI from './components/StudioAI';
-import SocialMedia from './components/SocialMedia';
-import Reviews from './components/Reviews';
-import Customers from './components/Customers';
-import Settings from './components/Settings';
+import Dashboard from './views/Dashboard';
+import StudioAI from './views/StudioAI';
+import SocialMedia from './views/SocialMedia';
+import Reviews from './views/Reviews';
+import Customers from './views/Customers';
+import Settings from './views/Settings';
 import Navigation from './components/Navigation';
 import AdminDashboard from './components/AdminDashboard';
 

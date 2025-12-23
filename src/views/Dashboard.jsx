@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { Star, TrendingUp, Users, MessageSquare, Calendar, MapPin } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalReviews: 0,
     averageRating: 0,
@@ -15,10 +14,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboard();
-  }, [user]);
+  }, []);
 
   async function loadDashboard() {
     try {
+      // ✅ GET USER FROM SESSION
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       // Load user profile
       const { data: profileData, error: profileError } = await supabase
         .from('business_profile')
@@ -78,7 +81,7 @@ export default function Dashboard() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
         <p className="mt-2 text-gray-600">
-          Bienvenue, {profile?.name || user.email}
+          Bienvenue, {profile?.name || 'Utilisateur'}
         </p>
       </div>
 

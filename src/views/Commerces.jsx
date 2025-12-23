@@ -1,269 +1,150 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import {
-  Building2,
-  MapPin,
-  Star,
-  TrendingUp,
-  Calendar,
-  DollarSign,
-  BarChart3,
-  Euro
-} from 'lucide-react';
+import { Store, MapPin, Star, TrendingUp, Users } from 'lucide-react';
 
 export default function Commerces() {
   const [commerces, setCommerces] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalCA: 0,
-    caThisMonth: 0,
-    caLastMonth: 0,
-    caThisYear: 0,
-    caLastYear: 0,
-    growthMonth: 0,
-    growthYear: 0
-  });
 
   useEffect(() => {
-    fetchCommerces();
-    fetchStats();
+    loadCommerces();
   }, []);
 
-  const fetchCommerces = async () => {
+  async function loadCommerces() {
     try {
-      const { data, error } = await supabase
+      // Récupérer tous les commerces
+      const { data: commercesData, error: commercesError } = await supabase
         .from('commerces')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setCommerces(data || []);
+      if (commercesError) throw commercesError;
+
+      // Pour chaque commerce, récupérer ses avis
+      const commercesWithStats = await Promise.all(
+        (commercesData || []).map(async (commerce) => {
+          const { data: avisData, error: avisError } = await supabase
+            .from('avis')
+            .select('*')
+            .eq('commerce_id', commerce.id);
+
+          if (avisError) {
+            console.error('Erreur avis:', avisError);
+            return { ...commerce, stats: { total: 0, moyenne: 0, recent: 0 } };
+          }
+
+          const total = avisData?.length || 0;
+          const moyenne = total > 0
+            ? (avisData.reduce((sum, a) => sum + (a.note || 0), 0) / total).toFixed(1)
+            : 0;
+
+          // Avis des 30 derniers jours
+          const dateLimit = new Date();
+          dateLimit.setDate(dateLimit.getDate() - 30);
+          const recent = avisData?.filter(a => 
+            new Date(a.created_at) > dateLimit
+          ).length || 0;
+
+          return {
+            ...commerce,
+            stats: { total, moyenne, recent }
+          };
+        })
+      );
+
+      setCommerces(commercesWithStats);
     } catch (error) {
-      console.error('Erreur chargement commerces:', error.message);
+      console.error('Erreur chargement commerces:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-      const { data: allData, error } = await supabase
-        .from('commerces')
-        .select('chiffre_affaire, created_at');
-
-      if (error) throw error;
-
-      if (allData && allData.length > 0) {
-        const totalCA = allData.reduce((sum, c) => sum + (parseFloat(c.chiffre_affaire) || 0), 0);
-        
-        const caThisMonth = allData
-          .filter(c => {
-            const date = new Date(c.created_at);
-            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-          })
-          .reduce((sum, c) => sum + (parseFloat(c.chiffre_affaire) || 0), 0);
-
-        const caLastMonth = allData
-          .filter(c => {
-            const date = new Date(c.created_at);
-            return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
-          })
-          .reduce((sum, c) => sum + (parseFloat(c.chiffre_affaire) || 0), 0);
-
-        const caThisYear = allData
-          .filter(c => new Date(c.created_at).getFullYear() === currentYear)
-          .reduce((sum, c) => sum + (parseFloat(c.chiffre_affaire) || 0), 0);
-
-        const caLastYear = allData
-          .filter(c => new Date(c.created_at).getFullYear() === currentYear - 1)
-          .reduce((sum, c) => sum + (parseFloat(c.chiffre_affaire) || 0), 0);
-
-        const growthMonth = caLastMonth > 0 
-          ? ((caThisMonth - caLastMonth) / caLastMonth * 100).toFixed(1)
-          : 0;
-
-        const growthYear = caLastYear > 0 
-          ? ((caThisYear - caLastYear) / caLastYear * 100).toFixed(1)
-          : 0;
-
-        setStats({
-          totalCA,
-          caThisMonth,
-          caLastMonth,
-          caThisYear,
-          caLastYear,
-          growthMonth: parseFloat(growthMonth),
-          growthYear: parseFloat(growthYear)
-        });
-      }
-    } catch (error) {
-      console.error('Erreur calcul stats:', error.message);
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
-
-  const StatCard = ({ icon: Icon, title, value, subValue, growth, color }) => (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        {growth !== undefined && (
-          <div className={`flex items-center gap-1 text-sm font-medium ${
-            growth >= 0 ? 'text-green-600' : 'text-red-600'
-          }`}>
-            <TrendingUp className={`w-4 h-4 ${growth < 0 ? 'rotate-180' : ''}`} />
-            {growth >= 0 ? '+' : ''}{growth}%
-          </div>
-        )}
-      </div>
-      <h3 className="text-gray-600 text-sm font-medium mb-1">{title}</h3>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      {subValue && <p className="text-sm text-gray-500 mt-1">{subValue}</p>}
-    </div>
-  );
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des commerces...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* En-tête */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Building2 className="w-8 h-8 text-indigo-600" />
-          Gestion des Commerces
+          <Store className="w-8 h-8 text-blue-600" />
+          Commerces Partenaires
         </h1>
-        <p className="text-gray-600 mt-2">
-          Vue d'ensemble et statistiques de tous les commerces
+        <p className="mt-2 text-gray-600">
+          {commerces.length} commerce{commerces.length > 1 ? 's' : ''} inscrit{commerces.length > 1 ? 's' : ''}
         </p>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          icon={Building2}
-          title="Commerces actifs"
-          value={commerces.length}
-          color="bg-indigo-600"
-        />
-        
-        <StatCard
-          icon={Euro}
-          title="CA Total"
-          value={formatCurrency(stats.totalCA)}
-          color="bg-green-600"
-        />
-        
-        <StatCard
-          icon={Calendar}
-          title="CA du mois"
-          value={formatCurrency(stats.caThisMonth)}
-          subValue={`Mois dernier: ${formatCurrency(stats.caLastMonth)}`}
-          growth={stats.growthMonth}
-          color="bg-blue-600"
-        />
-        
-        <StatCard
-          icon={BarChart3}
-          title="CA de l'année"
-          value={formatCurrency(stats.caThisYear)}
-          subValue={`Année dernière: ${formatCurrency(stats.caLastYear)}`}
-          growth={stats.growthYear}
-          color="bg-purple-600"
-        />
-      </div>
-
-      {/* Tableau des commerces */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Liste des commerces ({commerces.length})
-          </h2>
+      {/* Liste des commerces */}
+      {commerces.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg shadow">
+          <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500 text-lg">Aucun commerce inscrit pour le moment</p>
         </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {commerces.map((commerce) => (
+            <div
+              key={commerce.id}
+              className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6"
+            >
+              {/* Nom et adresse */}
+              <div className="mb-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {commerce.nom}
+                </h3>
+                <div className="flex items-start gap-2 text-gray-600">
+                  <MapPin className="w-4 h-4 mt-1 flex-shrink-0" />
+                  <span className="text-sm">{commerce.adresse}</span>
+                </div>
+              </div>
 
-        {commerces.length === 0 ? (
-          <div className="text-center py-12">
-            <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">Aucun commerce enregistré</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Commerce
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Localisation
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Note
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    CA
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date d'inscription
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {commerces.map((commerce) => (
-                  <tr key={commerce.id} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900">{commerce.nom}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-gray-600">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {commerce.ville}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current mr-1" />
-                        <span className="font-medium">{commerce.note || 'N/A'}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-semibold text-green-600">
-                        {formatCurrency(commerce.chiffre_affaire)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(commerce.created_at).toLocaleDateString('fr-FR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              {/* Statistiques */}
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                {/* Total avis */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
+                    <Users className="w-4 h-4" />
+                    <span className="text-2xl font-bold">{commerce.stats.total}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Avis total</p>
+                </div>
+
+                {/* Note moyenne */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-yellow-500 mb-1">
+                    <Star className="w-4 h-4 fill-current" />
+                    <span className="text-2xl font-bold">{commerce.stats.moyenne}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Moyenne</p>
+                </div>
+
+                {/* Avis récents */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
+                    <TrendingUp className="w-4 h-4" />
+                    <span className="text-2xl font-bold">{commerce.stats.recent}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Ce mois</p>
+                </div>
+              </div>
+
+              {/* Date d'inscription */}
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-gray-400">
+                  Inscrit le {new Date(commerce.created_at).toLocaleDateString('fr-FR')}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

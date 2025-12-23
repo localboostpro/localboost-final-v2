@@ -32,16 +32,22 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-8">
-        <h1 className="text-3xl font-bold text-green-600">✅ APP FONCTIONNE !</h1>
-        <p className="mt-4 text-lg">Connecté en tant que : {session.user.email}</p>
-        <button 
-          onClick={() => supabase.auth.signOut()}
-          className="mt-4 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700"
-        >
-          Se déconnecter
-        </button>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 className="text-4xl font-bold text-green-600 mb-4">
+          ✅ CONNEXION RÉUSSIE !
+        </h1>
+        <div className="space-y-4">
+          <p className="text-xl">
+            Connecté en tant que : <strong>{session.user.email}</strong>
+          </p>
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
+          >
+            Se déconnecter
+          </button>
+        </div>
       </div>
     </div>
   );

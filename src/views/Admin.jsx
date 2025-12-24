@@ -461,17 +461,19 @@ const updateSubscription = async (businessId, newPlan) => {
                       {/* FORFAIT */}
                       <td className="px-6 py-4">
                         <select
-                          value={business.plan || 'basic'}
-                          onChange={(e) => updateSubscription(business.id, e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                          <option value="basic">⭐ Basic - 29€/mois</option>
-                          <option value="pro">🌟 Pro - 59€/mois</option>
-                          <option value="premium">💎 Premium - 99€/mois</option>
-                        </select>
-                        <div className="text-xs text-slate-500 mt-1">
-                          💰 Prix actuel : <span className="font-bold text-slate-700">{business.subscription_price || 0}€/mois</span>
-                        </div>
+                      value={business.plan || 'basic'}  // ← valeur en minuscule
+                      onChange={(e) => updateSubscription(business.id, e.target.value)}
+                      className="px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all">
+                      <option value="basic">⭐ Basic - 29€/mois</option>
+                      <option value="pro">🌟 Pro - 59€/mois</option>
+                      <option value="premium">💎 Premium - 99€/mois</option>
+                    </select>
+                    
+                    {/* Affichage du prix actuel */}
+                    <div className="text-xs text-slate-500 mt-1">
+                      💰 Prix actuel: {business.subscription_price || getPlanPrice(business.plan || 'basic')}€/mois
+                    </div>
+
                       </td>
 
                       {/* STATUT */}

@@ -27,15 +27,15 @@ export default function App() {
   // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // ✅ CALCUL isAdmin AVEC DEBUG
   const isAdmin = session?.user?.email === "admin@demo.fr";
-console.log("🔍 Email connecté:", session?.user?.email);
-console.log("🔐 isAdmin?", isAdmin);
+  
+  // 🔍 CONSOLE.LOG DEBUG
+  console.log("🔍 Email connecté:", session?.user?.email);
+  console.log("🔐 isAdmin?", isAdmin);
+  console.log("👤 Session complète:", session);
 
-
-  // ✅ DÉPLACER isAdmin ICI (avant fetchAllData)
-  const isAdmin = session?.user?.email === "admin@demo.fr";
-
-  // ✅ FONCTION fetchAllData CORRIGÉE
+  // ✅ FONCTION fetchAllData
   const fetchAllData = async (userId, email) => {
     try {
       const { data: profileData } = await supabase
@@ -62,7 +62,7 @@ console.log("🔐 isAdmin?", isAdmin);
       if (c.data) setCustomers(c.data);
       if (p.data) setPosts(p.data);
     } catch (e) { 
-      console.error("Erreur fetchAllData:", e); 
+      console.error("❌ Erreur fetchAllData:", e); 
     }
   };
 
@@ -90,7 +90,7 @@ console.log("🔐 isAdmin?", isAdmin);
     });
 
     return () => subscription.unsubscribe();
-  }, []); // ✅ Enlever isAdmin des dépendances
+  }, []);
 
   const upsertPostInState = (post) => {
     setPosts((prev) => {

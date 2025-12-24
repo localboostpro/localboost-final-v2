@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { PLANS, getPlanBadge } from "../lib/plans";
 import { 
@@ -8,19 +8,20 @@ import {
   Sparkles, Zap, Crown
 } from "lucide-react";
 
-export default function Profile({ profile, setProfile }) {
+export default function Profile({ user }) {
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    name: profile?.name || "",
-    email: profile?.email || "",
-    phone: profile?.phone || "",
-    address: profile?.address || "",
-    city: profile?.city || "",
-    zip_code: profile?.zip_code || "",
-    website: profile?.website || "",
-    siret: profile?.siret || "",
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    zip_code: "",
+    website: "",
+    siret: "",
   });
 
   const defaultHours = [
@@ -33,28 +34,68 @@ export default function Profile({ profile, setProfile }) {
     { day: "Dimanche", open: "", close: "", closed: true },
   ];
   
-  let initialHours = defaultHours;
-  if (profile?.opening_hours) {
-    try {
-      const parsed = typeof profile.opening_hours === 'string' 
-        ? JSON.parse(profile.opening_hours) 
-        : profile.opening_hours;
-      if (Array.isArray(parsed) && parsed.length === 7) {
-        initialHours = parsed;
-      }
-    } catch (e) {
-      console.error("Erreur parsing opening_hours:", e);
-    }
-  }
-
-  const [openingHours, setOpeningHours] = useState(initialHours);
+  const [openingHours, setOpeningHours] = useState(defaultHours);
   const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(profile?.logo_url || null);
+  const [logoPreview, setLogoPreview] = useState(null);
 
   const [passwordData, setPasswordData] = useState({
     newPassword: "",
     confirmPassword: ""
   });
+
+  // ✅ CHARGEMENT DU PROFIL AU DÉMARRAGE
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("business_profile")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+
+        if (error) {
+          console.error("Erreur chargement profil:", error);
+          return;
+        }
+
+        if (data) {
+          setProfile(data);
+          setFormData({
+            name: data.name || "",
+            email: data.email || "",
+            phone: data.phone || "",
+            address: data.address || "",
+            city: data.city || "",
+            zip_code: data.zip_code || "",
+            website: data.website || "",
+            siret: data.siret || "",
+          });
+
+          // Charger les horaires
+          if (data.opening_hours) {
+            try {
+              const parsed = typeof data.opening_hours === 'string' 
+                ? JSON.parse(data.opening_hours) 
+                : data.opening_hours;
+              if (Array.isArray(parsed) && parsed.length === 7) {
+                setOpeningHours(parsed);
+              }
+            } catch (e) {
+              console.error("Erreur parsing opening_hours:", e);
+            }
+          }
+
+          setLogoPreview(data.logo_url);
+        }
+      } catch (err) {
+        console.error("Erreur:", err);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
 
   // Récupérer les infos du plan
   const planBadge = getPlanBadge(profile?.plan || "basic");
@@ -73,10 +114,10 @@ export default function Profile({ profile, setProfile }) {
   };
 
   const uploadLogo = async () => {
-    if (!logoFile) return profile?.logo_url;
+    if (!logoFile) return logoPreview;
 
     const fileExt = logoFile.name.split('.').pop();
-    const fileName = `${profile.id}_${Date.now()}.${fileExt}`;
+    const fileName = `${user.id}_${Date.now()}.${fileExt}`;
     const filePath = `logos/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -85,7 +126,7 @@ export default function Profile({ profile, setProfile }) {
 
     if (uploadError) {
       console.error("Erreur upload logo:", uploadError);
-      return profile?.logo_url;
+      return logoPreview;
     }
 
     const { data: { publicUrl } } = supabase.storage
@@ -95,7 +136,7 @@ export default function Profile({ profile, setProfile }) {
     return publicUrl;
   };
 
-  // SAUVEGARDE DU PROFIL
+  // ✅ SAUVEGARDE DU PROFIL (INSERT OR UPDATE)
   const handleSave = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -103,23 +144,46 @@ export default function Profile({ profile, setProfile }) {
     try {
       const logoUrl = await uploadLogo();
 
-      const { error } = await supabase
+      const updateData = {
+        ...formData,
+        opening_hours: openingHours,
+        logo_url: logoUrl,
+        updated_at: new Date().toISOString()
+      };
+
+      // ✅ Vérifier si le profil existe
+      const { data: existing } = await supabase
         .from("business_profile")
-        .update({
-          ...formData,
-          opening_hours: openingHours,
-          logo_url: logoUrl,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", profile.id);
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
 
-      if (error) throw error;
+      let result;
+      
+      if (existing) {
+        // UPDATE
+        result = await supabase
+          .from("business_profile")
+          .update(updateData)
+          .eq("user_id", user.id)
+          .select()
+          .single();
+      } else {
+        // INSERT
+        result = await supabase
+          .from("business_profile")
+          .insert({ ...updateData, user_id: user.id })
+          .select()
+          .single();
+      }
 
-      setProfile({ ...profile, ...formData, opening_hours: openingHours, logo_url: logoUrl });
+      if (result.error) throw result.error;
+
+      setProfile(result.data);
       alert("✅ Profil mis à jour avec succès !");
     } catch (error) {
       console.error("Erreur:", error);
-      alert("❌ Erreur lors de la mise à jour");
+      alert("❌ Erreur lors de la mise à jour: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -173,7 +237,7 @@ export default function Profile({ profile, setProfile }) {
       const { error: deleteError } = await supabase
         .from("business_profile")
         .delete()
-        .eq("id", profile.id);
+        .eq("user_id", user.id);
 
       if (deleteError) throw deleteError;
 
@@ -187,6 +251,17 @@ export default function Profile({ profile, setProfile }) {
       alert("❌ Erreur lors de la suppression du compte");
     }
   };
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-600 font-bold">Chargement du profil...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-8">
@@ -420,7 +495,7 @@ export default function Profile({ profile, setProfile }) {
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full mt-8 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-xl font-black text-lg hover:shadow-2xl transition flex items-center justify-center gap-3"
+                className="w-full mt-8 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-xl font-black text-lg hover:shadow-2xl transition flex items-center justify-center gap-3 disabled:opacity-50"
               >
                 {loading ? "Enregistrement..." : (
                   <>
@@ -497,7 +572,7 @@ export default function Profile({ profile, setProfile }) {
                 <button 
                   type="submit" 
                   disabled={passLoading} 
-                  className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition shadow-lg shadow-amber-200"
+                  className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition shadow-lg shadow-amber-200 disabled:opacity-50"
                 >
                   {passLoading ? "Modification..." : "Changer le mot de passe"}
                 </button>

@@ -78,3 +78,59 @@ export function hasFeature(plan, feature) {
   
   return hierarchy[plan]?.includes(feature) || false;
 }
+
+// ✅ FONCTION MANQUANTE POUR LE MENU
+export function getMenuItems(plan) {
+  const allItems = [
+    {
+      path: "/dashboard",
+      label: "Tableau de bord",
+      icon: "LayoutDashboard",
+      plans: ["basic", "pro", "premium"]
+    },
+    {
+      path: "/profile",
+      label: "Mon Établissement",
+      icon: "Building",
+      plans: ["basic", "pro", "premium"]
+    },
+    {
+      path: "/reviews",
+      label: "Avis Clients",
+      icon: "Star",
+      plans: ["basic", "pro", "premium"]
+    },
+    {
+      path: "/collect-reviews",
+      label: "Collecter des Avis",
+      icon: "MessageSquare",
+      plans: ["basic", "pro", "premium"]
+    },
+    {
+      path: "/marketing",
+      label: "Studio Marketing",
+      icon: "Megaphone",
+      plans: ["pro", "premium"]
+    },
+    {
+      path: "/establishment-page",
+      label: "Ma Vitrine Web",
+      icon: "Globe",
+      plans: ["premium"]
+    },
+    {
+      path: "/phone-center",
+      label: "Centre d'Appels",
+      icon: "Phone",
+      plans: ["premium"]
+    },
+    {
+      path: "/offers",
+      label: "Offres & Promos",
+      icon: "Tag",
+      plans: ["pro", "premium"]
+    }
+  ];
+
+  return allItems.filter(item => item.plans.includes(plan));
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building2, Star, Users, MessageSquare, MapPin, Calendar, Plus } from 'lucide-react';
+import { Building2, Star, Users, MessageSquare, MapPin, Calendar, Plus, Crown } from 'lucide-react';
 
 export default function Commerces() {
   const [businesses, setBusinesses] = useState([]);
@@ -13,7 +13,7 @@ export default function Commerces() {
   async function loadBusinesses() {
     try {
       const { data, error } = await supabase
-        .from('businesses')
+        .from('business_profile') // ✅ CORRECTION ICI
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -96,28 +96,58 @@ export default function Commerces() {
 }
 
 function BusinessCard({ business }) {
+  // 🎯 Helper pour afficher le badge du forfait
+  const getPlanBadge = () => {
+    const planConfig = {
+      premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700', icon: '👑' },
+      pro: { label: 'Pro', color: 'bg-blue-100 text-blue-700', icon: '⭐' },
+      basic: { label: 'Basic', color: 'bg-green-100 text-green-700', icon: '✓' },
+      free: { label: 'Gratuit', color: 'bg-gray-100 text-gray-700', icon: '🎁' }
+    };
+
+    const plan = business.plan || 'free';
+    const config = planConfig[plan] || planConfig.free;
+
+    return (
+      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+        <span>{config.icon}</span>
+        <span>{config.label}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all group">
       {/* Header */}
       <div className="mb-4">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
-            <Building2 className="w-6 h-6 text-blue-600" />
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+              <Building2 className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                {business.company_name || business.name}
+              </h3>
+              <p className="text-sm text-gray-500">{business.type || 'Commerce'}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-              {business.name}
-            </h3>
-            <p className="text-sm text-gray-500">{business.type || 'Commerce'}</p>
-          </div>
+          {getPlanBadge()}
         </div>
       </div>
 
       {/* Location */}
-      {business.location && (
+      {(business.city || business.location) && (
         <div className="flex items-center gap-2 text-gray-600 mb-4">
           <MapPin className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm truncate">{business.location}</span>
+          <span className="text-sm truncate">{business.city || business.location}</span>
+        </div>
+      )}
+
+      {/* Subscription Price */}
+      {business.subscription_price > 0 && (
+        <div className="text-sm font-medium text-gray-700 mb-4">
+          💰 {business.subscription_price}€/mois
         </div>
       )}
 

@@ -24,7 +24,7 @@ export default function Admin() {
   useEffect(() => {
     fetchData();
     
-    // ✅ ÉCOUTE TEMPS RÉEL
+    // Écoute temps réel
     const channel = supabase
       .channel('admin-businesses')
       .on(
@@ -60,7 +60,7 @@ export default function Admin() {
 
       setBusinesses(businessData || []);
 
-      // ✅ CALCUL CORRECT DES STATS
+      // Calcul des stats
       const totalRevenue = businessData?.reduce((sum, b) => {
         const price = Number(b.subscription_price) || 0;
         return sum + price;
@@ -140,7 +140,6 @@ export default function Admin() {
     }
   };
 
-  // ✅ FONCTION DE MISE À JOUR DU FORFAIT CORRIGÉE
   const updateSubscription = async (businessId, newPlan) => {
     try {
       const price = getPlanPrice(newPlan);
@@ -190,6 +189,7 @@ export default function Admin() {
 
   const filteredBusinesses = businesses.filter(b => {
     if (filter === 'all') return true;
+    if (filter === 'inactive') return b.subscription_status === 'inactive';
     return b.plan === filter;
   });
 
@@ -203,7 +203,7 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-slate-600">Chargement des données...</p>
@@ -213,18 +213,20 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         
         {/* HEADER */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 text-white">
-          <h1 className="text-3xl font-bold mb-2">🎯 Administration</h1>
+        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-2xl p-8 text-white shadow-xl">
+          <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+            🎯 Administration
+          </h1>
           <p className="text-indigo-100">Tableau de bord centralisé</p>
         </div>
 
         {/* STATS CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-slate-100">
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
                 <Store className="w-6 h-6 text-indigo-600" />
@@ -235,7 +237,7 @@ export default function Admin() {
             <p className="text-sm text-slate-500 mt-1">Entreprises inscrites</p>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-slate-100">
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-green-600" />
@@ -246,7 +248,7 @@ export default function Admin() {
             <p className="text-sm text-slate-500 mt-1">Revenus mensuels</p>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-slate-100">
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <Activity className="w-6 h-6 text-blue-600" />
@@ -257,7 +259,7 @@ export default function Admin() {
             <p className="text-sm text-slate-500 mt-1">Abonnements actifs</p>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-slate-100">
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
                 <Star className="w-6 h-6 text-yellow-600" />
@@ -272,13 +274,13 @@ export default function Admin() {
         {/* GRAPHIQUES */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Revenus mensuels */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-slate-100">
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-slate-900">📈 Revenus Mensuels {selectedYear}</h3>
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="px-3 py-2 bg-slate-50 rounded-lg text-sm font-semibold"
+                className="px-3 py-2 bg-slate-50 rounded-lg text-sm font-semibold border border-slate-200"
               >
                 {[2024, 2025, 2026].map(year => (
                   <option key={year} value={year}>{year}</option>
@@ -288,139 +290,132 @@ export default function Admin() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
+                <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
+                <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#1e293b',
                     border: 'none',
                     borderRadius: '12px',
-                    color: '#fff'
+                    color: '#fff',
+                    fontSize: '12px'
                   }}
                 />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
                 <Line type="monotone" dataKey="Revenus (€)" stroke="#4f46e5" strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           {/* Clients & Avis */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-slate-100">
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
             <h3 className="text-lg font-bold text-slate-900 mb-6">👥 Clients & Avis {selectedYear}</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
+                <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
+                <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#1e293b',
                     border: 'none',
                     borderRadius: '12px',
-                    color: '#fff'
+                    color: '#fff',
+                    fontSize: '12px'
                   }}
                 />
-                <Legend />
-                <Bar dataKey="Clients" fill="#6366f1" />
-                <Bar dataKey="Avis" fill="#a855f7" />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Bar dataKey="Clients" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="Avis" fill="#a855f7" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* TABLEAU DES ENTREPRISES */}
-        <div className="bg-white rounded-xl shadow-sm border-2 border-slate-100 overflow-hidden">
-          <div className="p-6 border-b-2 border-slate-100">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                <Store className="w-7 h-7 text-indigo-600" />
-                Gestion des Entreprises
-              </h2>
-            </div>
-
-            {/* FILTRES */}
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  filter === 'all'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                📊 Tous ({planCounts.all})
-              </button>
-              <button
-                onClick={() => setFilter('basic')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  filter === 'basic'
-                    ? 'bg-green-600 text-white shadow-lg shadow-green-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                ✅ Basic ({planCounts.basic})
-              </button>
-              <button
-                onClick={() => setFilter('pro')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  filter === 'pro'
-                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                ⭐ Pro ({planCounts.pro})
-              </button>
-              <button
-                onClick={() => setFilter('premium')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  filter === 'premium'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                💎 Premium ({planCounts.premium})
-              </button>
-              <button
-                onClick={() => setFilter('inactive')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  filter === 'inactive'
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                ❌ Inactifs ({planCounts.inactive})
-              </button>
-            </div>
+        {/* FILTRES */}
+        <div className="bg-white rounded-xl p-4 shadow-lg border border-slate-100">
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                filter === 'all'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              📊 Tous ({planCounts.all})
+            </button>
+            <button
+              onClick={() => setFilter('basic')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                filter === 'basic'
+                  ? 'bg-green-600 text-white shadow-lg'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              ✅ Basic ({planCounts.basic})
+            </button>
+            <button
+              onClick={() => setFilter('pro')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                filter === 'pro'
+                  ? 'bg-orange-600 text-white shadow-lg'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              ⭐ Pro ({planCounts.pro})
+            </button>
+            <button
+              onClick={() => setFilter('premium')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                filter === 'premium'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              💎 Premium ({planCounts.premium})
+            </button>
+            <button
+              onClick={() => setFilter('inactive')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                filter === 'inactive'
+                  ? 'bg-red-600 text-white shadow-lg'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              ❌ Inactifs ({planCounts.inactive})
+            </button>
           </div>
+        </div>
 
-          {/* TABLEAU */}
+        {/* TABLEAU */}
+        <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b-2 border-slate-100">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
                     Entreprise
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
                     Contact
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
                     Forfait
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
                     Statut
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
                     Inscription
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y-2 divide-slate-100">
+              <tbody className="divide-y divide-slate-100">
                 {filteredBusinesses.map((business) => {
-                  const planConfig = getPlanConfig(business.plan);
                   const isInactive = business.subscription_status === 'inactive';
 
                   return (
@@ -430,31 +425,24 @@ export default function Admin() {
                         isInactive ? 'opacity-60' : ''
                       }`}
                     >
-                      {/* ✅ COLONNE ENTREPRISE - CORRECTION ICI */}
+                      {/* ENTREPRISE */}
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 ${planConfig.badgeColor} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                            <Store className="w-6 h-6 text-white" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900">{business.name || 'Sans nom'}</p>
-                            <p className="text-sm text-slate-500">{business.business_type || 'Non spécifié'}</p>
-                          </div>
-                        </div>
+                        <p className="font-bold text-slate-900">{business.name || 'Sans nom'}</p>
+                        <p className="text-sm text-slate-500">Non spécifié</p>
                       </td>
 
                       {/* CONTACT */}
                       <td className="px-6 py-4">
-                        <p className="text-sm font-semibold text-slate-900">{business.email || 'N/A'}</p>
+                        <p className="text-sm font-medium text-slate-900">{business.email || 'N/A'}</p>
                         <p className="text-sm text-slate-500">{business.phone || 'N/A'}</p>
                       </td>
 
-                      {/* ✅ FORFAIT - CORRECTION ICI */}
+                      {/* FORFAIT */}
                       <td className="px-6 py-4">
                         <select
                           value={business.plan || 'basic'}
                           onChange={(e) => updateSubscription(business.id, e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                           <option value="basic">⭐ Basic - 29€/mois</option>
                           <option value="pro">🌟 Pro - 59€/mois</option>
@@ -518,9 +506,6 @@ export default function Admin() {
             <div className="text-center py-16">
               <Store className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-500 font-semibold text-lg">Aucune entreprise trouvée</p>
-              <p className="text-sm text-slate-400 mt-2">
-                Les entreprises apparaîtront ici une fois inscrites
-              </p>
             </div>
           )}
         </div>

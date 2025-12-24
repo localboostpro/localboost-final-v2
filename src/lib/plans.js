@@ -1,58 +1,74 @@
 export const PLANS = {
   basic: {
-    label: "Basic",
-    name: "BASIC",
+    name: 'Basic',
     price: 29,
-    color: "blue",
-    features: { 
-      can_access_marketing: true, 
-      max_customers: 20,
-      max_reviews: 50,
-      analytics: false
+    trial_days: 7,
+    features: [
+      'Collecte d\'avis illimitée',
+      'QR Code personnalisé',
+      'Gestion clients illimitée',
+      'Analytics basiques',
+      'Support Email + Chat'
+    ],
+    limits: {
+      marketing_studio: false,
+      landing_page: false,
+      ai_posts: 0
     }
   },
   pro: {
-    label: "Pro",
-    name: "PRO",
+    name: 'Pro',
     price: 59,
-    color: "purple",
-    features: { 
-      can_access_marketing: true, 
-      max_customers: 500,
-      max_reviews: 200,
-      analytics: true
+    trial_days: 0,
+    features: [
+      'Tout du Basic +',
+      '🎨 Studio Marketing complet',
+      'Génération posts IA illimitée',
+      'Publication auto (Facebook + Instagram)',
+      '+ 50 templates professionnels',
+      'Analytics avancés',
+      'Support prioritaire'
+    ],
+    limits: {
+      marketing_studio: true,
+      landing_page: false,
+      ai_posts: -1 // -1 = illimité
     }
   },
   premium: {
-    label: "Premium",
-    name: "PREMIUM",
+    name: 'Premium',
     price: 99,
-    color: "pink",
-    features: { 
-      can_access_marketing: true, 
-      max_customers: 1000,
-      max_reviews: -1, // illimité
-      analytics: true,
-      priority_support: true
+    trial_days: 0,
+    features: [
+      'Tout du Pro +',
+      '🌐 Page établissement complète',
+      'Site web avec domaine personnalisé',
+      'Templates premium exclusifs',
+      'Widgets personnalisés',
+      'SEO optimisé',
+      'Analytics complets',
+      'Account Manager dédié'
+    ],
+    limits: {
+      marketing_studio: true,
+      landing_page: true,
+      ai_posts: -1
     }
   }
 };
 
-export function getPlanConfig(tier) {
-  return PLANS[tier?.toLowerCase()] || PLANS.basic;
-}
+// Helper pour vérifier les accès
+export const canAccessFeature = (userPlan, feature) => {
+  const plan = PLANS[userPlan] || PLANS.basic;
+  return plan.limits[feature] === true || plan.limits[feature] === -1;
+};
 
-export function getPlanPrice(tier) {
-  const plan = getPlanConfig(tier);
-  return plan.price;
-}
-
-export function getPlanLabel(tier) {
-  const plan = getPlanConfig(tier);
-  return plan.label;
-}
-
-export function canAccessFeature(tier, featureName) {
-  const plan = getPlanConfig(tier);
-  return plan.features[featureName] || false;
-}
+// Helper pour afficher le badge
+export const getPlanBadge = (plan) => {
+  const badges = {
+    basic: { icon: '⭐', label: 'Basic', color: 'amber' },
+    pro: { icon: '⚡', label: 'Pro', color: 'blue' },
+    premium: { icon: '💎', label: 'Premium', color: 'purple' }
+  };
+  return badges[plan] || badges.basic;
+};

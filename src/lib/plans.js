@@ -112,7 +112,7 @@ export function getPlanPrice(planKey) {
   return plan.price;
 }
 
-// ✅ Obtenir le label/nom d'un forfait (FONCTION MANQUANTE)
+// ✅ Obtenir le label/nom d'un forfait
 export function getPlanLabel(planKey) {
   const plan = PLANS[planKey] || PLANS.basic;
   return plan.name;
@@ -145,4 +145,3 @@ export function getPlanDetails(planKey) {
 export function getPlanConfig(planKey) {
   return PLANS[planKey] || PLANS.basic;
 }
-

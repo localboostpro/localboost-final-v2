@@ -79,7 +79,18 @@ export function hasFeature(plan, feature) {
   return hierarchy[plan]?.includes(feature) || false;
 }
 
-// ✅ FONCTION MANQUANTE POUR LE MENU
+// ✅ FONCTION POUR VÉRIFIER L'ACCÈS AUX FONCTIONNALITÉS
+export function canAccessFeature(plan, feature) {
+  const features = {
+    basic: ['dashboard', 'profile', 'reviews', 'collect-reviews'],
+    pro: ['dashboard', 'profile', 'reviews', 'collect-reviews', 'marketing', 'offers'],
+    premium: ['dashboard', 'profile', 'reviews', 'collect-reviews', 'marketing', 'offers', 'establishment-page', 'phone-center']
+  };
+  
+  return features[plan]?.includes(feature) || false;
+}
+
+// ✅ FONCTION POUR OBTENIR LES ÉLÉMENTS DU MENU
 export function getMenuItems(plan) {
   const allItems = [
     {
@@ -133,4 +144,19 @@ export function getMenuItems(plan) {
   ];
 
   return allItems.filter(item => item.plans.includes(plan));
+}
+
+// ✅ FONCTION POUR OBTENIR LA HIÉRARCHIE DES PLANS
+export function getPlanHierarchy() {
+  return {
+    basic: 1,
+    pro: 2,
+    premium: 3
+  };
+}
+
+// ✅ FONCTION POUR COMPARER LES PLANS
+export function isPlanHigherOrEqual(currentPlan, requiredPlan) {
+  const hierarchy = getPlanHierarchy();
+  return (hierarchy[currentPlan] || 0) >= (hierarchy[requiredPlan] || 0);
 }

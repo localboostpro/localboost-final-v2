@@ -410,7 +410,7 @@ export default function Admin() {
                             <Store className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{business.business_name || 'Sans nom'}</p>
+                            <p className="font-bold text-slate-900">{business.name || 'Sans nom'}</p>
                             <p className="text-sm text-slate-500">{business.business_type || 'Non spécifié'}</p>
                           </div>
                         </div>

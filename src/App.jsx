@@ -27,6 +27,11 @@ export default function App() {
   // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const isAdmin = session?.user?.email === "admin@demo.fr";
+console.log("🔍 Email connecté:", session?.user?.email);
+console.log("🔐 isAdmin?", isAdmin);
+
+
   // ✅ DÉPLACER isAdmin ICI (avant fetchAllData)
   const isAdmin = session?.user?.email === "admin@demo.fr";
 

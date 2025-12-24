@@ -23,26 +23,35 @@ export default function Admin() {
 
   const fetchData = async () => {
     try {
-      // Récupérer toutes les entreprises
+      console.log('🔄 Chargement des données admin...');
+
+      // ✅ CORRIGER : Utiliser business_profile au lieu de businesses
       const { data: businessesData, error: businessesError } = await supabase
-        .from('businesses')
+        .from('business_profile')
         .select(`
           *,
           reviews(rating)
         `)
         .order('created_at', { ascending: false });
 
-      if (businessesError) throw businessesError;
+      if (businessesError) {
+        console.error('❌ Erreur Supabase:', businessesError);
+        throw businessesError;
+      }
+
+      console.log('✅ Données reçues:', businessesData);
 
       // Calculer les stats
       const totalBusinesses = businessesData?.length || 0;
+      
       const activeSubscriptions = businessesData?.filter(b => 
-        b.subscription_plan !== 'free'
+        b.plan && b.plan !== 'free' && b.subscription_status === 'active'
       ).length || 0;
 
       const totalRevenue = businessesData?.reduce((sum, b) => {
-        const price = b.subscription_plan === 'pro' ? 29 : 
-                     b.subscription_plan === 'premium' ? 99 : 0;
+        if (b.subscription_status !== 'active') return sum;
+        const price = b.plan === 'pro' ? 29 : 
+                     b.plan === 'premium' ? 99 : 0;
         return sum + price;
       }, 0) || 0;
 
@@ -61,8 +70,16 @@ export default function Admin() {
       });
 
       setBusinesses(businessesData || []);
+      
+      console.log('📊 Stats calculées:', {
+        totalBusinesses,
+        totalRevenue,
+        activeSubscriptions,
+        avgRating
+      });
+
     } catch (err) {
-      console.error('Erreur:', err);
+      console.error('❌ Erreur complète:', err);
       alert('❌ Erreur lors du chargement des données');
     } finally {
       setLoading(false);
@@ -72,13 +89,16 @@ export default function Admin() {
   const updateSubscription = async (businessId, newPlan) => {
     try {
       const { error } = await supabase
-        .from('businesses')
-        .update({ subscription_plan: newPlan })
+        .from('business_profile')
+        .update({ 
+          plan: newPlan,
+          subscription_status: 'active'
+        })
         .eq('id', businessId);
 
       if (error) throw error;
       
-      fetchData();
+      await fetchData();
       alert('✅ Forfait mis à jour avec succès');
     } catch (err) {
       console.error('Erreur:', err);
@@ -88,15 +108,17 @@ export default function Admin() {
 
   const toggleStatus = async (businessId, currentStatus) => {
     try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      
       const { error } = await supabase
-        .from('businesses')
-        .update({ is_active: !currentStatus })
+        .from('business_profile')
+        .update({ subscription_status: newStatus })
         .eq('id', businessId);
 
       if (error) throw error;
       
-      fetchData();
-      alert(`✅ Statut ${!currentStatus ? 'activé' : 'désactivé'}`);
+      await fetchData();
+      alert(`✅ Statut ${newStatus === 'active' ? 'activé' : 'désactivé'}`);
     } catch (err) {
       console.error('Erreur:', err);
       alert('❌ Erreur lors du changement de statut');
@@ -108,13 +130,13 @@ export default function Admin() {
 
     try {
       const { error } = await supabase
-        .from('businesses')
+        .from('business_profile')
         .delete()
         .eq('id', businessId);
 
       if (error) throw error;
       
-      fetchData();
+      await fetchData();
       alert('✅ Entreprise supprimée');
     } catch (err) {
       console.error('Erreur:', err);
@@ -124,7 +146,7 @@ export default function Admin() {
 
   const filteredBusinesses = businesses.filter(b => {
     if (filter === 'all') return true;
-    return b.subscription_plan === filter;
+    return b.plan === filter;
   });
 
   if (loading) {
@@ -256,7 +278,7 @@ export default function Admin() {
                           {business.name || 'Sans nom'}
                         </div>
                         <div className="text-sm text-slate-500">
-                          {business.category || 'Non défini'}
+                          {business.type || 'Non défini'}
                         </div>
                       </div>
                     </div>
@@ -268,7 +290,7 @@ export default function Admin() {
                   
                   <td className="px-6 py-4">
                     <select
-                      value={business.subscription_plan || 'free'}
+                      value={business.plan || 'free'}
                       onChange={(e) => updateSubscription(business.id, e.target.value)}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
@@ -280,14 +302,14 @@ export default function Admin() {
                   
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => toggleStatus(business.id, business.is_active)}
+                      onClick={() => toggleStatus(business.id, business.subscription_status)}
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                        business.is_active
+                        business.subscription_status === 'active'
                           ? 'bg-green-50 text-green-700'
                           : 'bg-red-50 text-red-700'
                       }`}
                     >
-                      {business.is_active ? (
+                      {business.subscription_status === 'active' ? (
                         <>
                           <CheckCircle className="w-4 h-4" />
                           Actif
@@ -302,7 +324,10 @@ export default function Admin() {
                   </td>
                   
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    {new Date(business.created_at).toLocaleDateString('fr-FR')}
+                    {business.created_at 
+                      ? new Date(business.created_at).toLocaleDateString('fr-FR')
+                      : 'N/A'
+                    }
                   </td>
                   
                   <td className="px-6 py-4">
@@ -333,4 +358,3 @@ export default function Admin() {
     </div>
   );
 }
-

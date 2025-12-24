@@ -236,7 +236,7 @@ export default function Profile({ profile, setProfile }) {
                   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                       <h3 className="font-black text-lg mb-4 text-slate-900">✨ Vos avantages</h3>
                       <ul className="space-y-3 text-sm">
-                          {planBadge.features.map((feature, idx) => (
+                          {Array.isArray(planBadge?.features) && planBadge.features.map((feature, idx) => (
                               <li key={idx} className="flex items-start gap-2">
                                   <CheckCircle size={16} className="text-green-500 mt-0.5 flex-shrink-0"/>
                                   <span className="text-slate-700">{feature}</span>
@@ -245,7 +245,6 @@ export default function Profile({ profile, setProfile }) {
                       </ul>
                   </div>
 
-              </div>
 
               {/* COLONNE DROITE : FORMULAIRE */}
               <div className="lg:col-span-2 space-y-6">
@@ -356,60 +355,61 @@ export default function Profile({ profile, setProfile }) {
                       </button>
                   </form>
 
-                  {/* HORAIRES D'OUVERTURE */}
-                  <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-                      <h3 className="font-black text-xl mb-6 flex items-center gap-2 text-slate-900">
-                          <Clock size={22} className="text-amber-500"/> Horaires d'Ouverture
-                      </h3>
+{/* HORAIRES D'OUVERTURE */}
+<div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+    <h3 className="font-black text-xl mb-6 flex items-center gap-2 text-slate-900">
+        <Clock size={22} className="text-amber-500"/> Horaires d'Ouverture
+    </h3>
 
-                      <div className="space-y-3">
-                          {hours.map((daySchedule, index) => (
-                              <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
-                                  <div className="w-28 font-bold text-sm text-slate-700">{daySchedule.day}</div>
-                                  
-                                  <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
-                                      <input 
-                                          type="checkbox" 
-                                          checked={daySchedule.closed} 
-                                          onChange={e => {
-                                              const newHours = [...hours];
-                                              newHours[index].closed = e.target.checked;
-                                              setHours(newHours);
-                                          }} 
-                                          className="rounded"
-                                      />
-                                      Fermé
-                                  </label>
+    <div className="space-y-3">
+        {Array.isArray(hours) && hours.map((daySchedule, index) => (
+            <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
+                <div className="w-28 font-bold text-sm text-slate-700">{daySchedule?.day || "Jour"}</div>
+                
+                <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        checked={daySchedule?.closed || false} 
+                        onChange={e => {
+                            const newHours = [...hours];
+                            newHours[index].closed = e.target.checked;
+                            setHours(newHours);
+                        }} 
+                        className="rounded"
+                    />
+                    Fermé
+                </label>
 
-                                  {!daySchedule.closed && (
-                                      <>
-                                          <input 
-                                              type="time" 
-                                              value={daySchedule.open} 
-                                              onChange={e => {
-                                                  const newHours = [...hours];
-                                                  newHours[index].open = e.target.value;
-                                                  setHours(newHours);
-                                              }} 
-                                              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
-                                          />
-                                          <span className="text-slate-400 font-bold">→</span>
-                                          <input 
-                                              type="time" 
-                                              value={daySchedule.close} 
-                                              onChange={e => {
-                                                  const newHours = [...hours];
-                                                  newHours[index].close = e.target.value;
-                                                  setHours(newHours);
-                                              }} 
-                                              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
-                                          />
-                                      </>
-                                  )}
-                              </div>
-                          ))}
-                      </div>
-                  </div>
+                {!daySchedule?.closed && (
+                    <>
+                        <input 
+                            type="time" 
+                            value={daySchedule?.open || ""} 
+                            onChange={e => {
+                                const newHours = [...hours];
+                                newHours[index].open = e.target.value;
+                                setHours(newHours);
+                            }} 
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
+                        />
+                        <span className="text-slate-400 font-bold">→</span>
+                        <input 
+                            type="time" 
+                            value={daySchedule?.close || ""} 
+                            onChange={e => {
+                                const newHours = [...hours];
+                                newHours[index].close = e.target.value;
+                                setHours(newHours);
+                            }} 
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
+                        />
+                    </>
+                )}
+            </div>
+        ))}
+    </div>
+</div>
+
 
                   {/* EMAIL (READ-ONLY) */}
                   <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">

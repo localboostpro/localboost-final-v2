@@ -348,20 +348,20 @@ export default function Admin() {
                         </div>
                       </td>
                       
-                      <td className="px-6 py-4">
-                        <select
-                          value={business.plan || 'basic'}
-                          onChange={(e) => updateSubscription(business.id, e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        >
-                          <option value="basic">⭐ Basic - {PLANS.basic.price}€/mois</option>
-                          <option value="pro">🌟 Pro - {PLANS.pro.price}€/mois</option>
-                          <option value="premium">💎 Premium - {PLANS.premium.price}€/mois</option>
-                        </select>
-                        <div className="text-xs text-slate-500 mt-1">
-                          💰 Prix actuel : <span className="font-bold text-slate-700">{business.subscription_price || 0}€/mois</span>
-                        </div>
-                      </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={business.plan || 'basic'}
+                        onChange={(e) => updateSubscription(business.id, e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      >
+                        <option value="basic">⭐ Basic - 29€/mois</option>
+                        <option value="pro">🌟 Pro - 59€/mois</option>
+                        <option value="premium">💎 Premium - 99€/mois</option>
+                      </select>
+                      <div className="text-xs text-slate-500 mt-1">
+                        💰 Prix actuel : <span className="font-bold text-slate-700">{business.subscription_price || 0}€/mois</span>
+                      </div>
+                    </td>
                       
                       <td className="px-6 py-4">
                         {business.subscription_status === 'active' ? (

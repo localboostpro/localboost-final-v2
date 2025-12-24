@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { PLANS, getPlanConfig, getPlanPrice, getPlanLabel } from '../lib/plans';
 import { 
   Users, Store, TrendingUp, DollarSign, Eye,
   Calendar, Star, Activity, Package, BarChart3,
@@ -39,9 +40,10 @@ export default function Admin() {
         b.plan && b.plan !== 'free' && b.subscription_status === 'active'
       ).length || 0;
 
+      // ✅ CALCUL DES REVENUS AVEC plans.js
       const totalRevenue = businessesData?.reduce((sum, b) => {
         if (b.subscription_status !== 'active') return sum;
-        const price = b.plan === 'pro' ? 29 : b.plan === 'premium' ? 99 : 0;
+        const price = getPlanPrice(b.plan);
         return sum + price;
       }, 0) || 0;
 
@@ -49,7 +51,7 @@ export default function Admin() {
         totalBusinesses,
         totalRevenue,
         activeSubscriptions,
-        avgRating: 4.2 // Placeholder
+        avgRating: 4.2
       });
 
       setBusinesses(businessesData || []);
@@ -71,22 +73,29 @@ export default function Admin() {
 
       if (error) throw error;
 
-      // Formater les données pour les graphiques
-      const formatted = data?.map(stat => ({
-        name: new Date(selectedYear, stat.month - 1).toLocaleDateString('fr-FR', { month: 'short' }),
-        revenus: stat.total_revenue || 0,
-        clients: stat.total_clients || 0,
-        avis: stat.total_reviews || 0
-      })) || [];
+      const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+      
+      // Créer un tableau avec tous les mois (même vides)
+      const formatted = Array.from({ length: 12 }, (_, i) => {
+        const monthData = data?.find(d => d.month === i + 1);
+        return {
+          name: monthNames[i],
+          revenus: monthData?.total_revenue || 0,
+          clients: monthData?.total_clients || 0,
+          avis: monthData?.total_reviews || 0
+        };
+      });
 
       setMonthlyData(formatted);
     } catch (err) {
       console.error('❌ Erreur stats:', err);
+      // Si la table n'existe pas encore, créer des données par défaut
+      const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+      setMonthlyData(monthNames.map(name => ({ name, revenus: 0, clients: 0, avis: 0 })));
     }
   };
 
   const viewAsClient = (businessId) => {
-    // Ouvrir le dashboard client dans un nouvel onglet
     window.open(`/dashboard?business_id=${businessId}`, '_blank');
   };
 
@@ -99,7 +108,7 @@ export default function Admin() {
 
       if (error) throw error;
       fetchData();
-      alert('✅ Forfait mis à jour');
+      alert(`✅ Forfait mis à jour : ${getPlanLabel(newPlan)} - ${getPlanPrice(newPlan)}€/mois`);
     } catch (err) {
       alert('❌ Erreur lors de la mise à jour');
     }
@@ -142,6 +151,25 @@ export default function Admin() {
     if (filter === 'all') return true;
     return b.plan === filter;
   });
+
+  // ✅ BADGE DE PLAN AVEC COULEURS DE plans.js
+  const PlanBadge = ({ plan }) => {
+    const config = getPlanConfig(plan);
+    const colorClasses = {
+      blue: 'bg-blue-100 text-blue-700 border-blue-200',
+      purple: 'bg-purple-100 text-purple-700 border-purple-200',
+      pink: 'bg-pink-100 text-pink-700 border-pink-200'
+    };
+
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold border-2 ${colorClasses[config.color]}`}>
+        {plan === 'basic' && '🆓'}
+        {plan === 'pro' && '⭐'}
+        {plan === 'premium' && '💎'}
+        {config.label}
+      </span>
+    );
+  };
 
   if (loading) {
     return (
@@ -243,7 +271,8 @@ export default function Admin() {
                     border: 'none', 
                     borderRadius: '8px',
                     color: '#fff'
-                  }} 
+                  }}
+                  formatter={(value) => `${value}€`}
                 />
                 <Line 
                   type="monotone" 
@@ -292,7 +321,7 @@ export default function Admin() {
               </div>
             </div>
             <div className="flex gap-2">
-              {['all', 'free', 'pro', 'premium'].map(f => (
+              {['all', 'basic', 'pro', 'premium'].map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -303,7 +332,7 @@ export default function Admin() {
                   }`}
                 >
                   {f === 'all' ? '📊 Tous' : 
-                   f === 'free' ? '🆓 Free' :
+                   f === 'basic' ? '🆓 Basic' :
                    f === 'pro' ? '⭐ Pro' : '💎 Premium'}
                 </button>
               ))}
@@ -356,15 +385,18 @@ export default function Admin() {
                     </td>
                     
                     <td className="px-6 py-4">
-                      <select
-                        value={business.plan || 'free'}
-                        onChange={(e) => updateSubscription(business.id, e.target.value)}
-                        className="px-3 py-2 rounded-lg border-2 border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      >
-                        <option value="free">🆓 Free</option>
-                        <option value="pro">⭐ Pro - 29€</option>
-                        <option value="premium">💎 Premium - 99€</option>
-                      </select>
+                      <div className="space-y-2">
+                        <PlanBadge plan={business.plan || 'basic'} />
+                        <select
+                          value={business.plan || 'basic'}
+                          onChange={(e) => updateSubscription(business.id, e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        >
+                          <option value="basic">🆓 Basic - {PLANS.basic.price}€/mois</option>
+                          <option value="pro">⭐ Pro - {PLANS.pro.price}€/mois</option>
+                          <option value="premium">💎 Premium - {PLANS.premium.price}€/mois</option>
+                        </select>
+                      </div>
                     </td>
                     
                     <td className="px-6 py-4">

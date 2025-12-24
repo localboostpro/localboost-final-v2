@@ -27,11 +27,8 @@ export default function App() {
   // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // ✅ CALCUL isAdmin (maintenant sécurisé)
+  // ✅ CALCUL isAdmin
   const isAdmin = session?.user?.email === "admin@demo.fr";
-  
-  console.log("🔍 Email connecté:", session?.user?.email);
-  console.log("🔐 isAdmin?", isAdmin);
 
   // ✅ FONCTION fetchAllData
   const fetchAllData = async (userId, email) => {
@@ -108,37 +105,26 @@ export default function App() {
     posts: posts.length 
   }), [customers, reviews, posts]);
 
-  // ✅ LOADING : Attendre que la session soit chargée
+  // ✅ LOADING
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mx-auto"></div>
+          <p className="mt-6 text-slate-600 font-semibold">Chargement de votre espace...</p>
         </div>
       </div>
     );
   }
 
-  // ✅ PAS DE SESSION : Afficher AuthForm
+  // ✅ PAS DE SESSION
   if (!session) return <AuthForm />;
 
-  // ✅ COMPOSANT PROTÉGÉ POUR ADMIN
+  // ✅ COMPOSANT PROTÉGÉ ADMIN
   const ProtectedAdmin = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        </div>
-      );
-    }
-    
     if (!isAdmin) {
-      console.log("❌ Accès refusé : email =", session?.user?.email);
       return <Navigate to="/" replace />;
     }
-    
-    console.log("✅ Accès admin autorisé");
     return <Admin />;
   };
 
@@ -215,12 +201,15 @@ export default function App() {
           <Route path="/reviews" element={<Reviews reviews={reviews} />} />
           <Route path="/customers" element={<Customers customers={customers} />} />
           <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
-          <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+          
+          {/* ✅ CORRECTION ICI : Passer user au lieu de profile */}
+          <Route 
+            path="/profile" 
+            element={<Profile user={session?.user} profile={profile} setProfile={setProfile} />} 
+          />
+          
           <Route path="/promotions" element={<Promotions />} />
-          
-          {/* ✅ ROUTE ADMIN SÉCURISÉE */}
           <Route path="/admin" element={<ProtectedAdmin />} />
-          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -132,30 +132,40 @@ export default function Profile({ user }) {
         alert("✅ Informations mises à jour avec succès !");
         
     } catch (error) { 
-        console.error("❌ Erreur:", error);
-        alert("❌ Erreur : " + error.message); 
-    } finally { 
-        setLoading(false); 
+        console.error("💥 Erreur complète:", error);
+        alert("❌ Erreur lors de la mise à jour : " + error.message);
+    } finally {
+        setLoading(false);
     }
   };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+    
     if (passData.newPassword !== passData.confirmPassword) {
-      alert("❌ Les mots de passe ne correspondent pas !");
+      alert("⚠️ Les mots de passe ne correspondent pas");
       return;
     }
+    
     if (passData.newPassword.length < 6) {
-      alert("❌ Le mot de passe doit contenir au moins 6 caractères !");
+      alert("⚠️ Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
+
     setPassLoading(true);
+
     try {
-      const { error } = await supabase.auth.updateUser({ password: passData.newPassword });
+      const { error } = await supabase.auth.updateUser({
+        password: passData.newPassword
+      });
+
       if (error) throw error;
-      alert("✅ Mot de passe modifié avec succès !");
+
       setPassData({ newPassword: "", confirmPassword: "" });
+      alert("✅ Mot de passe modifié avec succès !");
+      
     } catch (error) {
+      console.error("Erreur changement mot de passe:", error);
       alert("❌ Erreur : " + error.message);
     } finally {
       setPassLoading(false);
@@ -163,12 +173,74 @@ export default function Profile({ user }) {
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("⚠️ Voulez-vous vraiment supprimer votre compte ? Cette action est irréversible !")) return;
+    if (!window.confirm("⚠️ ATTENTION : Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.")) {
+      return;
+    }
+
+    if (!window.confirm("🚨 DERNIÈRE CONFIRMATION : Toutes vos données seront perdues définitivement. Continuer ?")) {
+      return;
+    }
+
     try {
-      const { error } = await supabase.from("business_profile").delete().eq("user_id", user.id);
+      // Supprimer le profil business
+      const { error: profileError } = await supabase
+        .from("business_profile")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (profileError) throw profileError;
+
+      // Supprimer l'utilisateur (nécessite les droits admin)
+      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
+
+      if (authError) {
+        console.error("Erreur suppression auth:", authError);
+        alert("⚠️ Profil supprimé mais erreur lors de la suppression du compte. Contactez le support.");
+      } else {
+        alert("✅ Compte supprimé avec succès");
+        await supabase.auth.signOut();
+        window.location.href = "/";
+      }
+      
+    } catch (error) {
+      console.error("Erreur suppression compte:", error);
+      alert("❌ Erreur : " + error.message);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    if (!window.confirm("🚀 Passer en Premium pour 99€/mois ?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from("business_profile")
+        .update({ plan: "premium" })
+        .eq("user_id", user.id);
+
       if (error) throw error;
-      await supabase.auth.signOut();
-      window.location.href = "/";
+
+      // Recharger le profil
+      setProfile({ ...profile, plan: "premium" });
+      alert("✅ Félicitations ! Vous êtes maintenant Premium 🎉");
+    } catch (error) {
+      alert("❌ Erreur : " + error.message);
+    }
+  };
+
+  const handleDowngrade = async () => {
+    if (!window.confirm("⚠️ Passer en Basic (gratuit) ? Vous perdrez les avantages Premium.")) return;
+    
+    try {
+      const { error } = await supabase
+        .from("business_profile")
+        .update({ plan: "basic" })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      // Recharger le profil
+      setProfile({ ...profile, plan: "basic" });
+      alert("✅ Vous êtes maintenant en forfait Basic.");
     } catch (error) {
       alert("❌ Erreur : " + error.message);
     }
@@ -176,48 +248,55 @@ export default function Profile({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
-        <div className="text-2xl font-bold">⏳ Chargement...</div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-bold">Chargement du profil...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 py-8">
+      <div className="max-w-7xl mx-auto px-4">
         
         {/* HEADER */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-black text-slate-900 mb-2">Mon Établissement</h1>
-          <p className="text-slate-500">Gérez les informations de votre profil professionnel</p>
+          <p className="text-slate-600">Gérez les informations de votre profil professionnel</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           
-          {/* COLONNE GAUCHE - INFORMATIONS GÉNÉRALES */}
+          {/* COLONNE GAUCHE : FORMULAIRE */}
           <div className="lg:col-span-2 space-y-6">
             
             {/* INFORMATIONS GÉNÉRALES */}
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg">
-              <h2 className="text-2xl font-black mb-6 flex items-center gap-2 text-slate-900">
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-lg">
+              <h2 className="font-black text-xl mb-6 flex items-center gap-2 text-slate-900">
                 <Building size={24} className="text-blue-500"/> Informations Générales
               </h2>
-
-              <form onSubmit={handleUpdate} className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
+              
+              <form onSubmit={handleUpdate} className="space-y-5">
+                <div className="grid md:grid-cols-2 gap-5">
+                  
+                  {/* NOM */}
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-2">
-                      <Building size={14}/> Nom de l'établissement
+                      <User size={14}/> Nom de l'établissement
                     </label>
                     <input 
                       type="text" 
                       required 
                       value={formData.name} 
                       onChange={e => setFormData({...formData, name: e.target.value})} 
-                      placeholder="Mon Restaurant" 
+                      placeholder="Ex: Restaurant Le Gourmet" 
                       className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                     />
                   </div>
+
+                  {/* TÉLÉPHONE */}
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-2">
                       <Phone size={14}/> Téléphone
@@ -230,22 +309,22 @@ export default function Profile({ user }) {
                       className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-2">
-                    <MapPin size={14}/> Adresse
-                  </label>
-                  <input 
-                    type="text" 
-                    value={formData.address} 
-                    onChange={e => setFormData({...formData, address: e.target.value})} 
-                    placeholder="123 Rue de la Paix" 
-                    className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
-                  />
-                </div>
+                  {/* ADRESSE */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-2">
+                      <MapPin size={14}/> Adresse
+                    </label>
+                    <input 
+                      type="text" 
+                      value={formData.address} 
+                      onChange={e => setFormData({...formData, address: e.target.value})} 
+                      placeholder="14 rue de la République" 
+                      className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
+                    />
+                  </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                  {/* VILLE */}
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2">Ville</label>
                     <input 
@@ -256,6 +335,8 @@ export default function Profile({ user }) {
                       className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                     />
                   </div>
+
+                  {/* CODE POSTAL */}
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2">Code Postal</label>
                     <input 
@@ -266,9 +347,8 @@ export default function Profile({ user }) {
                       className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                     />
                   </div>
-                </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                  {/* SITE WEB */}
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-2">
                       <Globe size={14}/> Site Web
@@ -281,75 +361,78 @@ export default function Profile({ user }) {
                       className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                     />
                   </div>
-                  <div>
+
+                  {/* SIRET */}
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-slate-500 mb-2">SIRET</label>
                     <input 
                       type="text" 
                       value={formData.siret} 
                       onChange={e => setFormData({...formData, siret: e.target.value})} 
-                      placeholder="123 456 789 00012" 
+                      placeholder="123 456 789 00010" 
                       className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                     />
                   </div>
+
                 </div>
 
                 <button 
                   type="submit" 
-                  disabled={loading} 
-                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 rounded-xl font-bold hover:shadow-xl hover:scale-[1.02] transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 rounded-xl font-bold hover:shadow-xl transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <Save size={20}/> {loading ? "Enregistrement..." : "Enregistrer les modifications"}
+                  <Save size={18}/> {loading ? "Enregistrement..." : "Enregistrer les modifications"}
                 </button>
               </form>
             </div>
 
             {/* HORAIRES D'OUVERTURE */}
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg">
-              <h3 className="text-2xl font-black mb-6 flex items-center gap-2 text-slate-900">
-                <Clock size={24} className="text-amber-500"/> Horaires d'Ouverture
-              </h3>
-
-              <div className="space-y-3">
-                {Array.isArray(hours) && hours.map((daySchedule, index) => (
-                  <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
-                    <div className="w-28 font-bold text-sm text-slate-700">{daySchedule?.day || "Jour"}</div>
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-lg">
+              <h2 className="font-black text-xl mb-6 flex items-center gap-2 text-slate-900">
+                <Clock size={24} className="text-blue-500"/> Horaires d'Ouverture
+              </h2>
+              
+              <div className="space-y-4">
+                {hours.map((day, idx) => (
+                  <div key={idx} className="flex items-center gap-4">
+                    <div className="w-28 font-bold text-sm text-slate-700">{day.day}</div>
                     
-                    <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                    <label className="flex items-center gap-2">
                       <input 
                         type="checkbox" 
-                        checked={daySchedule?.closed || false} 
+                        checked={day.closed} 
                         onChange={e => {
                           const newHours = [...hours];
-                          newHours[index].closed = e.target.checked;
+                          newHours[idx].closed = e.target.checked;
                           setHours(newHours);
                         }} 
-                        className="rounded"
+                        className="w-4 h-4 accent-rose-500"
                       />
-                      Fermé
+                      <span className="text-xs text-slate-500 font-bold">Fermé</span>
                     </label>
 
-                    {!daySchedule?.closed && (
+                    {!day.closed && (
                       <>
                         <input 
                           type="time" 
-                          value={daySchedule?.open || ""} 
+                          value={day.open} 
                           onChange={e => {
                             const newHours = [...hours];
-                            newHours[index].open = e.target.value;
+                            newHours[idx].open = e.target.value;
                             setHours(newHours);
                           }} 
-                          className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
+                          className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-blue-500"
                         />
                         <span className="text-slate-400 font-bold">→</span>
                         <input 
                           type="time" 
-                          value={daySchedule?.close || ""} 
+                          value={day.close} 
                           onChange={e => {
                             const newHours = [...hours];
-                            newHours[index].close = e.target.value;
+                            newHours[idx].close = e.target.value;
                             setHours(newHours);
                           }} 
-                          className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
+                          className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-blue-500"
                         />
                       </>
                     )}
@@ -360,7 +443,7 @@ export default function Profile({ user }) {
 
           </div>
 
-          {/* COLONNE DROITE - ABONNEMENT & SÉCURITÉ */}
+          {/* COLONNE DROITE : ABONNEMENT & SÉCURITÉ */}
           <div className="space-y-6">
 
             {/* BADGE ABONNEMENT */}
@@ -376,12 +459,18 @@ export default function Profile({ user }) {
               </div>
 
               {profile?.plan !== 'premium' && (
-                <button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-bold hover:shadow-xl transition flex items-center justify-center gap-2 mb-4">
+                <button 
+                  onClick={handleUpgrade}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-bold hover:shadow-xl transition flex items-center justify-center gap-2 mb-4"
+                >
                   <Zap size={18}/> Passer en Premium (99€/mois)
                 </button>
               )}
 
-              <button className="w-full bg-white border border-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-50 transition text-sm">
+              <button 
+                onClick={handleDowngrade}
+                className="w-full bg-white border border-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-50 transition text-sm"
+              >
                 Résilier / Passer en Basic
               </button>
             </div>

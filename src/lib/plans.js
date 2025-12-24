@@ -71,6 +71,23 @@ export function getPlanBadge(plan) {
   };
 }
 
+// ✅ FONCTION POUR OBTENIR LE PRIX D'UN PLAN
+export function getPlanPrice(planName) {
+  const plan = PLANS[planName];
+  if (!plan) return { price: "0€", value: 0 };
+  
+  return {
+    price: plan.price,
+    value: plan.priceValue
+  };
+}
+
+// ✅ FONCTION POUR OBTENIR LE LABEL D'UN PLAN
+export function getPlanLabel(planName) {
+  const plan = PLANS[planName];
+  return plan ? plan.name : 'Basic';
+}
+
 // ✅ MAPPING DES FEATURES VERS LES PLANS REQUIS
 const FEATURE_PLAN_MAP = {
   'marketingStudio': 'pro',

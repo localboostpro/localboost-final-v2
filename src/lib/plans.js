@@ -140,3 +140,9 @@ export function getAllPlans() {
 export function getPlanDetails(planKey) {
   return PLANS[planKey] || PLANS.basic;
 }
+
+// ✅ Obtenir la configuration complète d'un forfait
+export function getPlanConfig(planKey) {
+  return PLANS[planKey] || PLANS.basic;
+}
+

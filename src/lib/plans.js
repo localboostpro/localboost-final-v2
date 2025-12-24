@@ -106,10 +106,16 @@ export function getPlanBadge(planKey) {
   };
 }
 
-// ✅ Obtenir le prix d'un forfait (FONCTION MANQUANTE)
+// ✅ Obtenir le prix d'un forfait
 export function getPlanPrice(planKey) {
   const plan = PLANS[planKey] || PLANS.basic;
   return plan.price;
+}
+
+// ✅ Obtenir le label/nom d'un forfait (FONCTION MANQUANTE)
+export function getPlanLabel(planKey) {
+  const plan = PLANS[planKey] || PLANS.basic;
+  return plan.name;
 }
 
 // ✅ Obtenir le nom d'une fonctionnalité en français
@@ -128,4 +134,9 @@ export function getAllPlans() {
     id: key,
     ...plan
   }));
+}
+
+// ✅ Obtenir les détails complets d'un forfait
+export function getPlanDetails(planKey) {
+  return PLANS[planKey] || PLANS.basic;
 }

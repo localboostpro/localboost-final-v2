@@ -2,7 +2,9 @@ export const PLANS = {
   basic: {
     name: 'Basic',
     price: 29,
-    trial_days: 7,
+    trialDays: 7,
+    icon: '⭐',
+    color: 'blue',
     features: [
       'Collecte d\'avis illimitée',
       'QR Code personnalisé',
@@ -11,17 +13,20 @@ export const PLANS = {
       'Support Email + Chat'
     ],
     limits: {
-      marketing_studio: false,
-      landing_page: false,
-      ai_posts: 0
+      marketingStudio: false,
+      landingPage: false,
+      aiPosts: 0,
+      smsPerMonth: 0
     }
   },
   pro: {
     name: 'Pro',
     price: 59,
-    trial_days: 0,
+    trialDays: 0,
+    icon: '⚡',
+    color: 'purple',
     features: [
-      'Tout du Basic +',
+      'Tout du Basic',
       '🎨 Studio Marketing complet',
       'Génération posts IA illimitée',
       'Publication auto (Facebook + Instagram)',
@@ -30,45 +35,58 @@ export const PLANS = {
       'Support prioritaire'
     ],
     limits: {
-      marketing_studio: true,
-      landing_page: false,
-      ai_posts: -1 // -1 = illimité
+      marketingStudio: true,
+      landingPage: false,
+      aiPosts: -1, // -1 = illimité
+      smsPerMonth: 100
     }
   },
   premium: {
     name: 'Premium',
     price: 99,
-    trial_days: 0,
+    trialDays: 0,
+    icon: '💎',
+    color: 'indigo',
     features: [
-      'Tout du Pro +',
+      'Tout du Pro',
       '🌐 Page établissement complète',
       'Site web avec domaine personnalisé',
       'Templates premium exclusifs',
-      'Widgets personnalisés',
+      'Widgets personnalisés (horaires, menus, galerie)',
       'SEO optimisé',
       'Analytics complets',
       'Account Manager dédié'
     ],
     limits: {
-      marketing_studio: true,
-      landing_page: true,
-      ai_posts: -1
+      marketingStudio: true,
+      landingPage: true,
+      aiPosts: -1,
+      smsPerMonth: 500
     }
   }
 };
 
-// Helper pour vérifier les accès
+// Helper : Vérifier si l'utilisateur peut accéder à une fonctionnalité
 export const canAccessFeature = (userPlan, feature) => {
   const plan = PLANS[userPlan] || PLANS.basic;
-  return plan.limits[feature] === true || plan.limits[feature] === -1;
+  const limit = plan.limits[feature];
+  return limit === true || limit === -1 || (typeof limit === 'number' && limit > 0);
 };
 
-// Helper pour afficher le badge
+// Helper : Obtenir le forfait requis pour une fonctionnalité
+export const getRequiredPlan = (feature) => {
+  if (feature === 'marketingStudio') return 'pro';
+  if (feature === 'landingPage') return 'premium';
+  return 'basic';
+};
+
+// Helper : Afficher le badge du forfait
 export const getPlanBadge = (plan) => {
-  const badges = {
-    basic: { icon: '⭐', label: 'Basic', color: 'amber' },
-    pro: { icon: '⚡', label: 'Pro', color: 'blue' },
-    premium: { icon: '💎', label: 'Premium', color: 'purple' }
+  const planData = PLANS[plan] || PLANS.basic;
+  return {
+    icon: planData.icon,
+    name: planData.name,
+    color: planData.color,
+    price: planData.price
   };
-  return badges[plan] || badges.basic;
 };

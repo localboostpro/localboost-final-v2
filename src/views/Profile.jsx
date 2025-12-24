@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
-// CORRECTION : On remplace 'Image as ImageIcon' par 'FileImage' pour éviter le bug du constructeur
 import { 
   User, MapPin, Save, Upload, FileImage, 
   Phone, Globe, Building, Lock, Key, Clock, 
@@ -66,26 +65,52 @@ export default function Profile({ profile, setProfile }) {
       }
   };
 
+  // ✅ CORRECTION : Utilise 'plan' au lieu de 'subscription_tier'
   const handleUpgrade = async () => {
       if(!window.confirm("Simuler le paiement et passer en PREMIUM ?")) return;
       setSubLoading(true);
       try {
-          const { error } = await supabase.from("business_profile").update({ subscription_tier: 'premium' }).eq("id", profile.id);
+          const { error } = await supabase
+            .from("business_profile")
+            .update({ 
+              plan: 'premium',
+              subscription_price: 99,
+              subscription_status: 'active'
+            })
+            .eq("id", profile.id);
+          
           if (error) throw error;
-          setProfile({ ...profile, subscription_tier: 'premium' });
+          setProfile({ ...profile, plan: 'premium', subscription_price: 99 });
           alert("🎉 Félicitations ! Vous êtes maintenant Premium.");
-      } catch (error) { alert("Erreur : " + error.message); } finally { setSubLoading(false); }
+      } catch (error) { 
+        alert("Erreur : " + error.message); 
+      } finally { 
+        setSubLoading(false); 
+      }
   };
 
+  // ✅ CORRECTION : Utilise 'plan' au lieu de 'subscription_tier'
   const handleDowngrade = async () => {
       if(!window.confirm("Êtes-vous sûr de vouloir repasser en Basic ?")) return;
       setSubLoading(true);
       try {
-          const { error } = await supabase.from("business_profile").update({ subscription_tier: 'basic' }).eq("id", profile.id);
+          const { error } = await supabase
+            .from("business_profile")
+            .update({ 
+              plan: 'free',
+              subscription_price: 0,
+              subscription_status: 'active'
+            })
+            .eq("id", profile.id);
+          
           if (error) throw error;
-          setProfile({ ...profile, subscription_tier: 'basic' });
-          alert("Vous êtes repassé en forfait Basic.");
-      } catch (error) { alert("Erreur : " + error.message); } finally { setSubLoading(false); }
+          setProfile({ ...profile, plan: 'free', subscription_price: 0 });
+          alert("Vous êtes repassé en forfait gratuit.");
+      } catch (error) { 
+        alert("Erreur : " + error.message); 
+      } finally { 
+        setSubLoading(false); 
+      }
   };
 
   const handleUpdate = async (e) => {
@@ -94,15 +119,24 @@ export default function Profile({ profile, setProfile }) {
     try {
         const updatedConfig = { ...profile?.landing_config, hours: hours };
         const { error } = await supabase.from("business_profile").update({
-            name: formData.name, phone: formData.phone, address: formData.address,
-            city: formData.city, zip_code: formData.zip_code, website: formData.website,
-            siret: formData.siret, landing_config: updatedConfig 
+            name: formData.name, 
+            phone: formData.phone, 
+            address: formData.address,
+            city: formData.city, 
+            zip_code: formData.zip_code, 
+            website: formData.website,
+            siret: formData.siret, 
+            landing_config: updatedConfig 
         }).eq("id", profile.id);
 
         if (error) throw error;
         setProfile({ ...profile, ...formData, landing_config: updatedConfig });
         alert("✅ Informations mises à jour !");
-    } catch (error) { alert("Erreur : " + error.message); } finally { setLoading(false); }
+    } catch (error) { 
+      alert("Erreur : " + error.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const updateHour = (index, field, value) => {
@@ -121,7 +155,11 @@ export default function Profile({ profile, setProfile }) {
           if (error) throw error;
           alert("🔒 Mot de passe modifié !");
           setPassData({ newPassword: "", confirmPassword: "" });
-      } catch (error) { alert("Erreur : " + error.message); } finally { setPassLoading(false); }
+      } catch (error) { 
+        alert("Erreur : " + error.message); 
+      } finally { 
+        setPassLoading(false); 
+      }
   };
 
   const handleLogoUpload = async (e) => {
@@ -136,7 +174,31 @@ export default function Profile({ profile, setProfile }) {
           await supabase.from("business_profile").update({ logo_url: publicUrl }).eq("id", profile.id);
           setProfile({ ...profile, logo_url: publicUrl });
           alert("✅ Logo ajouté !");
-      } catch (error) { alert("Erreur upload."); } finally { setLoading(false); }
+      } catch (error) { 
+        alert("Erreur upload."); 
+      } finally { 
+        setLoading(false); 
+      }
+  };
+
+  // ✅ FONCTION POUR AFFICHER LE BADGE DU FORFAIT
+  const getPlanBadge = () => {
+    const planMap = {
+      'premium': { text: '💎 Premium', color: 'bg-indigo-600 text-white border-indigo-600' },
+      'pro': { text: '⚡ Pro', color: 'bg-purple-600 text-white border-purple-600' },
+      'basic': { text: '⭐ Basic', color: 'bg-blue-500 text-white border-blue-500' },
+      'free': { text: '🆓 Gratuit', color: 'bg-slate-100 text-slate-500 border-slate-200' }
+    };
+    
+    const plan = profile?.plan || 'free';
+    const badge = planMap[plan] || planMap['free'];
+    
+    return (
+      <div className={`px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wide border shadow-lg ${badge.color}`}>
+        {badge.text}
+        {profile?.subscription_price > 0 && ` - ${profile.subscription_price}€`}
+      </div>
+    );
   };
 
   return (
@@ -151,8 +213,8 @@ export default function Profile({ profile, setProfile }) {
              <h2 className="text-2xl font-black text-slate-900">Mon Établissement</h2>
              <p className="text-slate-500 text-sm">Gérez votre identité commerciale et vos accès.</p>
          </div>
-         <div className={`ml-auto px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wide border hidden md:block ${profile?.subscription_tier === 'premium' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-             {profile?.subscription_tier === 'premium' ? '💎 Premium' : '⭐ Basic'}
+         <div className="ml-auto hidden md:block">
+           {getPlanBadge()}
          </div>
       </div>
 
@@ -166,7 +228,6 @@ export default function Profile({ profile, setProfile }) {
                   <form onSubmit={handleUpdate} className="space-y-6">
                       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                              {/* Utilisation de FileImage ici */}
                               <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-600"><FileImage size={18}/></div>
                               <div><div className="font-bold text-slate-900 text-xs uppercase">Logo</div><div className="text-[10px] text-slate-400">JPG, PNG (Max 2Mo)</div></div>
                           </div>
@@ -229,17 +290,42 @@ export default function Profile({ profile, setProfile }) {
                   <div className="mb-6 relative z-10">
                       <div className="text-sm text-slate-400 mb-1">Forfait actuel</div>
                       <div className="text-2xl font-black flex items-center gap-2">
-                          {profile?.subscription_tier === 'premium' ? '💎 Premium' : '⭐ Basic'}
-                          {profile?.subscription_tier === 'premium' && <CheckCircle size={20} className="text-green-400"/>}
+                          {/* ✅ CORRECTION : Utilise 'plan' */}
+                          {profile?.plan === 'premium' && '💎 Premium'}
+                          {profile?.plan === 'pro' && '⚡ Pro'}
+                          {profile?.plan === 'basic' && '⭐ Basic'}
+                          {(!profile?.plan || profile?.plan === 'free') && '🆓 Gratuit'}
+                          {(profile?.plan === 'premium' || profile?.plan === 'pro') && <CheckCircle size={20} className="text-green-400"/>}
                       </div>
-                      {isTrial && profile?.subscription_tier === 'premium' && <div className="mt-2 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg inline-flex items-center gap-2"><Clock size={12}/> Essai gratuit : J-{trialDaysLeft}</div>}
-                      {!isTrial && profile?.subscription_tier === 'basic' && <div className="mt-2 text-xs font-bold text-rose-300 flex items-center gap-2"><AlertTriangle size={12}/> Essai terminé</div>}
+                      
+                      {/* Prix de l'abonnement */}
+                      {profile?.subscription_price > 0 && (
+                        <div className="mt-2 text-lg font-bold text-indigo-300">
+                          {profile.subscription_price}€/mois
+                        </div>
+                      )}
+                      
+                      {isTrial && (profile?.plan === 'premium' || profile?.plan === 'pro') && (
+                        <div className="mt-2 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg inline-flex items-center gap-2">
+                          <Clock size={12}/> Essai gratuit : J-{trialDaysLeft}
+                        </div>
+                      )}
+                      {!isTrial && (!profile?.plan || profile?.plan === 'free') && (
+                        <div className="mt-2 text-xs font-bold text-rose-300 flex items-center gap-2">
+                          <AlertTriangle size={12}/> Essai terminé
+                        </div>
+                      )}
                   </div>
                   <div className="relative z-10">
-                      {profile?.subscription_tier === 'basic' ? (
-                          <button onClick={handleUpgrade} disabled={subLoading} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-900/50">{subLoading ? "..." : "Passer Premium (99€/mois)"}</button>
+                      {/* ✅ CORRECTION : Utilise 'plan' */}
+                      {(!profile?.plan || profile?.plan === 'free' || profile?.plan === 'basic') ? (
+                          <button onClick={handleUpgrade} disabled={subLoading} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-900/50">
+                            {subLoading ? "..." : "Passer Premium (99€/mois)"}
+                          </button>
                       ) : (
-                          <button onClick={handleDowngrade} disabled={subLoading} className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition">{subLoading ? "..." : "Gérer / Résilier"}</button>
+                          <button onClick={handleDowngrade} disabled={subLoading} className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition">
+                            {subLoading ? "..." : "Résilier / Passer en Gratuit"}
+                          </button>
                       )}
                   </div>
               </div>

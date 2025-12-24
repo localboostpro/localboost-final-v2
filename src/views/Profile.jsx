@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
+import { PLANS, getPlanBadge } from "../lib/plans";
 import { 
   User, MapPin, Save, Upload, FileImage, 
   Phone, Globe, Building, Lock, Key, Clock, 
-  CreditCard, CheckCircle, AlertTriangle, Trash2
+  CreditCard, CheckCircle, AlertTriangle, Trash2,
+  Sparkles, Zap, Crown
 } from "lucide-react";
 
 export default function Profile({ profile, setProfile }) {
@@ -43,7 +45,10 @@ export default function Profile({ profile, setProfile }) {
   const diffTime = Math.abs(Date.now() - creationDate);
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
   const trialDaysLeft = 7 - diffDays;
-  const isTrial = diffDays <= 7;
+  const isTrial = diffDays <= 7 && profile?.plan === 'basic';
+
+  const currentPlan = profile?.plan || 'basic';
+  const planBadge = getPlanBadge(currentPlan);
 
   // --- SUPPRESSION DE COMPTE (RGPD) ---
   const handleDeleteAccount = async () => {
@@ -65,23 +70,25 @@ export default function Profile({ profile, setProfile }) {
       }
   };
 
-  // ✅ CORRECTION : Utilise 'plan' au lieu de 'subscription_tier'
-  const handleUpgrade = async () => {
-      if(!window.confirm("Simuler le paiement et passer en PREMIUM ?")) return;
+  // ✅ UPGRADE VERS UN FORFAIT SPÉCIFIQUE
+  const handleUpgrade = async (targetPlan) => {
+      const planData = PLANS[targetPlan];
+      if(!window.confirm(`Passer au forfait ${planData.name} (${planData.price}€/mois) ?`)) return;
+      
       setSubLoading(true);
       try {
           const { error } = await supabase
             .from("business_profile")
             .update({ 
-              plan: 'premium',
-              subscription_price: 99,
+              plan: targetPlan,
+              subscription_price: planData.price,
               subscription_status: 'active'
             })
             .eq("id", profile.id);
           
           if (error) throw error;
-          setProfile({ ...profile, plan: 'premium', subscription_price: 99 });
-          alert("🎉 Félicitations ! Vous êtes maintenant Premium.");
+          setProfile({ ...profile, plan: targetPlan, subscription_price: planData.price });
+          alert(`🎉 Félicitations ! Vous êtes maintenant ${planData.name}.`);
       } catch (error) { 
         alert("Erreur : " + error.message); 
       } finally { 
@@ -89,23 +96,23 @@ export default function Profile({ profile, setProfile }) {
       }
   };
 
-  // ✅ CORRECTION : Utilise 'plan' au lieu de 'subscription_tier'
+  // ✅ DOWNGRADE / ANNULATION
   const handleDowngrade = async () => {
-      if(!window.confirm("Êtes-vous sûr de vouloir repasser en Basic ?")) return;
+      if(!window.confirm("Êtes-vous sûr de vouloir repasser en Basic (29€/mois) ?")) return;
       setSubLoading(true);
       try {
           const { error } = await supabase
             .from("business_profile")
             .update({ 
-              plan: 'free',
-              subscription_price: 0,
+              plan: 'basic',
+              subscription_price: 29,
               subscription_status: 'active'
             })
             .eq("id", profile.id);
           
           if (error) throw error;
-          setProfile({ ...profile, plan: 'free', subscription_price: 0 });
-          alert("Vous êtes repassé en forfait gratuit.");
+          setProfile({ ...profile, plan: 'basic', subscription_price: 29 });
+          alert("Vous êtes repassé en forfait Basic.");
       } catch (error) { 
         alert("Erreur : " + error.message); 
       } finally { 
@@ -181,26 +188,6 @@ export default function Profile({ profile, setProfile }) {
       }
   };
 
-  // ✅ FONCTION POUR AFFICHER LE BADGE DU FORFAIT
-  const getPlanBadge = () => {
-    const planMap = {
-      'premium': { text: '💎 Premium', color: 'bg-indigo-600 text-white border-indigo-600' },
-      'pro': { text: '⚡ Pro', color: 'bg-purple-600 text-white border-purple-600' },
-      'basic': { text: '⭐ Basic', color: 'bg-blue-500 text-white border-blue-500' },
-      'free': { text: '🆓 Gratuit', color: 'bg-slate-100 text-slate-500 border-slate-200' }
-    };
-    
-    const plan = profile?.plan || 'free';
-    const badge = planMap[plan] || planMap['free'];
-    
-    return (
-      <div className={`px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wide border shadow-lg ${badge.color}`}>
-        {badge.text}
-        {profile?.subscription_price > 0 && ` - ${profile.subscription_price}€`}
-      </div>
-    );
-  };
-
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       
@@ -214,7 +201,14 @@ export default function Profile({ profile, setProfile }) {
              <p className="text-slate-500 text-sm">Gérez votre identité commerciale et vos accès.</p>
          </div>
          <div className="ml-auto hidden md:block">
-           {getPlanBadge()}
+           <div className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 bg-gradient-to-r ${
+             planBadge.color === 'blue' ? 'from-blue-500 to-blue-600' :
+             planBadge.color === 'purple' ? 'from-purple-500 to-purple-600' :
+             'from-indigo-500 to-purple-600'
+           } text-white shadow-lg`}>
+             <span>{planBadge.icon}</span>
+             <span>{planBadge.label}</span>
+           </div>
          </div>
       </div>
 
@@ -284,49 +278,105 @@ export default function Profile({ profile, setProfile }) {
           <div className="space-y-6">
               
               {/* ABONNEMENT */}
-              <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
+              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-6 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl"></div>
-                  <h3 className="font-black text-lg mb-4 flex items-center gap-2 relative z-10"><CreditCard size={20} className="text-indigo-400"/> Mon Abonnement</h3>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl"></div>
+                  
+                  <h3 className="font-black text-lg mb-4 flex items-center gap-2 relative z-10">
+                    <CreditCard size={20} className="text-indigo-400"/> Mon Abonnement
+                  </h3>
+                  
                   <div className="mb-6 relative z-10">
                       <div className="text-sm text-slate-400 mb-1">Forfait actuel</div>
-                      <div className="text-2xl font-black flex items-center gap-2">
-                          {/* ✅ CORRECTION : Utilise 'plan' */}
-                          {profile?.plan === 'premium' && '💎 Premium'}
-                          {profile?.plan === 'pro' && '⚡ Pro'}
-                          {profile?.plan === 'basic' && '⭐ Basic'}
-                          {(!profile?.plan || profile?.plan === 'free') && '🆓 Gratuit'}
-                          {(profile?.plan === 'premium' || profile?.plan === 'pro') && <CheckCircle size={20} className="text-green-400"/>}
+                      <div className="text-3xl font-black flex items-center gap-3 mb-2">
+                          <span>{planBadge.icon}</span>
+                          <span>{planBadge.label}</span>
+                          {currentPlan !== 'basic' && <CheckCircle size={24} className="text-green-400"/>}
                       </div>
                       
                       {/* Prix de l'abonnement */}
                       {profile?.subscription_price > 0 && (
-                        <div className="mt-2 text-lg font-bold text-indigo-300">
-                          {profile.subscription_price}€/mois
+                        <div className="text-2xl font-bold text-indigo-300 mb-3">
+                          {profile.subscription_price}€<span className="text-sm text-slate-400">/mois</span>
                         </div>
                       )}
                       
-                      {isTrial && (profile?.plan === 'premium' || profile?.plan === 'pro') && (
-                        <div className="mt-2 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg inline-flex items-center gap-2">
+                      {/* Badge essai gratuit */}
+                      {isTrial && (
+                        <div className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg inline-flex items-center gap-2">
                           <Clock size={12}/> Essai gratuit : J-{trialDaysLeft}
                         </div>
                       )}
-                      {!isTrial && (!profile?.plan || profile?.plan === 'free') && (
-                        <div className="mt-2 text-xs font-bold text-rose-300 flex items-center gap-2">
-                          <AlertTriangle size={12}/> Essai terminé
-                        </div>
-                      )}
                   </div>
-                  <div className="relative z-10">
-                      {/* ✅ CORRECTION : Utilise 'plan' */}
-                      {(!profile?.plan || profile?.plan === 'free' || profile?.plan === 'basic') ? (
-                          <button onClick={handleUpgrade} disabled={subLoading} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-900/50">
-                            {subLoading ? "..." : "Passer Premium (99€/mois)"}
-                          </button>
-                      ) : (
-                          <button onClick={handleDowngrade} disabled={subLoading} className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition">
-                            {subLoading ? "..." : "Résilier / Passer en Gratuit"}
-                          </button>
-                      )}
+                  
+                  {/* Boutons d'upgrade */}
+                  <div className="relative z-10 space-y-3">
+                    {/* Si Basic → Proposer Pro + Premium */}
+                    {currentPlan === 'basic' && (
+                      <>
+                        <button 
+                          onClick={() => handleUpgrade('premium')} 
+                          disabled={subLoading}
+                          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <Crown size={18} />
+                          💎 Passer Premium - 99€/mois
+                        </button>
+                        <button 
+                          onClick={() => handleUpgrade('pro')} 
+                          disabled={subLoading}
+                          className="w-full bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <Zap size={18} />
+                          ⚡ Passer Pro - 59€/mois
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Si Pro → Proposer Premium */}
+                    {currentPlan === 'pro' && (
+                      <>
+                        <button 
+                          onClick={() => handleUpgrade('premium')} 
+                          disabled={subLoading}
+                          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <Crown size={18} />
+                          💎 Passer Premium - 99€/mois
+                        </button>
+                        <button 
+                          onClick={handleDowngrade} 
+                          disabled={subLoading}
+                          className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition"
+                        >
+                          Résilier / Passer en Basic
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Si Premium → Proposer downgrade */}
+                    {currentPlan === 'premium' && (
+                      <button 
+                        onClick={handleDowngrade} 
+                        disabled={subLoading}
+                        className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition"
+                      >
+                        Résilier / Passer en Basic
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Détails des fonctionnalités */}
+                  <div className="mt-6 pt-6 border-t border-white/10 relative z-10">
+                    <div className="text-xs text-slate-300 space-y-2">
+                      <div className="font-bold mb-3">Votre forfait inclut :</div>
+                      {PLANS[currentPlan].features.map((feature, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <CheckCircle size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>{feature}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
               </div>
 

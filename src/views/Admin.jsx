@@ -140,30 +140,48 @@ export default function Admin() {
     }
   };
 
-  const updateSubscription = async (businessId, newPlan) => {
-    try {
-      const price = getPlanPrice(newPlan);
-      
-      const { error } = await supabase
-        .from('business_profile')
-        .update({ 
-          plan: newPlan,
-          subscription_price: price,
-          subscription_status: 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', businessId);
-
-      if (error) throw error;
-      
-      await fetchData();
-      alert(`✅ Forfait mis à jour : ${getPlanLabel(newPlan)} - ${price}€/mois`);
-      
-    } catch (err) {
-      console.error('❌ Erreur:', err);
-      alert('❌ Erreur lors de la mise à jour du forfait');
+const updateSubscription = async (businessId, newPlan) => {
+  try {
+    console.log('🔄 Mise à jour forfait:', { businessId, newPlan });
+    
+    // Récupérer le prix du nouveau plan
+    const price = getPlanPrice(newPlan);
+    console.log('💰 Prix du plan:', price);
+    
+    // Vérifier que le businessId existe
+    if (!businessId) {
+      throw new Error('ID entreprise manquant');
     }
-  };
+
+    // Mise à jour dans Supabase
+    const { data, error } = await supabase
+      .from('business_profile')
+      .update({ 
+        plan: newPlan,
+        subscription_price: price,
+        subscription_status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', businessId)
+      .select();
+
+    if (error) {
+      console.error('❌ Erreur Supabase:', error);
+      throw error;
+    }
+
+    console.log('✅ Mise à jour réussie:', data);
+    
+    // Recharger les données
+    await fetchData();
+    
+    alert(`✅ Forfait mis à jour : ${getPlanLabel(newPlan)} - ${price}€/mois`);
+    
+  } catch (err) {
+    console.error('❌ Erreur complète:', err);
+    alert(`❌ Erreur : ${err.message}`);
+  }
+};
 
   const deleteBusiness = async (businessId) => {
     if (!confirm('⚠️ Voulez-vous vraiment supprimer cette entreprise ?')) return;

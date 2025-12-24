@@ -1,3 +1,5 @@
+// src/lib/plans.js
+
 export const PLANS = {
   basic: {
     name: 'Basic',
@@ -52,41 +54,72 @@ export const PLANS = {
       '🌐 Page établissement complète',
       'Site web avec domaine personnalisé',
       'Templates premium exclusifs',
-      'Widgets personnalisés (horaires, menus, galerie)',
-      'SEO optimisé',
-      'Analytics complets',
-      'Account Manager dédié'
+      'Widgets personnalisés (horaires, menus, galeries)',
+      'SEO optimisé + Analytics Google',
+      'SMS illimités',
+      'Support VIP 24/7'
     ],
     limits: {
       marketingStudio: true,
       landingPage: true,
       aiPosts: -1,
-      smsPerMonth: 500
+      smsPerMonth: -1 // -1 = illimité
     }
   }
 };
 
-// Helper : Vérifier si l'utilisateur peut accéder à une fonctionnalité
-export const canAccessFeature = (userPlan, feature) => {
+// ✅ Vérifier si un utilisateur peut accéder à une fonctionnalité
+export function canAccessFeature(userPlan, feature) {
   const plan = PLANS[userPlan] || PLANS.basic;
-  const limit = plan.limits[feature];
-  return limit === true || limit === -1 || (typeof limit === 'number' && limit > 0);
-};
+  
+  switch(feature) {
+    case 'marketingStudio':
+      return plan.limits.marketingStudio;
+    case 'landingPage':
+      return plan.limits.landingPage;
+    case 'aiPosts':
+      return plan.limits.aiPosts !== 0;
+    default:
+      return true; // Fonctionnalités de base accessibles à tous
+  }
+}
 
-// Helper : Obtenir le forfait requis pour une fonctionnalité
-export const getRequiredPlan = (feature) => {
-  if (feature === 'marketingStudio') return 'pro';
-  if (feature === 'landingPage') return 'premium';
-  return 'basic';
-};
+// ✅ Obtenir le forfait requis pour une fonctionnalité
+export function getRequiredPlan(feature) {
+  switch(feature) {
+    case 'marketingStudio':
+      return 'pro';
+    case 'landingPage':
+      return 'premium';
+    default:
+      return 'basic';
+  }
+}
 
-// Helper : Afficher le badge du forfait
-export const getPlanBadge = (plan) => {
-  const planData = PLANS[plan] || PLANS.basic;
+// ✅ Obtenir le badge visuel d'un forfait
+export function getPlanBadge(planKey) {
+  const plan = PLANS[planKey] || PLANS.basic;
   return {
-    icon: planData.icon,
-    name: planData.name,
-    color: planData.color,
-    price: planData.price
+    label: plan.name,
+    icon: plan.icon,
+    color: plan.color
   };
-};
+}
+
+// ✅ Obtenir le nom d'une fonctionnalité en français
+export function getFeatureName(feature) {
+  const names = {
+    'marketingStudio': 'Studio Marketing',
+    'landingPage': 'Page Établissement',
+    'aiPosts': 'Posts IA illimités'
+  };
+  return names[feature] || feature;
+}
+
+// ✅ Obtenir tous les forfaits (pour affichage de pricing)
+export function getAllPlans() {
+  return Object.entries(PLANS).map(([key, plan]) => ({
+    id: key,
+    ...plan
+  }));
+}

@@ -15,7 +15,7 @@ export default function Admin() {
     avgRating: 0
   });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, free, pro, premium
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     fetchData();
@@ -23,15 +23,12 @@ export default function Admin() {
 
   const fetchData = async () => {
     try {
-      console.log('🔄 Chargement des données admin...');
+      console.log('🔄 Chargement des entreprises...');
 
-      // ✅ CORRIGER : Utiliser business_profile au lieu de businesses
+      // ✅ UTILISER business_profile (ta vraie table)
       const { data: businessesData, error: businessesError } = await supabase
         .from('business_profile')
-        .select(`
-          *,
-          reviews(rating)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (businessesError) {
@@ -55,29 +52,15 @@ export default function Admin() {
         return sum + price;
       }, 0) || 0;
 
-      const avgRating = businessesData?.reduce((sum, b) => {
-        const avg = b.reviews?.length > 0 
-          ? b.reviews.reduce((s, r) => s + r.rating, 0) / b.reviews.length 
-          : 0;
-        return sum + avg;
-      }, 0) / (businessesData?.length || 1) || 0;
-
       setStats({
         totalBusinesses,
         totalRevenue,
         activeSubscriptions,
-        avgRating
+        avgRating: 0 // Pas de reviews pour l'instant
       });
 
       setBusinesses(businessesData || []);
       
-      console.log('📊 Stats calculées:', {
-        totalBusinesses,
-        totalRevenue,
-        activeSubscriptions,
-        avgRating
-      });
-
     } catch (err) {
       console.error('❌ Erreur complète:', err);
       alert('❌ Erreur lors du chargement des données');
@@ -90,15 +73,12 @@ export default function Admin() {
     try {
       const { error } = await supabase
         .from('business_profile')
-        .update({ 
-          plan: newPlan,
-          subscription_status: 'active'
-        })
+        .update({ plan: newPlan })
         .eq('id', businessId);
 
       if (error) throw error;
       
-      await fetchData();
+      fetchData();
       alert('✅ Forfait mis à jour avec succès');
     } catch (err) {
       console.error('Erreur:', err);
@@ -107,9 +87,9 @@ export default function Admin() {
   };
 
   const toggleStatus = async (businessId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    
     try {
-      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      
       const { error } = await supabase
         .from('business_profile')
         .update({ subscription_status: newStatus })
@@ -117,17 +97,17 @@ export default function Admin() {
 
       if (error) throw error;
       
-      await fetchData();
-      alert(`✅ Statut ${newStatus === 'active' ? 'activé' : 'désactivé'}`);
+      fetchData();
+      alert('✅ Statut mis à jour');
     } catch (err) {
       console.error('Erreur:', err);
-      alert('❌ Erreur lors du changement de statut');
+      alert('❌ Erreur lors de la mise à jour du statut');
     }
   };
 
   const deleteBusiness = async (businessId) => {
-    if (!confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette entreprise ?')) return;
-
+    if (!confirm('⚠️ Supprimer définitivement cette entreprise ?')) return;
+    
     try {
       const { error } = await supabase
         .from('business_profile')
@@ -136,7 +116,7 @@ export default function Admin() {
 
       if (error) throw error;
       
-      await fetchData();
+      fetchData();
       alert('✅ Entreprise supprimée');
     } catch (err) {
       console.error('Erreur:', err);
@@ -151,141 +131,122 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Chargement...</p>
+          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Chargement...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">🔐 Administration</h1>
-          <p className="text-slate-600 mt-1">Gérez toutes les entreprises inscrites</p>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* En-tête */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          📊 Administration
+        </h1>
+        <p className="text-slate-600 mt-2">
+          Gérez toutes les entreprises inscrites
+        </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-slate-600 text-sm">Total Entreprises</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalBusinesses}</p>
-            </div>
-            <div className="bg-indigo-50 p-3 rounded-lg">
-              <Store className="w-6 h-6 text-indigo-600" />
-            </div>
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-slate-600">Total Entreprises</h3>
+            <Store className="w-5 h-5 text-indigo-600" />
           </div>
+          <p className="text-3xl font-bold text-slate-900">{stats.totalBusinesses}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-slate-600 text-sm">Abonnements Actifs</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">{stats.activeSubscriptions}</p>
-            </div>
-            <div className="bg-green-50 p-3 rounded-lg">
-              <Users className="w-6 h-6 text-green-600" />
-            </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-slate-600">Abonnements Actifs</h3>
+            <Users className="w-5 h-5 text-green-600" />
           </div>
+          <p className="text-3xl font-bold text-slate-900">{stats.activeSubscriptions}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-slate-600 text-sm">Revenu Mensuel</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalRevenue}€</p>
-            </div>
-            <div className="bg-purple-50 p-3 rounded-lg">
-              <DollarSign className="w-6 h-6 text-purple-600" />
-            </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-slate-600">Revenu Mensuel</h3>
+            <DollarSign className="w-5 h-5 text-purple-600" />
           </div>
+          <p className="text-3xl font-bold text-slate-900">{stats.totalRevenue}€</p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-slate-600 text-sm">Note Moyenne</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">{stats.avgRating.toFixed(1)}</p>
-            </div>
-            <div className="bg-yellow-50 p-3 rounded-lg">
-              <Star className="w-6 h-6 text-yellow-600" />
-            </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-slate-600">Note Moyenne</h3>
+            <Star className="w-5 h-5 text-yellow-500" />
           </div>
+          <p className="text-3xl font-bold text-slate-900">{stats.avgRating.toFixed(1)}</p>
         </div>
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-2">
-        {['all', 'free', 'pro', 'premium'].map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              filter === f
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            {f === 'all' ? 'Tous' : f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
+        <div className="flex gap-2 p-4 border-b border-slate-200">
+          {['all', 'free', 'pro', 'premium'].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                filter === f
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {f === 'all' ? 'Tous' : f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Tableau */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">
                   Entreprise
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">
+                  Type
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">
                   Email
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">
                   Forfait
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">
                   Statut
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">
                   Inscription
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredBusinesses.map(business => (
+            <tbody className="divide-y divide-slate-100">
+              {filteredBusinesses.map((business) => (
                 <tr key={business.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                        <Store className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          {business.name || 'Sans nom'}
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          {business.type || 'Non défini'}
-                        </div>
-                      </div>
-                    </div>
+                    <div className="font-medium text-slate-900">{business.name || 'Sans nom'}</div>
+                    <div className="text-sm text-slate-500">{business.city || 'Ville inconnue'}</div>
                   </td>
                   
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    {business.email || 'N/A'}
+                    {business.type || 'Non spécifié'}
+                  </td>
+                  
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    {business.email || 'Non renseigné'}
                   </td>
                   
                   <td className="px-6 py-4">

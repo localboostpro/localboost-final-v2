@@ -56,5 +56,5 @@ export function useBusinessProfile(userId) {
 
   }, [userId]);
 
-  return { profile, loading, refetch: () => fetchProfile() };
+  return { profile, loading };
 }

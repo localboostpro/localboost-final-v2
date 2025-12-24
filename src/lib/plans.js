@@ -43,6 +43,7 @@ export const PLANS = {
   }
 };
 
+// ✅ FONCTION POUR OBTENIR LE BADGE DU PLAN
 export function getPlanBadge(plan) {
   const planData = PLANS[plan] || PLANS.basic;
   
@@ -60,6 +61,7 @@ export function getPlanBadge(plan) {
   
   return {
     label: planData.name,
+    name: planData.name,
     price: planData.price,
     priceValue: planData.priceValue,
     features: planData.features || [],
@@ -69,28 +71,53 @@ export function getPlanBadge(plan) {
   };
 }
 
-export function hasFeature(plan, feature) {
-  const hierarchy = {
-    basic: ['basic'],
-    pro: ['basic', 'pro'],
-    premium: ['basic', 'pro', 'premium']
+// ✅ MAPPING DES FEATURES VERS LES PLANS REQUIS
+const FEATURE_PLAN_MAP = {
+  'marketingStudio': 'pro',
+  'landingPage': 'premium',
+  'phoneCenter': 'premium',
+  'advancedAnalytics': 'pro',
+  'smsAutomation': 'pro',
+  'apiAccess': 'premium',
+  'customDomain': 'premium'
+};
+
+// ✅ FONCTION POUR VÉRIFIER SI UN UTILISATEUR PEUT ACCÉDER À UNE FEATURE
+export function canAccessFeature(userPlan, feature) {
+  const planHierarchy = {
+    basic: 1,
+    pro: 2,
+    premium: 3
   };
   
-  return hierarchy[plan]?.includes(feature) || false;
-}
-
-// ✅ FONCTION POUR VÉRIFIER L'ACCÈS AUX FONCTIONNALITÉS
-export function canAccessFeature(plan, feature) {
-  const features = {
-    basic: ['dashboard', 'profile', 'reviews', 'collect-reviews'],
-    pro: ['dashboard', 'profile', 'reviews', 'collect-reviews', 'marketing', 'offers'],
-    premium: ['dashboard', 'profile', 'reviews', 'collect-reviews', 'marketing', 'offers', 'establishment-page', 'phone-center']
-  };
+  const requiredPlan = FEATURE_PLAN_MAP[feature] || 'basic';
+  const userLevel = planHierarchy[userPlan] || 0;
+  const requiredLevel = planHierarchy[requiredPlan] || 0;
   
-  return features[plan]?.includes(feature) || false;
+  return userLevel >= requiredLevel;
 }
 
-// ✅ FONCTION POUR OBTENIR LES ÉLÉMENTS DU MENU
+// ✅ FONCTION POUR OBTENIR LE PLAN REQUIS POUR UNE FEATURE
+export function getRequiredPlan(feature) {
+  return FEATURE_PLAN_MAP[feature] || 'basic';
+}
+
+// ✅ FONCTION POUR OBTENIR LA HIÉRARCHIE DES PLANS
+export function getPlanHierarchy() {
+  return {
+    basic: 1,
+    pro: 2,
+    premium: 3
+  };
+}
+
+// ✅ FONCTION POUR COMPARER LES PLANS
+export function isPlanHigherOrEqual(currentPlan, requiredPlan) {
+  const hierarchy = getPlanHierarchy();
+  return (hierarchy[currentPlan] || 0) >= (hierarchy[requiredPlan] || 0);
+}
+
+// ✅ FONCTION POUR OBTENIR LES ÉLÉMENTS DU MENU EN FONCTION DU PLAN
 export function getMenuItems(plan) {
   const allItems = [
     {
@@ -124,7 +151,7 @@ export function getMenuItems(plan) {
       plans: ["pro", "premium"]
     },
     {
-      path: "/establishment-page",
+      path: "/website",
       label: "Ma Vitrine Web",
       icon: "Globe",
       plans: ["premium"]
@@ -144,19 +171,4 @@ export function getMenuItems(plan) {
   ];
 
   return allItems.filter(item => item.plans.includes(plan));
-}
-
-// ✅ FONCTION POUR OBTENIR LA HIÉRARCHIE DES PLANS
-export function getPlanHierarchy() {
-  return {
-    basic: 1,
-    pro: 2,
-    premium: 3
-  };
-}
-
-// ✅ FONCTION POUR COMPARER LES PLANS
-export function isPlanHigherOrEqual(currentPlan, requiredPlan) {
-  const hierarchy = getPlanHierarchy();
-  return (hierarchy[currentPlan] || 0) >= (hierarchy[requiredPlan] || 0);
 }

@@ -27,13 +27,11 @@ export default function App() {
   // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // ✅ CALCUL isAdmin AVEC DEBUG
+  // ✅ CALCUL isAdmin (maintenant sécurisé)
   const isAdmin = session?.user?.email === "admin@demo.fr";
   
-  // 🔍 CONSOLE.LOG DEBUG
   console.log("🔍 Email connecté:", session?.user?.email);
   console.log("🔐 isAdmin?", isAdmin);
-  console.log("👤 Session complète:", session);
 
   // ✅ FONCTION fetchAllData
   const fetchAllData = async (userId, email) => {
@@ -110,6 +108,7 @@ export default function App() {
     posts: posts.length 
   }), [customers, reviews, posts]);
 
+  // ✅ LOADING : Attendre que la session soit chargée
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -121,7 +120,27 @@ export default function App() {
     );
   }
 
+  // ✅ PAS DE SESSION : Afficher AuthForm
   if (!session) return <AuthForm />;
+
+  // ✅ COMPOSANT PROTÉGÉ POUR ADMIN
+  const ProtectedAdmin = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      );
+    }
+    
+    if (!isAdmin) {
+      console.log("❌ Accès refusé : email =", session?.user?.email);
+      return <Navigate to="/" replace />;
+    }
+    
+    console.log("✅ Accès admin autorisé");
+    return <Admin />;
+  };
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
@@ -199,11 +218,8 @@ export default function App() {
           <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
           <Route path="/promotions" element={<Promotions />} />
           
-          {/* ✅ ROUTE ADMIN PROTÉGÉE */}
-          <Route 
-            path="/admin" 
-            element={isAdmin ? <Admin /> : <Navigate to="/" replace />} 
-          />
+          {/* ✅ ROUTE ADMIN SÉCURISÉE */}
+          <Route path="/admin" element={<ProtectedAdmin />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { PLANS, getPlanConfig, getPlanPrice, getPlanLabel } from '../lib/plans';
+import { getPlanPrice, getPlanLabel } from '../lib/plans';
 import { 
   Users, Store, TrendingUp, DollarSign, Eye,
   Calendar, Star, Activity, Package, BarChart3,
@@ -21,34 +21,22 @@ export default function Admin() {
   const [filter, setFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
+  // ✅ CHARGE UNE SEULE FOIS AU MONTAGE
   useEffect(() => {
     fetchData();
-    
-    // Écoute temps réel
-    const channel = supabase
-      .channel('admin-businesses')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'business_profile'
-        },
-        (payload) => {
-          console.log('🔄 Changement détecté:', payload);
-          fetchData();
-        }
-      )
-      .subscribe();
+  }, []); // ← Dépendances vides = 1 seul chargement
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+  // ✅ RECHARGE UNIQUEMENT SI L'ANNÉE CHANGE
+  useEffect(() => {
+    if (!loading) {
+      fetchMonthlyData();
+    }
   }, [selectedYear]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('📊 Chargement des entreprises...');
 
       // Récupérer toutes les entreprises
       const { data: businessData, error: businessError } = await supabase
@@ -58,6 +46,7 @@ export default function Admin() {
 
       if (businessError) throw businessError;
 
+      console.log('✅ Entreprises chargées:', businessData?.length);
       setBusinesses(businessData || []);
 
       // Calcul des stats
@@ -83,7 +72,7 @@ export default function Admin() {
       await fetchMonthlyData();
 
     } catch (error) {
-      console.error('❌ Erreur:', error);
+      console.error('❌ Erreur Admin:', error);
     } finally {
       setLoading(false);
     }
@@ -91,6 +80,8 @@ export default function Admin() {
 
   const fetchMonthlyData = async () => {
     try {
+      console.log(`📅 Chargement données ${selectedYear}...`);
+      
       const startDate = new Date(selectedYear, 0, 1).toISOString();
       const endDate = new Date(selectedYear, 11, 31, 23, 59, 59).toISOString();
 
@@ -134,57 +125,55 @@ export default function Admin() {
         };
       });
 
+      console.log('✅ Données mensuelles:', monthlyStats);
       setMonthlyData(monthlyStats);
     } catch (error) {
       console.error('❌ Erreur monthly data:', error);
     }
   };
 
-const updateSubscription = async (businessId, newPlan) => {
-  try {
-    console.log('🔄 Mise à jour forfait:', { businessId, newPlan });
-    
-    // ⚠️ IMPORTANT : Convertir en minuscule pour correspondre à plans.js
-    const planKey = newPlan.toLowerCase(); // "Pro" → "pro"
-    const price = getPlanPrice(planKey);
-    const label = getPlanLabel(planKey);
-    
-    console.log('💰 Prix du plan:', { planKey, price, label });
-    
-    if (!businessId) {
-      throw new Error('ID entreprise manquant');
+  const updateSubscription = async (businessId, newPlan) => {
+    try {
+      console.log('🔄 Mise à jour forfait:', { businessId, newPlan });
+      
+      const planKey = newPlan.toLowerCase();
+      const price = getPlanPrice(planKey);
+      const label = getPlanLabel(planKey);
+      
+      console.log('💰 Nouveau plan:', { planKey, price, label });
+      
+      if (!businessId) {
+        throw new Error('ID entreprise manquant');
+      }
+
+      const { data, error } = await supabase
+        .from('business_profile')
+        .update({ 
+          plan: planKey,
+          subscription_price: price.value || price,
+          subscription_status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', businessId)
+        .select();
+
+      if (error) {
+        console.error('❌ Erreur Supabase:', error);
+        throw error;
+      }
+
+      console.log('✅ Mise à jour réussie:', data);
+      
+      // Recharger UNIQUEMENT les données (pas de boucle)
+      await fetchData();
+      
+      alert(`✅ Forfait mis à jour : ${label} - ${price.value || price}€/mois`);
+      
+    } catch (err) {
+      console.error('❌ Erreur complète:', err);
+      alert(`❌ Erreur : ${err.message}`);
     }
-
-    // Mise à jour dans Supabase
-    const { data, error } = await supabase
-      .from('business_profile')
-      .update({ 
-        plan: planKey,  // ← stocke "pro", "basic", "premium" en minuscule
-        subscription_price: price,
-        subscription_status: 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', businessId)
-      .select();
-
-    if (error) {
-      console.error('❌ Erreur Supabase:', error);
-      throw error;
-    }
-
-    console.log('✅ Mise à jour réussie:', data);
-    
-    // Recharger les données
-    await fetchData();
-    
-    alert(`✅ Forfait mis à jour : ${label} - ${price}€/mois`);
-    
-  } catch (err) {
-    console.error('❌ Erreur complète:', err);
-    alert(`❌ Erreur : ${err.message}`);
-  }
-};
-
+  };
 
   const deleteBusiness = async (businessId) => {
     if (!confirm('⚠️ Voulez-vous vraiment supprimer cette entreprise ?')) return;
@@ -438,6 +427,7 @@ const updateSubscription = async (businessId, newPlan) => {
               <tbody className="divide-y divide-slate-100">
                 {filteredBusinesses.map((business) => {
                   const isInactive = business.subscription_status === 'inactive';
+                  const currentPrice = getPlanPrice(business.plan || 'basic');
 
                   return (
                     <tr 
@@ -449,7 +439,7 @@ const updateSubscription = async (businessId, newPlan) => {
                       {/* ENTREPRISE */}
                       <td className="px-6 py-4">
                         <p className="font-bold text-slate-900">{business.name || 'Sans nom'}</p>
-                        <p className="text-sm text-slate-500">Non spécifié</p>
+                        <p className="text-sm text-slate-500">ID: {business.id.substring(0, 8)}</p>
                       </td>
 
                       {/* CONTACT */}
@@ -461,19 +451,18 @@ const updateSubscription = async (businessId, newPlan) => {
                       {/* FORFAIT */}
                       <td className="px-6 py-4">
                         <select
-                      value={business.plan || 'basic'}  // ← valeur en minuscule
-                      onChange={(e) => updateSubscription(business.id, e.target.value)}
-                      className="px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all">
-                      <option value="basic">⭐ Basic - 29€/mois</option>
-                      <option value="pro">🌟 Pro - 59€/mois</option>
-                      <option value="premium">💎 Premium - 99€/mois</option>
-                    </select>
-                    
-                    {/* Affichage du prix actuel */}
-                    <div className="text-xs text-slate-500 mt-1">
-                      💰 Prix actuel: {business.subscription_price || getPlanPrice(business.plan || 'basic')}€/mois
-                    </div>
-
+                          value={business.plan || 'basic'}
+                          onChange={(e) => updateSubscription(business.id, e.target.value)}
+                          className="px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+                        >
+                          <option value="basic">⭐ Basic</option>
+                          <option value="pro">🌟 Pro - 59€/mois</option>
+                          <option value="premium">💎 Premium - 99€/mois</option>
+                        </select>
+                        
+                        <div className="text-xs text-slate-500 mt-1">
+                          💰 {currentPrice.value || currentPrice}€/mois
+                        </div>
                       </td>
 
                       {/* STATUT */}

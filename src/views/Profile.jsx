@@ -104,7 +104,7 @@ export default function Profile({ profile, setProfile }) {
       const logoUrl = await uploadLogo();
 
       const { error } = await supabase
-        .from("business_profiles")
+        .from("business_profile")
         .update({
           ...formData,
           opening_hours: openingHours,
@@ -171,7 +171,7 @@ export default function Profile({ profile, setProfile }) {
     try {
       // Supprimer le profil business
       const { error: deleteError } = await supabase
-        .from("business_profiles")
+        .from("business_profile")
         .delete()
         .eq("id", profile.id);
 

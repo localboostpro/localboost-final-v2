@@ -34,9 +34,17 @@ export default function Profile({ profile, setProfile }) {
       { day: "Dimanche", open: "", close: "", closed: true },
   ];
   
-  const initialHours = Array.isArray(profile?.landing_config?.hours) 
-    ? profile.landing_config.hours 
-    : defaultHours;
+  let initialHours = defaultHours;
+  try {
+    if (profile?.opening_hours) {
+      const parsed = typeof profile.opening_hours === 'string' 
+        ? JSON.parse(profile.opening_hours) 
+        : profile.opening_hours;
+      if (Array.isArray(parsed)) initialHours = parsed;
+    }
+  } catch (e) {
+    console.warn("Erreur parsing opening_hours:", e);
+  }
 
   const [hours, setHours] = useState(initialHours);
   const [passData, setPassData] = useState({ newPassword: "", confirmPassword: "" });
@@ -50,446 +58,374 @@ export default function Profile({ profile, setProfile }) {
   const currentPlan = profile?.plan || 'basic';
   const planBadge = getPlanBadge(currentPlan);
 
-  // ✅ MISE À JOUR DES INFORMATIONS - CORRIGÉE
+  // ✅ MISE À JOUR DES INFORMATIONS - VERSION CORRIGÉE
   const handleUpdate = async (e) => {
       e.preventDefault();
       setLoading(true);
       
-      console.log("🔄 Début de la mise à jour...");
-      console.log("📦 Données à envoyer:", formData);
-      
       try {
-          const updatedConfig = { ...profile?.landing_config, hours: hours };
+          // ✅ ON N'ENVOIE QUE LES COLONNES QUI EXISTENT
+          const updateData = {
+              name: formData.name, 
+              phone: formData.phone, 
+              address: formData.address,
+              city: formData.city, 
+              zip_code: formData.zip_code, 
+              website: formData.website,
+              siret: formData.siret,
+              opening_hours: JSON.stringify(hours),
+              phone_center_details: profile?.phone_center_details || {}
+          };
+
+          const { data, error } = await supabase
+              .from("business_profile")
+              .update(updateData)
+              .eq("id", profile.id)
+              .select();
+
+          if (error) throw error;
+
+          setProfile({ ...profile, ...formData, opening_hours: JSON.stringify(hours) });
+          alert("✅ Informations mises à jour avec succès !");
           
-const handleUpdate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-        // ✅ ENREGISTRE LES HORAIRES DANS opening_hours (colonne qui existe)
-        const updateData = {
-            name: formData.name, 
-            phone: formData.phone, 
-            address: formData.address,
-            city: formData.city, 
-            zip_code: formData.zip_code, 
-            website: formData.website,
-            siret: formData.siret,
-            opening_hours: JSON.stringify(hours), // ✅ SAUVEGARDE LES HORAIRES ICI
-            phone_center_details: profile?.phone_center_details || {}
-        };
+      } catch (error) { 
+          console.error("❌ Erreur:", error);
+          alert("Erreur : " + error.message); 
+      } finally { 
+          setLoading(false); 
+      }
+  };
 
-        const { data, error } = await supabase
-            .from("business_profile")
-            .update(updateData)
-            .eq("id", profile.id)
-            .select();
-
-        if (error) throw error;
-
-        setProfile({ ...profile, ...formData, opening_hours: JSON.stringify(hours) });
-        alert("✅ Informations mises à jour avec succès !");
-        
-    } catch (error) { 
-        console.error("❌ Erreur:", error);
-        alert("Erreur : " + error.message); 
-    } finally { 
-        setLoading(false); 
-    }
-};
-        
   // ✅ CHANGEMENT DE MOT DE PASSE
   const handleChangePassword = async (e) => {
       e.preventDefault();
       if (passData.newPassword !== passData.confirmPassword) {
-          return alert("Les mots de passe ne correspondent pas.");
+          alert("❌ Les mots de passe ne correspondent pas !");
+          return;
       }
-      if (passData.newPassword.length < 6) {
-          return alert("Le mot de passe doit contenir au moins 6 caractères.");
-      }
-
       setPassLoading(true);
       try {
-          const { error } = await supabase.auth.updateUser({ 
-              password: passData.newPassword 
-          });
+          const { error } = await supabase.auth.updateUser({ password: passData.newPassword });
           if (error) throw error;
-          
-          alert("✅ Mot de passe modifié avec succès !");
+          alert("✅ Mot de passe modifié !");
           setPassData({ newPassword: "", confirmPassword: "" });
       } catch (error) {
+          console.error("❌ Erreur:", error);
           alert("Erreur : " + error.message);
       } finally {
           setPassLoading(false);
       }
   };
 
-  // ✅ GESTION DES HORAIRES
-  const handleHourChange = (index, field, value) => {
-      const newHours = [...hours];
-      newHours[index][field] = value;
-      setHours(newHours);
-  };
-
-  // --- SUPPRESSION DE COMPTE (RGPD) ---
+  // ✅ SUPPRESSION DE COMPTE (RGPD)
   const handleDeleteAccount = async () => {
       const confirm1 = window.confirm("⚠️ ATTENTION : Vous êtes sur le point de supprimer votre compte définitivement.\n\nToutes vos données seront effacées.\n\nVoulez-vous continuer ?");
       if (!confirm1) return;
 
       const confirm2 = window.prompt("Pour confirmer, tapez le mot 'SUPPRIMER' ci-dessous :");
-      if (confirm2 !== "SUPPRIMER") return alert("Annulé : Le mot de confirmation est incorrect.");
+      if (confirm2 !== "SUPPRIMER") {
+          alert("❌ Suppression annulée.");
+          return;
+      }
 
       try {
-          const { error } = await supabase.rpc('delete_own_account');
-          if (error) throw error;
+          const { error: deleteError } = await supabase.from("business_profile").delete().eq("id", profile.id);
+          if (deleteError) throw deleteError;
 
-          await supabase.auth.signOut();
-          alert("Compte supprimé avec succès. Au revoir.");
-          window.location.reload();
+          const { error: authError } = await supabase.auth.signOut();
+          if (authError) throw authError;
+
+          alert("✅ Votre compte a été supprimé. Au revoir.");
+          window.location.href = "/";
       } catch (error) {
-          alert("Erreur lors de la suppression : " + error.message);
+          console.error("❌ Erreur suppression:", error);
+          alert("Erreur : " + error.message);
       }
   };
 
-  // ✅ UPGRADE VERS UN FORFAIT SPÉCIFIQUE
-  const handleUpgrade = async (targetPlan) => {
-      const planData = PLANS[targetPlan];
-      if(!window.confirm(`Passer au forfait ${planData.name} (${planData.price}€/mois) ?`)) return;
-      
-      setSubLoading(true);
-      try {
-          const { error } = await supabase
-            .from("business_profile")
-            .update({ 
-              plan: targetPlan,
-              subscription_price: planData.price,
-              subscription_status: 'active'
-            })
-            .eq("id", profile.id);
-          
-          if (error) throw error;
-          setProfile({ ...profile, plan: targetPlan, subscription_price: planData.price });
-          alert(`🎉 Félicitations ! Vous êtes maintenant ${planData.name}.`);
-      } catch (error) { 
-        alert("Erreur : " + error.message); 
-      } finally { 
-        setSubLoading(false); 
+  // ✅ CHANGEMENT DE FORFAIT
+  const handleChangePlan = async (newPlan) => {
+      if (newPlan === currentPlan) {
+          alert("✅ Vous êtes déjà sur ce forfait !");
+          return;
       }
-  };
 
-  // ✅ DOWNGRADE / ANNULATION
-  const handleDowngrade = async () => {
-      if(!window.confirm("Êtes-vous sûr de vouloir repasser en Basic (29€/mois) ?")) return;
-      
+      const confirmChange = window.confirm(`Changer vers le forfait ${newPlan.toUpperCase()} ?`);
+      if (!confirmChange) return;
+
       setSubLoading(true);
       try {
           const { error } = await supabase
-            .from("business_profile")
-            .update({ 
-              plan: 'basic',
-              subscription_price: 29,
-              subscription_status: 'active'
-            })
-            .eq("id", profile.id);
-          
+              .from("business_profile")
+              .update({ plan: newPlan })
+              .eq("id", profile.id);
+
           if (error) throw error;
-          setProfile({ ...profile, plan: 'basic', subscription_price: 29 });
-          alert("Vous êtes repassé en forfait Basic.");
-      } catch (error) { 
-        alert("Erreur : " + error.message); 
-      } finally { 
-        setSubLoading(false); 
+
+          setProfile({ ...profile, plan: newPlan });
+          alert(`✅ Forfait changé vers ${newPlan.toUpperCase()} !`);
+      } catch (error) {
+          console.error("❌ Erreur changement forfait:", error);
+          alert("Erreur : " + error.message);
+      } finally {
+          setSubLoading(false);
       }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-7xl mx-auto">
+          
+          {/* HEADER */}
           <div className="mb-8">
               <h1 className="text-4xl font-black text-slate-900 mb-2">Mon Établissement</h1>
               <p className="text-slate-500">Gérez les informations de votre profil professionnel</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* COLONNE 1 : INFORMATIONS PRINCIPALES */}
-              <div className="lg:col-span-2 space-y-6">
-                  
-                  {/* FORM PRINCIPAL */}
-                  <form onSubmit={handleUpdate} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg">
-                      <h2 className="font-black text-2xl mb-6 flex items-center gap-3 text-slate-900">
-                          <Building size={28} className="text-blue-500"/>
-                          Informations Générales
-                      </h2>
+          <div className="grid lg:grid-cols-3 gap-6">
 
-                      <div className="space-y-5">
-                          {/* NOM */}
+              {/* COLONNE GAUCHE : ABONNEMENT */}
+              <div className="space-y-6">
+
+                  {/* CARTE ABONNEMENT */}
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-[2rem] shadow-xl text-white">
+                      <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-black text-lg flex items-center gap-2">
+                              <CreditCard size={20}/> Mon Abonnement
+                          </h3>
+                          {planBadge.icon}
+                      </div>
+
+                      <div className="mb-4">
+                          <div className="text-3xl font-black mb-1">{planBadge.price}</div>
+                          <div className="text-blue-100 text-sm">{planBadge.label}</div>
+                      </div>
+
+                      {isTrial && (
+                          <div className="bg-white/20 backdrop-blur-sm p-4 rounded-xl mb-4">
+                              <div className="flex items-center gap-2 text-sm font-bold mb-1">
+                                  <Clock size={16}/> Période d'essai
+                              </div>
+                              <div className="text-2xl font-black">{trialDaysLeft} jours restants</div>
+                          </div>
+                      )}
+
+                      {/* BOUTONS UPGRADE */}
+                      {currentPlan === 'basic' && (
+                          <button 
+                              onClick={() => handleChangePlan('premium')}
+                              disabled={subLoading}
+                              className="w-full bg-white text-blue-600 py-3 rounded-xl font-bold hover:bg-blue-50 transition shadow-lg mt-4"
+                          >
+                              {subLoading ? "Chargement..." : "👑 Passer en Premium (99€/mois)"}
+                          </button>
+                      )}
+
+                      {currentPlan === 'premium' && (
+                          <button 
+                              onClick={() => handleChangePlan('basic')}
+                              disabled={subLoading}
+                              className="w-full bg-white/20 text-white py-3 rounded-xl font-bold hover:bg-white/30 transition mt-4"
+                          >
+                              {subLoading ? "Chargement..." : "Résilier / Passer en Basic"}
+                          </button>
+                      )}
+                  </div>
+
+                  {/* AVANTAGES DU PLAN */}
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                      <h3 className="font-black text-lg mb-4 text-slate-900">✨ Vos avantages</h3>
+                      <ul className="space-y-3 text-sm">
+                          {planBadge.features.map((feature, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                  <CheckCircle size={16} className="text-green-500 mt-0.5 flex-shrink-0"/>
+                                  <span className="text-slate-700">{feature}</span>
+                              </li>
+                          ))}
+                      </ul>
+                  </div>
+
+              </div>
+
+              {/* COLONNE DROITE : FORMULAIRE */}
+              <div className="lg:col-span-2 space-y-6">
+
+                  {/* INFORMATIONS GÉNÉRALES */}
+                  <form onSubmit={handleUpdate} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                      <h3 className="font-black text-xl mb-6 flex items-center gap-2 text-slate-900">
+                          <Building size={22} className="text-blue-500"/> Informations Générales
+                      </h3>
+
+                      <div className="grid md:grid-cols-2 gap-4 mb-6">
+                          
                           <div>
-                              <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block flex items-center gap-2">
-                                  <User size={14}/> Nom de l'établissement
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">
+                                  Nom de l'établissement
                               </label>
                               <input 
                                   type="text" 
-                                  required
-                                  value={formData.name}
-                                  onChange={e => setFormData({...formData, name: e.target.value})}
-                                  placeholder="Ex: Boulangerie Martin"
-                                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-base outline-none focus:ring-2 ring-blue-500 transition"
+                                  required 
+                                  value={formData.name} 
+                                  onChange={e => setFormData({...formData, name: e.target.value})} 
+                                  placeholder="Mon Entreprise" 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                               />
                           </div>
 
-                          {/* TÉLÉPHONE */}
                           <div>
-                              <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block flex items-center gap-2">
-                                  <Phone size={14}/> Téléphone
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">
+                                  <Phone size={12} className="inline mr-1"/> Téléphone
                               </label>
                               <input 
-                                  type="tel"
-                                  value={formData.phone}
-                                  onChange={e => setFormData({...formData, phone: e.target.value})}
-                                  placeholder="06 12 34 56 78"
-                                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-base outline-none focus:ring-2 ring-blue-500 transition"
+                                  type="tel" 
+                                  value={formData.phone} 
+                                  onChange={e => setFormData({...formData, phone: e.target.value})} 
+                                  placeholder="06 12 34 56 78" 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                               />
                           </div>
 
-                          {/* ADRESSE */}
-                          <div>
-                              <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block flex items-center gap-2">
-                                  <MapPin size={14}/> Adresse complète
+                          <div className="md:col-span-2">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">
+                                  <MapPin size={12} className="inline mr-1"/> Adresse
                               </label>
                               <input 
-                                  type="text"
-                                  value={formData.address}
-                                  onChange={e => setFormData({...formData, address: e.target.value})}
-                                  placeholder="123 Rue de la Paix"
-                                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-base outline-none focus:ring-2 ring-blue-500 transition"
+                                  type="text" 
+                                  value={formData.address} 
+                                  onChange={e => setFormData({...formData, address: e.target.value})} 
+                                  placeholder="123 Rue de la Paix" 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                               />
                           </div>
 
-                          {/* VILLE + CODE POSTAL */}
-                          <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Ville</label>
-                                  <input 
-                                      type="text"
-                                      value={formData.city}
-                                      onChange={e => setFormData({...formData, city: e.target.value})}
-                                      placeholder="Paris"
-                                      className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-base outline-none focus:ring-2 ring-blue-500 transition"
-                                  />
-                              </div>
-                              <div>
-                                  <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Code Postal</label>
-                                  <input 
-                                      type="text"
-                                      value={formData.zip_code}
-                                      onChange={e => setFormData({...formData, zip_code: e.target.value})}
-                                      placeholder="75001"
-                                      className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-base outline-none focus:ring-2 ring-blue-500 transition"
-                                  />
-                              </div>
+                          <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Ville</label>
+                              <input 
+                                  type="text" 
+                                  value={formData.city} 
+                                  onChange={e => setFormData({...formData, city: e.target.value})} 
+                                  placeholder="Paris" 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
+                              />
                           </div>
 
-                          {/* SITE WEB */}
                           <div>
-                              <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block flex items-center gap-2">
-                                  <Globe size={14}/> Site Web
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Code Postal</label>
+                              <input 
+                                  type="text" 
+                                  value={formData.zip_code} 
+                                  onChange={e => setFormData({...formData, zip_code: e.target.value})} 
+                                  placeholder="75001" 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
+                              />
+                          </div>
+
+                          <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">
+                                  <Globe size={12} className="inline mr-1"/> Site Web
                               </label>
                               <input 
-                                  type="url"
-                                  value={formData.website}
-                                  onChange={e => setFormData({...formData, website: e.target.value})}
-                                  placeholder="https://monsite.fr"
-                                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-base outline-none focus:ring-2 ring-blue-500 transition"
+                                  type="url" 
+                                  value={formData.website} 
+                                  onChange={e => setFormData({...formData, website: e.target.value})} 
+                                  placeholder="https://monsite.fr" 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                               />
                           </div>
 
-                          {/* SIRET */}
                           <div>
-                              <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block flex items-center gap-2">
-                                  <FileImage size={14}/> SIRET
-                              </label>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">SIRET</label>
                               <input 
-                                  type="text"
-                                  value={formData.siret}
-                                  onChange={e => setFormData({...formData, siret: e.target.value})}
-                                  placeholder="123 456 789 00010"
-                                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-base outline-none focus:ring-2 ring-blue-500 transition"
+                                  type="text" 
+                                  value={formData.siret} 
+                                  onChange={e => setFormData({...formData, siret: e.target.value})} 
+                                  placeholder="123 456 789 00010" 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-blue-500"
                               />
                           </div>
 
-                          {/* BOUTON ENREGISTRER */}
-                          <button 
-                              type="submit" 
-                              disabled={loading}
-                              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-3"
-                          >
-                              {loading ? (
-                                  <>Enregistrement...</>
-                              ) : (
-                                  <>
-                                      <Save size={20}/>
-                                      Enregistrer les modifications
-                                  </>
-                              )}
-                          </button>
                       </div>
+
+                      <button 
+                          type="submit" 
+                          disabled={loading} 
+                          className="w-full bg-blue-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+                      >
+                          <Save size={20}/>
+                          {loading ? "Enregistrement..." : "Enregistrer les modifications"}
+                      </button>
                   </form>
 
                   {/* HORAIRES D'OUVERTURE */}
-                  <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg">
-                      <h3 className="font-black text-xl mb-6 flex items-center gap-3 text-slate-900">
-                          <Clock size={24} className="text-green-500"/>
-                          Horaires d'ouverture
+                  <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                      <h3 className="font-black text-xl mb-6 flex items-center gap-2 text-slate-900">
+                          <Clock size={22} className="text-amber-500"/> Horaires d'Ouverture
                       </h3>
-                      <div className="space-y-4">
-                          {hours.map((h, i) => (
-                              <div key={i} className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl">
-                                  <div className="w-24 font-bold text-sm text-slate-700">{h.day}</div>
-                                  {h.closed ? (
-                                      <div className="flex-1 flex items-center justify-center">
-                                          <span className="text-xs font-bold text-rose-500 bg-rose-50 px-4 py-2 rounded-full">FERMÉ</span>
-                                      </div>
-                                  ) : (
-                                      <div className="flex-1 flex items-center gap-3">
+
+                      <div className="space-y-3">
+                          {hours.map((daySchedule, index) => (
+                              <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
+                                  <div className="w-28 font-bold text-sm text-slate-700">{daySchedule.day}</div>
+                                  
+                                  <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                                      <input 
+                                          type="checkbox" 
+                                          checked={daySchedule.closed} 
+                                          onChange={e => {
+                                              const newHours = [...hours];
+                                              newHours[index].closed = e.target.checked;
+                                              setHours(newHours);
+                                          }} 
+                                          className="rounded"
+                                      />
+                                      Fermé
+                                  </label>
+
+                                  {!daySchedule.closed && (
+                                      <>
                                           <input 
                                               type="time" 
-                                              value={h.open}
-                                              onChange={e => handleHourChange(i, 'open', e.target.value)}
-                                              className="p-2 border border-slate-200 rounded-lg font-bold text-sm"
+                                              value={daySchedule.open} 
+                                              onChange={e => {
+                                                  const newHours = [...hours];
+                                                  newHours[index].open = e.target.value;
+                                                  setHours(newHours);
+                                              }} 
+                                              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
                                           />
-                                          <span className="text-slate-400">→</span>
+                                          <span className="text-slate-400 font-bold">→</span>
                                           <input 
                                               type="time" 
-                                              value={h.close}
-                                              onChange={e => handleHourChange(i, 'close', e.target.value)}
-                                              className="p-2 border border-slate-200 rounded-lg font-bold text-sm"
+                                              value={daySchedule.close} 
+                                              onChange={e => {
+                                                  const newHours = [...hours];
+                                                  newHours[index].close = e.target.value;
+                                                  setHours(newHours);
+                                              }} 
+                                              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 ring-amber-500"
                                           />
-                                      </div>
+                                      </>
                                   )}
-                                  <button 
-                                      type="button"
-                                      onClick={() => handleHourChange(i, 'closed', !h.closed)}
-                                      className={`px-4 py-2 rounded-lg text-xs font-bold transition ${h.closed ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}
-                                  >
-                                      {h.closed ? 'OUVERT' : 'FERMÉ'}
-                                  </button>
                               </div>
                           ))}
                       </div>
                   </div>
-              </div>
 
-              {/* COLONNE 2 : ABONNEMENT + SÉCURITÉ */}
-              <div className="space-y-6">
-                  
-                  {/* CARTE ABONNEMENT */}
-                  <div className={`relative overflow-hidden p-6 rounded-[2rem] border shadow-lg ${
-                      currentPlan === 'premium' ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 border-purple-400' :
-                      currentPlan === 'pro' ? 'bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 border-blue-400' :
-                      'bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500 border-slate-400'
-                  }`}>
-                      {/* Effet de brillance */}
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-                      
-                      <div className="relative z-10">
-                          <div className="flex items-center justify-between mb-4">
-                              <h3 className="font-black text-white text-lg flex items-center gap-2">
-                                  <CreditCard size={20}/>
-                                  Mon Abonnement
-                              </h3>
-                              {planBadge.icon}
-                          </div>
-
-                          <div className="bg-white/20 backdrop-blur-sm p-4 rounded-xl mb-4">
-                              <div className="text-white/80 text-xs font-bold mb-1">Forfait actuel</div>
-                              <div className="text-white font-black text-2xl">{planBadge.name}</div>
-                              <div className="text-white/90 font-bold text-lg mt-1">{PLANS[currentPlan].price}€<span className="text-sm">/mois</span></div>
-                          </div>
-
-                          {isTrial && (
-                              <div className="bg-amber-500/20 backdrop-blur-sm border border-amber-300/30 p-3 rounded-xl mb-4">
-                                  <div className="flex items-center gap-2 text-amber-100 text-xs font-bold">
-                                      <AlertTriangle size={14}/>
-                                      <span>Période d'essai : {trialDaysLeft} jours restants</span>
-                                  </div>
-                              </div>
-                          )}
-
-                          {/* Boutons d'upgrade */}
-                          <div className="space-y-3 mb-4">
-                              {currentPlan === 'basic' && (
-                                  <>
-                                      <button 
-                                          onClick={() => handleUpgrade('pro')} 
-                                          disabled={subLoading}
-                                          className="w-full bg-white text-blue-600 py-3 rounded-xl font-bold text-sm hover:bg-blue-50 transition flex items-center justify-center gap-2"
-                                      >
-                                          <Zap size={16}/>
-                                          Passer en Pro (59€/mois)
-                                      </button>
-                                      <button 
-                                          onClick={() => handleUpgrade('premium')} 
-                                          disabled={subLoading}
-                                          className="w-full bg-gradient-to-r from-amber-400 to-amber-300 text-amber-900 py-3 rounded-xl font-bold text-sm hover:shadow-lg transition flex items-center justify-center gap-2"
-                                      >
-                                          <Crown size={16}/>
-                                          Passer en Premium (99€/mois)
-                                      </button>
-                                  </>
-                              )}
-
-                              {currentPlan === 'pro' && (
-                                  <button 
-                                      onClick={() => handleUpgrade('premium')} 
-                                      disabled={subLoading}
-                                      className="w-full bg-gradient-to-r from-amber-400 to-amber-300 text-amber-900 py-3 rounded-xl font-bold text-sm hover:shadow-lg transition flex items-center justify-center gap-2"
-                                  >
-                                      <Crown size={16}/>
-                                      Passer en Premium (99€/mois)
-                                  </button>
-                              )}
-
-                              {currentPlan !== 'basic' && (
-                                  <button 
-                                      onClick={handleDowngrade} 
-                                      disabled={subLoading}
-                                      className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold text-xs transition"
-                                  >
-                                      Résilier / Passer en Basic
-                                  </button>
-                              )}
-                          </div>
-                          
-                          {/* Détails des fonctionnalités */}
-                          <div className="mt-6 pt-6 border-t border-white/10 relative z-10">
-                              <div className="text-xs text-white/90 space-y-2">
-                                  <div className="font-bold mb-3">Votre forfait inclut :</div>
-                                  {PLANS[currentPlan].features.map((feature, i) => (
-                                      <div key={i} className="flex items-start gap-2">
-                                          <CheckCircle size={14} className="text-green-300 mt-0.5 flex-shrink-0" />
-                                          <span>{feature}</span>
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-
-                  {/* EMAIL */}
-                  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm opacity-70">
-                      <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-500">
-                          <Lock size={16}/> Identifiant de connexion
-                      </h3>
+                  {/* EMAIL (READ-ONLY) */}
+                  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-2 block">
+                          Email (non modifiable)
+                      </label>
                       <input 
-                          disabled 
+                          type="email" 
                           value={formData.email} 
+                          disabled 
                           className="w-full p-3 bg-slate-100 border border-slate-100 rounded-xl font-bold text-sm text-slate-500 cursor-not-allowed"
                       />
                       <p className="text-[10px] text-slate-400 mt-2">Contactez le support pour changer d'email.</p>
                   </div>
 
-                  {/* PASSWORD */}
+                  {/* CHANGEMENT DE MOT DE PASSE */}
                   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                       <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-slate-900">
                           <Key size={20} className="text-amber-500"/> Sécurité

@@ -144,11 +144,13 @@ const updateSubscription = async (businessId, newPlan) => {
   try {
     console.log('🔄 Mise à jour forfait:', { businessId, newPlan });
     
-    // Récupérer le prix du nouveau plan
-    const price = getPlanPrice(newPlan);
-    console.log('💰 Prix du plan:', price);
+    // ⚠️ IMPORTANT : Convertir en minuscule pour correspondre à plans.js
+    const planKey = newPlan.toLowerCase(); // "Pro" → "pro"
+    const price = getPlanPrice(planKey);
+    const label = getPlanLabel(planKey);
     
-    // Vérifier que le businessId existe
+    console.log('💰 Prix du plan:', { planKey, price, label });
+    
     if (!businessId) {
       throw new Error('ID entreprise manquant');
     }
@@ -157,7 +159,7 @@ const updateSubscription = async (businessId, newPlan) => {
     const { data, error } = await supabase
       .from('business_profile')
       .update({ 
-        plan: newPlan,
+        plan: planKey,  // ← stocke "pro", "basic", "premium" en minuscule
         subscription_price: price,
         subscription_status: 'active',
         updated_at: new Date().toISOString()
@@ -175,13 +177,14 @@ const updateSubscription = async (businessId, newPlan) => {
     // Recharger les données
     await fetchData();
     
-    alert(`✅ Forfait mis à jour : ${getPlanLabel(newPlan)} - ${price}€/mois`);
+    alert(`✅ Forfait mis à jour : ${label} - ${price}€/mois`);
     
   } catch (err) {
     console.error('❌ Erreur complète:', err);
     alert(`❌ Erreur : ${err.message}`);
   }
 };
+
 
   const deleteBusiness = async (businessId) => {
     if (!confirm('⚠️ Voulez-vous vraiment supprimer cette entreprise ?')) return;

@@ -39,7 +39,7 @@ export const PLANS = {
     limits: {
       marketingStudio: true,
       landingPage: false,
-      aiPosts: -1, // -1 = illimité
+      aiPosts: -1,
       smsPerMonth: 100
     }
   },
@@ -63,7 +63,7 @@ export const PLANS = {
       marketingStudio: true,
       landingPage: true,
       aiPosts: -1,
-      smsPerMonth: -1 // -1 = illimité
+      smsPerMonth: -1
     }
   }
 };
@@ -80,7 +80,7 @@ export function canAccessFeature(userPlan, feature) {
     case 'aiPosts':
       return plan.limits.aiPosts !== 0;
     default:
-      return true; // Fonctionnalités de base accessibles à tous
+      return true;
   }
 }
 
@@ -104,6 +104,12 @@ export function getPlanBadge(planKey) {
     icon: plan.icon,
     color: plan.color
   };
+}
+
+// ✅ Obtenir le prix d'un forfait (FONCTION MANQUANTE)
+export function getPlanPrice(planKey) {
+  const plan = PLANS[planKey] || PLANS.basic;
+  return plan.price;
 }
 
 // ✅ Obtenir le nom d'une fonctionnalité en français

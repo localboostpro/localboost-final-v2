@@ -1,147 +1,80 @@
-// src/lib/plans.js
-
 export const PLANS = {
   basic: {
-    name: 'Basic',
-    price: 29,
+    name: "Basic",
+    price: "Essai 7 jours gratuit",
+    priceValue: 0,
     trialDays: 7,
-    icon: '⭐',
-    color: 'blue',
     features: [
-      'Collecte d\'avis illimitée',
-      'QR Code personnalisé',
-      'Gestion clients illimitée',
-      'Analytics basiques',
-      'Support Email + Chat'
-    ],
-    limits: {
-      marketingStudio: false,
-      landingPage: false,
-      aiPosts: 0,
-      smsPerMonth: 0
-    }
+      "✅ Essai Premium 7 jours gratuit",
+      "✅ Page vitrine basique",
+      "✅ Gestion des avis clients",
+      "✅ Tableau de bord",
+      "✅ Support email"
+    ]
   },
   pro: {
-    name: 'Pro',
-    price: 59,
+    name: "Pro",
+    price: "59€/mois",
+    priceValue: 59,
     trialDays: 0,
-    icon: '⚡',
-    color: 'purple',
     features: [
-      'Tout du Basic',
-      '🎨 Studio Marketing complet',
-      'Génération posts IA illimitée',
-      'Publication auto (Facebook + Instagram)',
-      '+ 50 templates professionnels',
-      'Analytics avancés',
-      'Support prioritaire'
-    ],
-    limits: {
-      marketingStudio: true,
-      landingPage: false,
-      aiPosts: -1,
-      smsPerMonth: 100
-    }
+      "✅ Tout du Basic",
+      "✅ Accès Marketing Studio",
+      "✅ Campagnes SMS automatisées",
+      "✅ Analytics avancées",
+      "✅ Collecte d'avis automatisée",
+      "✅ Support prioritaire"
+    ]
   },
   premium: {
-    name: 'Premium',
-    price: 99,
+    name: "Premium", 
+    price: "99€/mois",
+    priceValue: 99,
     trialDays: 0,
-    icon: '💎',
-    color: 'indigo',
     features: [
-      'Tout du Pro',
-      '🌐 Page établissement complète',
-      'Site web avec domaine personnalisé',
-      'Templates premium exclusifs',
-      'Widgets personnalisés (horaires, menus, galeries)',
-      'SEO optimisé + Analytics Google',
-      'SMS illimités',
-      'Support VIP 24/7'
-    ],
-    limits: {
-      marketingStudio: true,
-      landingPage: true,
-      aiPosts: -1,
-      smsPerMonth: -1
-    }
+      "✅ Tout du Pro",
+      "✅ Page établissement personnalisée",
+      "✅ Outils marketing complets",
+      "✅ Centre d'appels automatisé",
+      "✅ Intégrations avancées",
+      "✅ API complète",
+      "✅ Support VIP 24/7"
+    ]
   }
 };
 
-// ✅ Vérifier si un utilisateur peut accéder à une fonctionnalité
-export function canAccessFeature(userPlan, feature) {
-  const plan = PLANS[userPlan] || PLANS.basic;
+export function getPlanBadge(plan) {
+  const planData = PLANS[plan] || PLANS.basic;
   
-  switch(feature) {
-    case 'marketingStudio':
-      return plan.limits.marketingStudio;
-    case 'landingPage':
-      return plan.limits.landingPage;
-    case 'aiPosts':
-      return plan.limits.aiPosts !== 0;
-    default:
-      return true;
-  }
-}
+  const icons = {
+    basic: '⭐',
+    pro: '🚀',
+    premium: '👑'
+  };
 
-// ✅ Obtenir le forfait requis pour une fonctionnalité
-export function getRequiredPlan(feature) {
-  switch(feature) {
-    case 'marketingStudio':
-      return 'pro';
-    case 'landingPage':
-      return 'premium';
-    default:
-      return 'basic';
-  }
-}
-
-// ✅ Obtenir le badge visuel d'un forfait
-export function getPlanBadge(planKey) {
-  const plan = PLANS[planKey] || PLANS.basic;
+  const colors = {
+    basic: 'bg-slate-100 text-slate-700',
+    pro: 'bg-blue-100 text-blue-700',
+    premium: 'bg-amber-100 text-amber-700'
+  };
+  
   return {
-    label: plan.name,
-    icon: plan.icon,
-    color: plan.color
+    label: planData.name,
+    price: planData.price,
+    priceValue: planData.priceValue,
+    features: planData.features || [],
+    icon: icons[plan] || '⭐',
+    trialDays: planData.trialDays || 0,
+    color: colors[plan] || colors.basic
   };
 }
 
-// ✅ Obtenir le prix d'un forfait
-export function getPlanPrice(planKey) {
-  const plan = PLANS[planKey] || PLANS.basic;
-  return plan.price;
-}
-
-// ✅ Obtenir le label/nom d'un forfait
-export function getPlanLabel(planKey) {
-  const plan = PLANS[planKey] || PLANS.basic;
-  return plan.name;
-}
-
-// ✅ Obtenir le nom d'une fonctionnalité en français
-export function getFeatureName(feature) {
-  const names = {
-    'marketingStudio': 'Studio Marketing',
-    'landingPage': 'Page Établissement',
-    'aiPosts': 'Posts IA illimités'
+export function hasFeature(plan, feature) {
+  const hierarchy = {
+    basic: ['basic'],
+    pro: ['basic', 'pro'],
+    premium: ['basic', 'pro', 'premium']
   };
-  return names[feature] || feature;
-}
-
-// ✅ Obtenir tous les forfaits (pour affichage de pricing)
-export function getAllPlans() {
-  return Object.entries(PLANS).map(([key, plan]) => ({
-    id: key,
-    ...plan
-  }));
-}
-
-// ✅ Obtenir les détails complets d'un forfait
-export function getPlanDetails(planKey) {
-  return PLANS[planKey] || PLANS.basic;
-}
-
-// ✅ Obtenir la configuration complète d'un forfait
-export function getPlanConfig(planKey) {
-  return PLANS[planKey] || PLANS.basic;
+  
+  return hierarchy[plan]?.includes(feature) || false;
 }

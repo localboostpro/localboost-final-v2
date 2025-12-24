@@ -61,44 +61,43 @@ export default function Profile({ profile, setProfile }) {
       try {
           const updatedConfig = { ...profile?.landing_config, hours: hours };
           
-          // ✅ AJOUT DE phone_center_details pour éviter l'erreur
-          const updateData = {
-              name: formData.name, 
-              phone: formData.phone, 
-              address: formData.address,
-              city: formData.city, 
-              zip_code: formData.zip_code, 
-              website: formData.website,
-              siret: formData.siret, 
-              landing_config: updatedConfig,
-              phone_center_details: profile?.phone_center_details || {} // ✅ FIX ICI
-          };
+const handleUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+        // ✅ ENREGISTRE LES HORAIRES DANS opening_hours (colonne qui existe)
+        const updateData = {
+            name: formData.name, 
+            phone: formData.phone, 
+            address: formData.address,
+            city: formData.city, 
+            zip_code: formData.zip_code, 
+            website: formData.website,
+            siret: formData.siret,
+            opening_hours: JSON.stringify(hours), // ✅ SAUVEGARDE LES HORAIRES ICI
+            phone_center_details: profile?.phone_center_details || {}
+        };
 
-          console.log("📤 Envoi vers Supabase:", updateData);
+        const { data, error } = await supabase
+            .from("business_profile")
+            .update(updateData)
+            .eq("id", profile.id)
+            .select();
 
-          const { data, error } = await supabase
-              .from("business_profile")
-              .update(updateData)
-              .eq("id", profile.id)
-              .select();
+        if (error) throw error;
 
-          if (error) {
-              console.error("❌ Erreur Supabase:", error);
-              throw error;
-          }
-
-          console.log("✅ Réponse Supabase:", data);
-
-          setProfile({ ...profile, ...formData, landing_config: updatedConfig });
-          alert("✅ Informations mises à jour avec succès !");
-      } catch (error) { 
-          console.error("❌ Erreur complète:", error);
-          alert("Erreur : " + error.message); 
-      } finally { 
-          setLoading(false); 
-      }
-  };
-
+        setProfile({ ...profile, ...formData, opening_hours: JSON.stringify(hours) });
+        alert("✅ Informations mises à jour avec succès !");
+        
+    } catch (error) { 
+        console.error("❌ Erreur:", error);
+        alert("Erreur : " + error.message); 
+    } finally { 
+        setLoading(false); 
+    }
+};
+        
   // ✅ CHANGEMENT DE MOT DE PASSE
   const handleChangePassword = async (e) => {
       e.preventDefault();

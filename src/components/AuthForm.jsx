@@ -93,7 +93,7 @@ export default function AuthForm() {
           siret: siret,
           website: website,
           phone: phone,
-          subscription_tier: "basic",
+          plan: "basic",
           is_active: true
         }]);
 

@@ -20,6 +20,7 @@ export default function App() {
   const [reviews, setReviews] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [posts, setPosts] = useState([]);
+  const [promotions, setPromotions] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isAdmin = useMemo(() => session?.user?.email === "admin@demo.fr", [session]);
@@ -27,25 +28,32 @@ export default function App() {
   const fetchAllData = useCallback(async (userId, email) => {
     try {
       setLoading(true);
-      const { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
+      const { data: profileData } = await supabase
+        .from("business_profile")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
       if (!profileData) {
-        setProfile({ name: "Nouveau compte", email, is_admin: email === "admin@demo.fr", plan: 'basic' });
+        setProfile({ name: "Nouveau compte", email, plan: 'basic' });
+        setLoading(false);
         return;
       }
 
-      // Chargement parallèle massif pour éviter les attentes
-      const [r, c, p] = await Promise.all([
+      const [r, c, p, prom] = await Promise.all([
         supabase.from("reviews").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false }),
         supabase.from("customers").select("*").eq("business_id", profileData.id),
         supabase.from("posts").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false }),
+        supabase.from("promotions").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false }),
       ]);
 
-      setProfile({ ...profileData, email, is_admin: email === "admin@demo.fr" });
+      setProfile({ ...profileData, email });
       setReviews(r.data || []);
       setCustomers(c.data || []);
       setPosts(p.data || []);
+      setPromotions(prom.data || []);
     } catch (e) {
-      console.error("Erreur globale:", e);
+      console.error("❌ Erreur fetchAllData:", e);
     } finally {
       setLoading(false);
     }
@@ -66,7 +74,12 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, [fetchAllData]);
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 font-bold text-indigo-600 animate-pulse">Synchronisation LocalBoost...</div>;
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
+    </div>
+  );
+
   if (!session) return <AuthForm />;
 
   return (
@@ -76,11 +89,10 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard profile={profile} reviews={reviews} posts={posts} customers={customers} />} />
           <Route path="/marketing" element={<Marketing posts={posts} profile={profile} />} />
-          <Route path="/reviews" element={<Reviews reviews={reviews} profile={profile} user={session.user} />} />
+          <Route path="/reviews" element={<Reviews reviews={reviews} profile={profile} />} />
           <Route path="/customers" element={<Customers customers={customers} />} />
-          <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
           <Route path="/profile" element={<Profile user={session.user} profile={profile} setProfile={setProfile} />} />
-          <Route path="/promotions" element={<Promotions profile={profile} />} />
+          <Route path="/promotions" element={<Promotions profile={profile} promotions={promotions} setPromotions={setPromotions} />} />
           <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/" />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

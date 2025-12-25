@@ -1,214 +1,131 @@
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Star, Calendar, MessageSquare } from 'lucide-react';
+import { Star, MessageSquare, Platform, Calendar, CheckCircle, Clock } from 'lucide-react';
 
-export default function Reviews() {
-  const [avis, setAvis] = useState([]);
+export default function Reviews({ user }) {
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, pending, approved, rejected
+  const [stats, setStats] = useState({
+    total: 0,
+    average: 0,
+    pending: 0
+  });
 
   useEffect(() => {
-    loadAvis();
-  }, [filter]);
+    if (user) {
+      fetchReviews();
+    }
+  }, [user]);
 
-  async function loadAvis() {
+  const fetchReviews = async () => {
     try {
-      let query = supabase
-        .from('posts')
+      setLoading(true);
+
+      // 1. RÉCUPÉRER L'ID DU BUSINESS POUR CET UTILISATEUR
+      const { data: profile, error: profileError } = await supabase
+        .from('business_profile')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError || !profile) throw new Error("Profil non trouvé");
+
+      // 2. RÉCUPÉRER LES AVIS FILTRÉS PAR BUSINESS_ID
+      const { data, error } = await supabase
+        .from('reviews')
         .select('*')
+        .eq('business_id', profile.id) // ✅ FILTRE ESSENTIEL
         .order('created_at', { ascending: false });
 
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
-      }
-
-      const { data, error } = await query;
-
       if (error) throw error;
-      setAvis(data || []);
+
+      setReviews(data || []);
+
+      // 3. CALCULER LES STATS UNIQUEMENT POUR CE BUSINESS
+      if (data && data.length > 0) {
+        const avg = data.reduce((acc, rev) => acc + (rev.rating || 0), 0) / data.length;
+        setStats({
+          total: data.length,
+          average: avg.toFixed(1),
+          pending: data.filter(r => r.status === 'pending').length
+        });
+      }
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Erreur lors du chargement des avis:', error);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  async function updateStatus(id, newStatus) {
-    try {
-      const { error } = await supabase
-        .from('posts')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-      loadAvis();
-    } catch (error) {
-      console.error('Erreur:', error);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 text-center">Chargement des avis...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Tous les Avis</h1>
-        <p className="mt-2 text-gray-600">{avis.length} avis au total</p>
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-3xl font-black text-slate-900 mb-2">Avis Clients</h1>
+        <p className="text-slate-600">Gérez votre réputation et répondez à vos clients</p>
       </div>
 
-      {/* Filters */}
-      <div className="mb-6 flex gap-2">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'all'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Tous
-        </button>
-        <button
-          onClick={() => setFilter('pending')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'pending'
-              ? 'bg-yellow-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          En attente
-        </button>
-        <button
-          onClick={() => setFilter('approved')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'approved'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Approuvés
-        </button>
-        <button
-          onClick={() => setFilter('rejected')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'rejected'
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Rejetés
-        </button>
-      </div>
-
-      {/* Reviews List */}
-      {avis.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">Aucun avis pour ce filtre</p>
+      {/* STATS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-slate-500 text-sm font-bold mb-1">Note Moyenne</div>
+          <div className="text-3xl font-black text-slate-900 flex items-center gap-2">
+            {stats.average} <Star className="text-amber-400 fill-amber-400" size={24}/>
+          </div>
         </div>
-      ) : (
-        <div className="grid gap-6">
-          {avis.map((avisItem) => (
-            <div
-              key={avisItem.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                    {(avisItem.author || 'A')[0].toUpperCase()}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-slate-500 text-sm font-bold mb-1">Total Avis</div>
+          <div className="text-3xl font-black text-slate-900">{stats.total}</div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-slate-500 text-sm font-bold mb-1">En attente</div>
+          <div className="text-3xl font-black text-indigo-600">{stats.pending}</div>
+        </div>
+      </div>
+
+      {/* LISTE DES AVIS */}
+      <div className="space-y-4">
+        {reviews.length === 0 ? (
+          <div className="bg-white p-12 text-center rounded-3xl border border-dashed border-slate-300">
+            <MessageSquare className="mx-auto text-slate-300 mb-4" size={48}/>
+            <p className="text-slate-500 font-medium">Aucun avis pour le moment.</p>
+          </div>
+        ) : (
+          reviews.map((review) => (
+            <div key={review.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-colors">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center font-black text-slate-400">
+                    {review.author?.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {avisItem.author || 'Anonyme'}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < (avisItem.rating || 5)
-                                ? 'text-yellow-400 fill-yellow-400'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm text-gray-500">
-                        {avisItem.rating || 5}/5
-                      </span>
+                    <div className="font-bold text-slate-900">{review.author}</div>
+                    <div className="flex text-amber-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={14} className={i < review.rating ? "fill-amber-400" : "text-slate-200"} />
+                      ))}
                     </div>
                   </div>
                 </div>
-
-                {/* Status Badge */}
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    avisItem.status === 'approved'
-                      ? 'bg-green-100 text-green-800'
-                      : avisItem.status === 'rejected'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}
-                >
-                  {avisItem.status === 'approved'
-                    ? 'Approuvé'
-                    : avisItem.status === 'rejected'
-                    ? 'Rejeté'
-                    : 'En attente'}
-                </span>
-              </div>
-
-              {/* Content */}
-              <p className="text-gray-700 mb-4">{avisItem.text || 'Pas de commentaire'}</p>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {new Date(avisItem.created_at).toLocaleDateString('fr-FR')}
-                  </div>
-                  {avisItem.platform && (
-                    <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      {avisItem.platform}
-                    </span>
-                  )}
+                <div className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-500 rounded-full">
+                  {review.platform || 'Google'}
                 </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  {avisItem.status !== 'approved' && (
-                    <button
-                      onClick={() => updateStatus(avisItem.id, 'approved')}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                    >
-                      Approuver
-                    </button>
-                  )}
-                  {avisItem.status !== 'rejected' && (
-                    <button
-                      onClick={() => updateStatus(avisItem.id, 'rejected')}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                    >
-                      Rejeter
-                    </button>
-                  )}
+              </div>
+              <p className="text-slate-700 mb-4 italic">"{review.text}"</p>
+              <div className="flex items-center justify-between text-xs text-slate-400 font-bold border-t pt-4">
+                <div className="flex items-center gap-1">
+                  <Calendar size={14}/>
+                  {new Date(review.created_at).toLocaleDateString('fr-FR')}
+                </div>
+                <div className="flex items-center gap-1 text-emerald-600">
+                  <CheckCircle size={14}/> Avis vérifié
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }

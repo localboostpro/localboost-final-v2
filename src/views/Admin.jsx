@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { getPlanPrice, getPlanLabel } from '../lib/plans';
 import { 
@@ -20,33 +20,42 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // ✅ ÉVITE LES RECHARGEMENTS MULTIPLES
+  const hasLoadedRef = useRef(false);
+  const isLoadingRef = useRef(false);
 
   // ✅ CHARGE UNE SEULE FOIS AU MONTAGE
   useEffect(() => {
-    fetchData();
-  }, []); // ← Dépendances vides = 1 seul chargement
+    if (!hasLoadedRef.current && !isLoadingRef.current) {
+      hasLoadedRef.current = true;
+      isLoadingRef.current = true;
+      fetchData();
+    }
+  }, []);
 
   // ✅ RECHARGE UNIQUEMENT SI L'ANNÉE CHANGE
   useEffect(() => {
-    if (!loading) {
+    if (hasLoadedRef.current && !loading) {
       fetchMonthlyData();
     }
   }, [selectedYear]);
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      console.log('📊 Chargement des entreprises...');
+      console.log('📊 [Admin] Chargement des entreprises...');
 
-      // Récupérer toutes les entreprises
       const { data: businessData, error: businessError } = await supabase
         .from('business_profile')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (businessError) throw businessError;
+      if (businessError) {
+        console.error('❌ [Admin] Erreur business:', businessError);
+        throw businessError;
+      }
 
-      console.log('✅ Entreprises chargées:', businessData?.length);
+      console.log('✅ [Admin] Entreprises chargées:', businessData?.length);
       setBusinesses(businessData || []);
 
       // Calcul des stats
@@ -68,115 +77,73 @@ export default function Admin() {
         avgRating: avgRating
       });
 
-      // Données mensuelles
       await fetchMonthlyData();
 
     } catch (error) {
-      console.error('❌ Erreur Admin:', error);
+      console.error('❌ [Admin] Erreur fetchData:', error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
   const fetchMonthlyData = async () => {
     try {
-      console.log(`📅 Chargement données ${selectedYear}...`);
+      console.log('📈 [Admin] Chargement données mensuelles...');
       
-      const startDate = new Date(selectedYear, 0, 1).toISOString();
-      const endDate = new Date(selectedYear, 11, 31, 23, 59, 59).toISOString();
-
-      const { data: businessData } = await supabase
-        .from('business_profile')
-        .select('created_at, subscription_price')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
-
-      const { data: reviewData } = await supabase
-        .from('reviews')
-        .select('created_at')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
-
-      const months = [
-        'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-        'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'
-      ];
-
-      const monthlyStats = months.map((month, index) => {
-        const monthBusinesses = businessData?.filter(b => {
-          const date = new Date(b.created_at);
-          return date.getMonth() === index;
-        }) || [];
-
-        const monthReviews = reviewData?.filter(r => {
-          const date = new Date(r.created_at);
-          return date.getMonth() === index;
-        }) || [];
-
-        const revenue = monthBusinesses.reduce((sum, b) => 
-          sum + (Number(b.subscription_price) || 0), 0
-        );
-
-        return {
-          month,
-          'Clients': monthBusinesses.length,
-          'Avis': monthReviews.length,
-          'Revenus (€)': revenue
-        };
-      });
-
-      console.log('✅ Données mensuelles:', monthlyStats);
-      setMonthlyData(monthlyStats);
-    } catch (error) {
-      console.error('❌ Erreur monthly data:', error);
-    }
-  };
-
-  const updateSubscription = async (businessId, newPlan) => {
-    try {
-      console.log('🔄 Mise à jour forfait:', { businessId, newPlan });
-      
-      const planKey = newPlan.toLowerCase();
-      const price = getPlanPrice(planKey);
-      const label = getPlanLabel(planKey);
-      
-      console.log('💰 Nouveau plan:', { planKey, price, label });
-      
-      if (!businessId) {
-        throw new Error('ID entreprise manquant');
-      }
+      const startDate = new Date(selectedYear, 0, 1);
+      const endDate = new Date(selectedYear, 11, 31);
 
       const { data, error } = await supabase
         .from('business_profile')
-        .update({ 
-          plan: planKey,
-          subscription_price: price.value || price,
-          subscription_status: 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', businessId)
-        .select();
+        .select('created_at, subscription_price')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
 
-      if (error) {
-        console.error('❌ Erreur Supabase:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('✅ Mise à jour réussie:', data);
-      
-      // Recharger UNIQUEMENT les données (pas de boucle)
-      await fetchData();
-      
-      alert(`✅ Forfait mis à jour : ${label} - ${price.value || price}€/mois`);
-      
-    } catch (err) {
-      console.error('❌ Erreur complète:', err);
-      alert(`❌ Erreur : ${err.message}`);
+      const monthlyStats = Array.from({ length: 12 }, (_, i) => ({
+        month: new Date(selectedYear, i).toLocaleDateString('fr-FR', { month: 'short' }),
+        inscriptions: 0,
+        revenue: 0
+      }));
+
+      data?.forEach(business => {
+        const month = new Date(business.created_at).getMonth();
+        monthlyStats[month].inscriptions += 1;
+        monthlyStats[month].revenue += Number(business.subscription_price) || 0;
+      });
+
+      console.log('✅ [Admin] Données mensuelles:', monthlyStats);
+      setMonthlyData(monthlyStats);
+
+    } catch (error) {
+      console.error('❌ [Admin] Erreur fetchMonthlyData:', error);
+    }
+  };
+
+  const updateSubscriptionStatus = async (businessId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('business_profile')
+        .update({ subscription_status: newStatus })
+        .eq('id', businessId);
+
+      if (error) throw error;
+
+      setBusinesses(prev =>
+        prev.map(b => b.id === businessId ? { ...b, subscription_status: newStatus } : b)
+      );
+
+      alert(`✅ Statut mis à jour : ${newStatus}`);
+    } catch (error) {
+      console.error('❌ Erreur updateSubscriptionStatus:', error);
+      alert('❌ Erreur lors de la mise à jour');
     }
   };
 
   const deleteBusiness = async (businessId) => {
-    if (!confirm('⚠️ Voulez-vous vraiment supprimer cette entreprise ?')) return;
+    if (!confirm('⚠️ Supprimer cette entreprise ? Cette action est irréversible.')) return;
 
     try {
       const { error } = await supabase
@@ -185,343 +152,253 @@ export default function Admin() {
         .eq('id', businessId);
 
       if (error) throw error;
-      await fetchData();
+
+      setBusinesses(prev => prev.filter(b => b.id !== businessId));
       alert('✅ Entreprise supprimée');
-    } catch (err) {
-      console.error('❌ Erreur:', err);
+    } catch (error) {
+      console.error('❌ Erreur deleteBusiness:', error);
       alert('❌ Erreur lors de la suppression');
     }
   };
 
-  const viewAsClient = (businessId) => {
-    window.open(`/client/${businessId}`, '_blank');
-  };
-
+  // ✅ FILTRAGE DES ENTREPRISES
   const filteredBusinesses = businesses.filter(b => {
     if (filter === 'all') return true;
+    if (filter === 'active') return b.subscription_status === 'active';
     if (filter === 'inactive') return b.subscription_status === 'inactive';
-    return b.plan === filter;
+    if (filter === 'trial') return b.subscription_status === 'trial';
+    return true;
   });
-
-  const planCounts = {
-    all: businesses.length,
-    basic: businesses.filter(b => b.plan === 'basic').length,
-    pro: businesses.filter(b => b.plan === 'pro').length,
-    premium: businesses.filter(b => b.plan === 'premium').length,
-    inactive: businesses.filter(b => b.subscription_status === 'inactive').length
-  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Chargement des données...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Chargement du tableau de bord admin...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        
-        {/* HEADER */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-2xl p-8 text-white shadow-xl">
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-            🎯 Administration
-          </h1>
-          <p className="text-indigo-100">Tableau de bord centralisé</p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-black text-slate-900 mb-2">Administration</h1>
+        <p className="text-slate-600">Gérez toutes les entreprises et visualisez les statistiques globales</p>
+      </div>
+
+      {/* STATS CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <Store className="w-10 h-10 text-indigo-600" />
+            <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">
+              TOTAL
+            </span>
+          </div>
+          <div className="text-3xl font-black text-slate-900 mb-1">{stats.totalBusinesses}</div>
+          <div className="text-sm text-slate-600">Entreprises inscrites</div>
         </div>
 
-        {/* STATS CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                <Store className="w-6 h-6 text-indigo-600" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-green-500" />
-            </div>
-            <p className="text-3xl font-bold text-slate-900">{stats.totalBusinesses}</p>
-            <p className="text-sm text-slate-500 mt-1">Entreprises inscrites</p>
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <DollarSign className="w-10 h-10 text-emerald-600" />
+            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold">
+              MRR
+            </span>
           </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-600" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-green-500" />
-            </div>
-            <p className="text-3xl font-bold text-slate-900">{stats.totalRevenue}€</p>
-            <p className="text-sm text-slate-500 mt-1">Revenus mensuels</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Activity className="w-6 h-6 text-blue-600" />
-              </div>
-              <CheckCircle className="w-5 h-5 text-green-500" />
-            </div>
-            <p className="text-3xl font-bold text-slate-900">{stats.activeSubscriptions}</p>
-            <p className="text-sm text-slate-500 mt-1">Abonnements actifs</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                <Star className="w-6 h-6 text-yellow-600" />
-              </div>
-              <span className="text-yellow-500 font-semibold">★</span>
-            </div>
-            <p className="text-3xl font-bold text-slate-900">{stats.avgRating.toFixed(1)}</p>
-            <p className="text-sm text-slate-500 mt-1">Note moyenne</p>
-          </div>
+          <div className="text-3xl font-black text-slate-900 mb-1">{stats.totalRevenue.toFixed(0)}€</div>
+          <div className="text-sm text-slate-600">Revenu mensuel récurrent</div>
         </div>
 
-        {/* GRAPHIQUES */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenus mensuels */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-slate-900">📈 Revenus Mensuels {selectedYear}</h3>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="px-3 py-2 bg-slate-50 rounded-lg text-sm font-semibold border border-slate-200"
-              >
-                {[2024, 2025, 2026].map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: '#fff',
-                    fontSize: '12px'
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Line type="monotone" dataKey="Revenus (€)" stroke="#4f46e5" strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <CheckCircle className="w-10 h-10 text-blue-600" />
+            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">
+              ACTIFS
+            </span>
           </div>
-
-          {/* Clients & Avis */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100">
-            <h3 className="text-lg font-bold text-slate-900 mb-6">👥 Clients & Avis {selectedYear}</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: '#fff',
-                    fontSize: '12px'
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar dataKey="Clients" fill="#6366f1" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="Avis" fill="#a855f7" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <div className="text-3xl font-black text-slate-900 mb-1">{stats.activeSubscriptions}</div>
+          <div className="text-sm text-slate-600">Abonnements actifs</div>
         </div>
 
-        {/* FILTRES */}
-        <div className="bg-white rounded-xl p-4 shadow-lg border border-slate-100">
-          <div className="flex flex-wrap gap-3">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <Star className="w-10 h-10 text-amber-600" />
+            <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-xs font-bold">
+              NOTE
+            </span>
+          </div>
+          <div className="text-3xl font-black text-slate-900 mb-1">{stats.avgRating.toFixed(1)}</div>
+          <div className="text-sm text-slate-600">Note moyenne</div>
+        </div>
+      </div>
+
+      {/* GRAPHIQUES */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* INSCRIPTIONS PAR MOIS */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-black text-slate-900">Inscriptions mensuelles</h2>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value={2024}>2024</option>
+              <option value={2025}>2025</option>
+            </select>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="month" stroke="#64748b" />
+              <YAxis stroke="#64748b" />
+              <Tooltip />
+              <Bar dataKey="inscriptions" fill="#6366f1" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* REVENUS PAR MOIS */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <h2 className="text-xl font-black text-slate-900 mb-6">Revenus mensuels</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="month" stroke="#64748b" />
+              <YAxis stroke="#64748b" />
+              <Tooltip />
+              <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* LISTE DES ENTREPRISES */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-xl font-black text-slate-900 mb-4">Toutes les entreprises</h2>
+          
+          {/* FILTRES */}
+          <div className="flex gap-2">
             <button
               onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
                 filter === 'all'
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              📊 Tous ({planCounts.all})
+              Toutes ({businesses.length})
             </button>
             <button
-              onClick={() => setFilter('basic')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                filter === 'basic'
-                  ? 'bg-green-600 text-white shadow-lg'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              onClick={() => setFilter('active')}
+              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                filter === 'active'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              ✅ Basic ({planCounts.basic})
+              Actives ({businesses.filter(b => b.subscription_status === 'active').length})
             </button>
             <button
-              onClick={() => setFilter('pro')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                filter === 'pro'
-                  ? 'bg-orange-600 text-white shadow-lg'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              onClick={() => setFilter('trial')}
+              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                filter === 'trial'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              ⭐ Pro ({planCounts.pro})
-            </button>
-            <button
-              onClick={() => setFilter('premium')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                filter === 'premium'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              💎 Premium ({planCounts.premium})
+              Essai ({businesses.filter(b => b.subscription_status === 'trial').length})
             </button>
             <button
               onClick={() => setFilter('inactive')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
                 filter === 'inactive'
-                  ? 'bg-red-600 text-white shadow-lg'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-slate-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              ❌ Inactifs ({planCounts.inactive})
+              Inactives ({businesses.filter(b => b.subscription_status === 'inactive').length})
             </button>
           </div>
         </div>
 
         {/* TABLEAU */}
-        <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
-                    Entreprise
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
-                    Contact
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
-                    Forfait
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
-                    Statut
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
-                    Inscription
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredBusinesses.map((business) => {
-                  const isInactive = business.subscription_status === 'inactive';
-                  const currentPrice = getPlanPrice(business.plan || 'basic');
-
-                  return (
-                    <tr 
-                      key={business.id}
-                      className={`hover:bg-slate-50 transition-colors ${
-                        isInactive ? 'opacity-60' : ''
-                      }`}
-                    >
-                      {/* ENTREPRISE */}
-                      <td className="px-6 py-4">
-                        <p className="font-bold text-slate-900">{business.name || 'Sans nom'}</p>
-                        <p className="text-sm text-slate-500">ID: {business.id.substring(0, 8)}</p>
-                      </td>
-
-                      {/* CONTACT */}
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-slate-900">{business.email || 'N/A'}</p>
-                        <p className="text-sm text-slate-500">{business.phone || 'N/A'}</p>
-                      </td>
-
-                      {/* FORFAIT */}
-                      <td className="px-6 py-4">
-                        <select
-                          value={business.plan || 'basic'}
-                          onChange={(e) => updateSubscription(business.id, e.target.value)}
-                          className="px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
-                        >
-                          <option value="basic">⭐ Basic</option>
-                          <option value="pro">🌟 Pro - 59€/mois</option>
-                          <option value="premium">💎 Premium - 99€/mois</option>
-                        </select>
-                        
-                        <div className="text-xs text-slate-500 mt-1">
-                          💰 {currentPrice.value || currentPrice}€/mois
-                        </div>
-                      </td>
-
-                      {/* STATUT */}
-                      <td className="px-6 py-4">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-700 uppercase">Entreprise</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-700 uppercase">Forfait</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-700 uppercase">Statut</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-700 uppercase">Inscription</th>
+                <th className="px-6 py-4 text-right text-xs font-black text-slate-700 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {filteredBusinesses.map(business => (
+                <tr key={business.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div>
+                      <div className="font-bold text-slate-900">{business.name}</div>
+                      <div className="text-sm text-slate-600">{business.email}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-bold text-slate-900">{getPlanLabel(business.subscription_plan)}</div>
+                    <div className="text-sm text-slate-600">{getPlanPrice(business.subscription_plan)}/mois</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {business.subscription_status === 'active' && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
+                        <CheckCircle className="w-3 h-3" /> Actif
+                      </span>
+                    )}
+                    {business.subscription_status === 'trial' && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">
+                        <Activity className="w-3 h-3" /> Essai
+                      </span>
+                    )}
+                    {business.subscription_status === 'inactive' && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
+                        <XCircle className="w-3 h-3" /> Inactif
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    {new Date(business.created_at).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => updateSubscriptionStatus(business.id, business.subscription_status === 'active' ? 'inactive' : 'active')}
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        title={business.subscription_status === 'active' ? 'Désactiver' : 'Activer'}
+                      >
                         {business.subscription_status === 'active' ? (
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 font-semibold text-sm">
-                            <CheckCircle className="w-4 h-4" />
-                            Actif
-                          </div>
+                          <XCircle className="w-5 h-5 text-slate-600" />
                         ) : (
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm">
-                            <XCircle className="w-4 h-4" />
-                            Inactif
-                          </div>
+                          <CheckCircle className="w-5 h-5 text-slate-600" />
                         )}
-                      </td>
-
-                      {/* INSCRIPTION */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(business.created_at).toLocaleDateString('fr-FR')}
-                        </div>
-                      </td>
-
-                      {/* ACTIONS */}
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => viewAsClient(business.id)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Voir comme client"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => deleteBusiness(business.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredBusinesses.length === 0 && (
-            <div className="text-center py-16">
-              <Store className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 font-semibold text-lg">Aucune entreprise trouvée</p>
-            </div>
-          )}
+                      </button>
+                      <button
+                        onClick={() => deleteBusiness(business.id)}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-600" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-
       </div>
     </div>
   );

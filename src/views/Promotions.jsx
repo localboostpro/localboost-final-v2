@@ -1,45 +1,102 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Tag, Plus, Trash2, Zap } from 'lucide-react';
+import { Tag, Plus, Trash2, Zap, Clock, X } from 'lucide-react';
 
-export default function Promotions({ profile }) {
-  const [promos, setPromos] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Promotions({ profile, promotions, setPromotions }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [newPromo, setNewPromo] = useState({ title: '', discount: '', end_date: '' });
 
-  const loadPromos = useCallback(async () => {
+  const addPromo = async (e) => {
+    e.preventDefault();
     if (!profile?.id) return;
-    const { data } = await supabase.from('promotions').select('*').eq('business_id', profile.id).order('created_at', { ascending: false });
-    setPromos(data || []);
-    setLoading(false);
-  }, [profile?.id]);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('promotions')
+        .insert([{ ...newPromo, business_id: profile.id }])
+        .select();
+      
+      if (error) throw error;
+      setPromotions([data[0], ...promotions]);
+      setIsAdding(false);
+      setNewPromo({ title: '', discount: '', end_date: '' });
+    } catch (err) { alert(err.message); }
+    finally { setLoading(false); }
+  };
 
-  useEffect(() => { loadPromos(); }, [loadPromos]);
-
-  if (loading) return <div className="p-10 text-center font-bold text-slate-400 animate-pulse">Chargement des offres...</div>;
+  const deletePromo = async (id) => {
+    if (!confirm('Supprimer cette offre ?')) return;
+    try {
+      const { error } = await supabase.from('promotions').delete().eq('id', id);
+      if (error) throw error;
+      setPromotions(promotions.filter(p => p.id !== id));
+    } catch (err) { alert(err.message); }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black text-slate-900">Offres & Promos</h1>
-        <button className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-100">
-          <Plus size={20}/> Nouvelle Offre
-        </button>
+        <div>
+          <h1 className="text-3xl font-black text-slate-900">Offres & Promos</h1>
+          <p className="text-slate-500 font-medium">Gérez vos offres flash pour attirer des clients en boutique.</p>
+        </div>
+        {!isAdding && (
+          <button onClick={() => setIsAdding(true)} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 hover:scale-105 transition-transform shadow-lg shadow-indigo-100">
+            <Plus size={20}/> Nouvelle Offre
+          </button>
+        )}
       </div>
 
+      {isAdding && (
+        <div className="bg-white p-8 rounded-[2.5rem] border-2 border-indigo-100 shadow-xl space-y-6 animate-in fade-in slide-in-from-top-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-black text-xl text-slate-900">Publier une nouvelle offre</h3>
+            <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+          </div>
+          <form onSubmit={addPromo} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase ml-1">Titre de l'offre</label>
+              <input type="text" placeholder="ex: Menu Midi" value={newPromo.title} onChange={e => setNewPromo({...newPromo, title: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl border-none font-bold" required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase ml-1">Remise / Avantage</label>
+              <input type="text" placeholder="ex: -20% ou Café offert" value={newPromo.discount} onChange={e => setNewPromo({...newPromo, discount: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl border-none font-bold" required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase ml-1">Date d'expiration</label>
+              <input type="date" value={newPromo.end_date} onChange={e => setNewPromo({...newPromo, end_date: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl border-none font-bold" required />
+            </div>
+            <div className="md:col-span-3 flex justify-end">
+              <button type="submit" disabled={loading} className="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-indigo-100">
+                {loading ? 'Publication...' : 'Publier maintenant'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {promos.length === 0 ? (
-          <div className="md:col-span-2 bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-100 text-center text-slate-400 font-bold italic">
-            "Créez des offres flash pour attirer vos clients sur place !"
+        {promotions.length === 0 ? (
+          <div className="md:col-span-2 bg-slate-50 p-20 rounded-[3rem] border-2 border-dashed border-slate-200 text-center text-slate-400 font-bold italic">
+            Aucune offre en cours. Boostez votre activité en créant une promotion flash !
           </div>
         ) : (
-          promos.map(p => (
-            <div key={p.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center">
-              <div>
-                <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Zap size={12}/> Offre Active</div>
-                <h3 className="text-xl font-black text-slate-900">{p.title}</h3>
-                <p className="text-2xl font-black text-emerald-500">{p.discount}</p>
-              </div>
-              <button className="p-3 text-red-400 hover:bg-red-50 rounded-2xl transition-colors"><Trash2 size={22}/></button>
+          promotions.map(p => (
+            <div key={p.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex justify-between items-center group hover:shadow-md transition-shadow">
+               <div>
+                 <div className="text-[10px] font-black text-indigo-500 uppercase mb-2 tracking-widest flex items-center gap-1">
+                    <Zap size={12} className="fill-indigo-500"/> Offre Active
+                 </div>
+                 <h4 className="text-2xl font-black text-slate-900 mb-1">{p.title}</h4>
+                 <div className="text-3xl font-black text-emerald-500">{p.discount}</div>
+                 <div className="mt-4 flex items-center gap-2 text-slate-400 text-xs font-bold">
+                    <Clock size={14}/> Jusqu'au {new Date(p.end_date).toLocaleDateString('fr-FR')}
+                 </div>
+               </div>
+               <button onClick={() => deletePromo(p.id)} className="p-4 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                  <Trash2 size={24}/>
+               </button>
             </div>
           ))
         )}

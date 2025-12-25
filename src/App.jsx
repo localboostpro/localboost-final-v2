@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
-
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import Marketing from "./views/Marketing";
@@ -9,6 +8,7 @@ import Reviews from "./views/Reviews";
 import Customers from "./views/Customers";
 import WebPage from "./views/WebPage";
 import Profile from "./views/Profile";
+import Promotions from "./views/Promotions";
 import Admin from "./views/Admin";
 import AuthForm from "./components/AuthForm";
 
@@ -24,24 +24,16 @@ export default function App() {
 
   const isAdmin = useMemo(() => session?.user?.email === "admin@demo.fr", [session]);
 
-  // ✅ Optimisation : Chargement global unique
   const fetchAllData = useCallback(async (userId, email) => {
     try {
       setLoading(true);
-      // 1. Profil Business
-      const { data: profileData } = await supabase
-        .from("business_profile")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
+      const { data: profileData } = await supabase.from("business_profile").select("*").eq("user_id", userId).maybeSingle();
       if (!profileData) {
-        setProfile({ name: "Nouveau compte", email, is_admin: email === "admin@demo.fr" });
-        setLoading(false);
+        setProfile({ name: "Nouveau compte", email, is_admin: email === "admin@demo.fr", plan: 'basic' });
         return;
       }
 
-      // 2. Chargement parallèle des données liées
+      // Chargement parallèle massif pour éviter les attentes
       const [r, c, p] = await Promise.all([
         supabase.from("reviews").select("*").eq("business_id", profileData.id).order("created_at", { ascending: false }),
         supabase.from("customers").select("*").eq("business_id", profileData.id),
@@ -53,7 +45,7 @@ export default function App() {
       setCustomers(c.data || []);
       setPosts(p.data || []);
     } catch (e) {
-      console.error("❌ Erreur critique:", e);
+      console.error("Erreur globale:", e);
     } finally {
       setLoading(false);
     }
@@ -71,19 +63,10 @@ export default function App() {
       if (s) fetchAllData(s.user.id, s.user.email);
       else { setProfile(null); setLoading(false); }
     });
-
     return () => subscription.unsubscribe();
   }, [fetchAllData]);
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#F8FAFC]">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
-        <p className="mt-4 text-slate-500 font-bold">Chargement de LocalBoost Pro...</p>
-      </div>
-    </div>
-  );
-
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 font-bold text-indigo-600 animate-pulse">Synchronisation LocalBoost...</div>;
   if (!session) return <AuthForm />;
 
   return (
@@ -93,10 +76,11 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard profile={profile} reviews={reviews} posts={posts} customers={customers} />} />
           <Route path="/marketing" element={<Marketing posts={posts} profile={profile} />} />
-          <Route path="/reviews" element={<Reviews reviews={reviews} profile={profile} />} />
+          <Route path="/reviews" element={<Reviews reviews={reviews} profile={profile} user={session.user} />} />
           <Route path="/customers" element={<Customers customers={customers} />} />
           <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
           <Route path="/profile" element={<Profile user={session.user} profile={profile} setProfile={setProfile} />} />
+          <Route path="/promotions" element={<Promotions profile={profile} />} />
           <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/" />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

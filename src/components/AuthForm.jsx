@@ -83,7 +83,7 @@ export default function AuthForm() {
     }
 
 // 2. Création du profil complet
-    if (authData?.user) {
+   if (authData?.user) {
       const { error: profileError } = await supabase
         .from("business_profile")
         .insert([{
@@ -93,8 +93,10 @@ export default function AuthForm() {
           siret: siret,
           website: website,
           phone: phone,
-          plan: "basic",
-          is_active: true
+          plan: "basic",           // ✅ CORRECTION : on écrit dans 'plan'
+          // subscription_tier: "basic", // ❌ ANCIENNE LIGNE À SUPPRIMER
+          is_active: true,
+          subscription_status: "trial" // On initialise en période d'essai
         }]);
 
       if (profileError) {

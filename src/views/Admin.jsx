@@ -345,8 +345,8 @@ export default function Admin() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-bold text-slate-900">{getPlanLabel(business.subscription_plan)}</div>
-                    <div className="text-sm text-slate-600">{getPlanPrice(business.subscription_plan).value}€/mois</div>
+                    <div className="font-bold text-slate-900">{getPlanLabel(business.plan)}</div>
+                    <div className="text-sm text-slate-600">{getPlanPrice(business.plan).value}€/mois</div>
                   </td>
                   <td className="px-6 py-4">
                     {business.subscription_status === 'active' && (

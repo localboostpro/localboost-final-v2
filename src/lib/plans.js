@@ -45,7 +45,9 @@ export const PLANS = {
 
 // ✅ FONCTION POUR OBTENIR LE BADGE DU PLAN
 export function getPlanBadge(plan) {
-  const planData = PLANS[plan] || PLANS.basic;
+  // Sécurisation : on force la minuscule pour éviter les erreurs "Pro" vs "pro"
+  const safePlan = (plan || 'basic').toLowerCase();
+  const planData = PLANS[safePlan] || PLANS.basic;
   
   const icons = {
     basic: '⭐',
@@ -65,15 +67,18 @@ export function getPlanBadge(plan) {
     price: planData.price,
     priceValue: planData.priceValue,
     features: planData.features || [],
-    icon: icons[plan] || '⭐',
+    icon: icons[safePlan] || '⭐',
     trialDays: planData.trialDays || 0,
-    color: colors[plan] || colors.basic
+    color: colors[safePlan] || colors.basic
   };
 }
 
 // ✅ FONCTION POUR OBTENIR LE PRIX D'UN PLAN
 export function getPlanPrice(planName) {
-  const plan = PLANS[planName];
+  // Sécurisation : convertit 'Pro' en 'pro' pour trouver le bon prix
+  const safeName = (planName || '').toLowerCase();
+  const plan = PLANS[safeName];
+  
   if (!plan) return { price: "0€", value: 0 };
   
   return {
@@ -84,7 +89,8 @@ export function getPlanPrice(planName) {
 
 // ✅ FONCTION POUR OBTENIR LE LABEL D'UN PLAN
 export function getPlanLabel(planName) {
-  const plan = PLANS[planName];
+  const safeName = (planName || '').toLowerCase();
+  const plan = PLANS[safeName];
   return plan ? plan.name : 'Basic';
 }
 
@@ -107,8 +113,11 @@ export function canAccessFeature(userPlan, feature) {
     premium: 3
   };
   
+  // Sécurisation du plan utilisateur
+  const safeUserPlan = (userPlan || 'basic').toLowerCase();
+  
   const requiredPlan = FEATURE_PLAN_MAP[feature] || 'basic';
-  const userLevel = planHierarchy[userPlan] || 0;
+  const userLevel = planHierarchy[safeUserPlan] || 0;
   const requiredLevel = planHierarchy[requiredPlan] || 0;
   
   return userLevel >= requiredLevel;
@@ -131,11 +140,16 @@ export function getPlanHierarchy() {
 // ✅ FONCTION POUR COMPARER LES PLANS
 export function isPlanHigherOrEqual(currentPlan, requiredPlan) {
   const hierarchy = getPlanHierarchy();
-  return (hierarchy[currentPlan] || 0) >= (hierarchy[requiredPlan] || 0);
+  const safeCurrent = (currentPlan || '').toLowerCase();
+  const safeRequired = (requiredPlan || '').toLowerCase();
+  
+  return (hierarchy[safeCurrent] || 0) >= (hierarchy[safeRequired] || 0);
 }
 
 // ✅ FONCTION POUR OBTENIR LES ÉLÉMENTS DU MENU EN FONCTION DU PLAN
 export function getMenuItems(plan) {
+  const safePlan = (plan || 'basic').toLowerCase();
+
   const allItems = [
     {
       path: "/dashboard",
@@ -187,5 +201,5 @@ export function getMenuItems(plan) {
     }
   ];
 
-  return allItems.filter(item => item.plans.includes(plan));
+  return allItems.filter(item => item.plans.includes(safePlan));
 }

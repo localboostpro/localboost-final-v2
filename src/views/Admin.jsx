@@ -49,11 +49,8 @@ export default function Admin() {
         throw businessError;
       }
 
-      console.log('✅ [Admin] Entreprises chargées:', businessData?.length);
       setBusinesses(businessData || []);
 
-      // Calcul des stats
-      // Note: subscription_price semble être à 0 dans votre CSV, pensez à le mettre à jour lors des paiements
       const totalRevenue = businessData?.reduce((sum, b) => {
         const price = Number(b.subscription_price) || 0;
         return sum + price;
@@ -112,6 +109,7 @@ export default function Admin() {
     }
   };
 
+  // ✅ MISE À JOUR DU STATUT (Actif/Inactif)
   const updateSubscriptionStatus = async (businessId, newStatus) => {
     try {
       const { error } = await supabase
@@ -128,6 +126,33 @@ export default function Admin() {
     } catch (error) {
       console.error('❌ Erreur updateSubscriptionStatus:', error);
       alert('❌ Erreur lors de la mise à jour');
+    }
+  };
+
+  // ✅ NOUVELLE FONCTION : MISE À JOUR DU FORFAIT (Basic/Pro/Premium)
+  const updateBusinessPlan = async (businessId, newPlan) => {
+    try {
+      // On récupère le prix pour mettre à jour aussi la colonne subscription_price
+      const planPrice = getPlanPrice(newPlan).value;
+
+      const { error } = await supabase
+        .from('business_profile')
+        .update({ 
+          plan: newPlan,
+          subscription_price: planPrice 
+        })
+        .eq('id', businessId);
+
+      if (error) throw error;
+
+      setBusinesses(prev =>
+        prev.map(b => b.id === businessId ? { ...b, plan: newPlan, subscription_price: planPrice } : b)
+      );
+      
+      alert(`✅ Forfait passé en : ${newPlan.toUpperCase()}`);
+    } catch (error) {
+      console.error('❌ Erreur updateBusinessPlan:', error);
+      alert('❌ Erreur lors du changement de forfait');
     }
   };
 
@@ -293,9 +318,17 @@ export default function Admin() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {/* ✅ CORRECTION ICI : Utilisation de 'plan' au lieu de 'subscription_plan' */}
-                    <div className="font-bold text-slate-900">{getPlanLabel(business.plan)}</div>
-                    <div className="text-sm text-slate-600">
+                    {/* ✅ MODIFICATION ICI : Sélecteur pour changer le forfait en temps réel */}
+                    <select
+                      value={business.plan || 'basic'}
+                      onChange={(e) => updateBusinessPlan(business.id, e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold p-1 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="pro">Pro</option>
+                      <option value="premium">Premium</option>
+                    </select>
+                    <div className="text-xs text-slate-500 mt-1">
                       {getPlanPrice(business.plan).price}
                     </div>
                   </td>

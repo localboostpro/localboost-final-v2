@@ -79,6 +79,7 @@ export function getPlanPrice(planName) {
   const safeName = (planName || '').toLowerCase();
   const plan = PLANS[safeName];
   
+  // Si le plan n'existe pas, on retourne 0 par sécurité
   if (!plan) return { price: "0€", value: 0 };
   
   return {

@@ -2,11 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { getPlanPrice, getPlanLabel } from '../lib/plans';
 import { 
-  Users, Store, TrendingUp, DollarSign, Eye,
-  Calendar, Star, Activity, Package, BarChart3,
-  Edit, Trash2, CheckCircle, XCircle, ArrowUpRight
+  Store, DollarSign, CheckCircle, Star, Activity, Trash2, XCircle
 } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Admin() {
   const [businesses, setBusinesses] = useState([]);
@@ -21,10 +19,8 @@ export default function Admin() {
   const [filter, setFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
-  // ✅ ÉVITE LES RECHARGEMENTS MULTIPLES
   const hasLoadedRef = useRef(false);
 
-  // ✅ CHARGE UNE SEULE FOIS AU MONTAGE
   useEffect(() => {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
@@ -32,7 +28,6 @@ export default function Admin() {
     }
   }, []);
 
-  // ✅ RECHARGE UNIQUEMENT SI L'ANNÉE CHANGE
   useEffect(() => {
     if (hasLoadedRef.current && !loading) {
       fetchMonthlyData();
@@ -58,6 +53,7 @@ export default function Admin() {
       setBusinesses(businessData || []);
 
       // Calcul des stats
+      // Note: subscription_price semble être à 0 dans votre CSV, pensez à le mettre à jour lors des paiements
       const totalRevenue = businessData?.reduce((sum, b) => {
         const price = Number(b.subscription_price) || 0;
         return sum + price;
@@ -87,8 +83,6 @@ export default function Admin() {
 
   const fetchMonthlyData = async () => {
     try {
-      console.log('📈 [Admin] Chargement données mensuelles...');
-      
       const startDate = new Date(selectedYear, 0, 1);
       const endDate = new Date(selectedYear, 11, 31);
 
@@ -112,9 +106,7 @@ export default function Admin() {
         monthlyStats[month].revenue += Number(business.subscription_price) || 0;
       });
 
-      console.log('✅ [Admin] Données mensuelles:', monthlyStats);
       setMonthlyData(monthlyStats);
-
     } catch (error) {
       console.error('❌ [Admin] Erreur fetchMonthlyData:', error);
     }
@@ -132,7 +124,6 @@ export default function Admin() {
       setBusinesses(prev =>
         prev.map(b => b.id === businessId ? { ...b, subscription_status: newStatus } : b)
       );
-
       alert(`✅ Statut mis à jour : ${newStatus}`);
     } catch (error) {
       console.error('❌ Erreur updateSubscriptionStatus:', error);
@@ -142,7 +133,6 @@ export default function Admin() {
 
   const deleteBusiness = async (businessId) => {
     if (!confirm('⚠️ Supprimer cette entreprise ? Cette action est irréversible.')) return;
-
     try {
       const { error } = await supabase
         .from('business_profile')
@@ -150,7 +140,6 @@ export default function Admin() {
         .eq('id', businessId);
 
       if (error) throw error;
-
       setBusinesses(prev => prev.filter(b => b.id !== businessId));
       alert('✅ Entreprise supprimée');
     } catch (error) {
@@ -177,6 +166,7 @@ export default function Admin() {
       </div>
     );
   }
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* HEADER */}
@@ -190,9 +180,7 @@ export default function Admin() {
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <Store className="w-10 h-10 text-indigo-600" />
-            <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">
-              TOTAL
-            </span>
+            <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">TOTAL</span>
           </div>
           <div className="text-3xl font-black text-slate-900 mb-1">{stats.totalBusinesses}</div>
           <div className="text-sm text-slate-600">Entreprises inscrites</div>
@@ -201,9 +189,7 @@ export default function Admin() {
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <DollarSign className="w-10 h-10 text-emerald-600" />
-            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold">
-              MRR
-            </span>
+            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold">MRR</span>
           </div>
           <div className="text-3xl font-black text-slate-900 mb-1">{stats.totalRevenue.toFixed(0)}€</div>
           <div className="text-sm text-slate-600">Revenu mensuel récurrent</div>
@@ -212,9 +198,7 @@ export default function Admin() {
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <CheckCircle className="w-10 h-10 text-blue-600" />
-            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">
-              ACTIFS
-            </span>
+            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">ACTIFS</span>
           </div>
           <div className="text-3xl font-black text-slate-900 mb-1">{stats.activeSubscriptions}</div>
           <div className="text-sm text-slate-600">Abonnements actifs</div>
@@ -223,9 +207,7 @@ export default function Admin() {
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <Star className="w-10 h-10 text-amber-600" />
-            <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-xs font-bold">
-              NOTE
-            </span>
+            <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-xs font-bold">NOTE</span>
           </div>
           <div className="text-3xl font-black text-slate-900 mb-1">{stats.avgRating.toFixed(1)}</div>
           <div className="text-sm text-slate-600">Note moyenne</div>
@@ -234,14 +216,13 @@ export default function Admin() {
 
       {/* GRAPHIQUES */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* INSCRIPTIONS PAR MOIS */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-black text-slate-900">Inscriptions mensuelles</h2>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500"
             >
               <option value={2024}>2024</option>
               <option value={2025}>2025</option>
@@ -258,7 +239,6 @@ export default function Admin() {
           </ResponsiveContainer>
         </div>
 
-        {/* REVENUS PAR MOIS */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <h2 className="text-xl font-black text-slate-900 mb-6">Revenus mensuels</h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -277,53 +257,21 @@ export default function Admin() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-xl font-black text-slate-900 mb-4">Toutes les entreprises</h2>
-          
-          {/* FILTRES */}
           <div className="flex gap-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                filter === 'all'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Toutes ({businesses.length})
-            </button>
-            <button
-              onClick={() => setFilter('active')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                filter === 'active'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Actives ({businesses.filter(b => b.subscription_status === 'active').length})
-            </button>
-            <button
-              onClick={() => setFilter('trial')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                filter === 'trial'
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Essai ({businesses.filter(b => b.subscription_status === 'trial').length})
-            </button>
-            <button
-              onClick={() => setFilter('inactive')}
-              className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                filter === 'inactive'
-                  ? 'bg-slate-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Inactives ({businesses.filter(b => b.subscription_status === 'inactive').length})
-            </button>
+            {['all', 'active', 'trial', 'inactive'].map(status => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                  filter === status ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* TABLEAU */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50">
@@ -345,25 +293,23 @@ export default function Admin() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
+                    {/* ✅ CORRECTION ICI : Utilisation de 'plan' au lieu de 'subscription_plan' */}
                     <div className="font-bold text-slate-900">{getPlanLabel(business.plan)}</div>
-                    <div className="text-sm text-slate-600">{getPlanPrice(business.plan).value}€/mois</div>
+                    <div className="text-sm text-slate-600">
+                      {getPlanPrice(business.plan).price}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
-                    {business.subscription_status === 'active' && (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
-                        <CheckCircle className="w-3 h-3" /> Actif
-                      </span>
-                    )}
-                    {business.subscription_status === 'trial' && (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">
-                        <Activity className="w-3 h-3" /> Essai
-                      </span>
-                    )}
-                    {business.subscription_status === 'inactive' && (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
-                        <XCircle className="w-3 h-3" /> Inactif
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
+                      business.subscription_status === 'active' ? 'bg-emerald-50 text-emerald-700' :
+                      business.subscription_status === 'trial' ? 'bg-amber-50 text-amber-700' :
+                      'bg-slate-100 text-slate-700'
+                    }`}>
+                      {business.subscription_status === 'active' && <CheckCircle className="w-3 h-3" />}
+                      {business.subscription_status === 'trial' && <Activity className="w-3 h-3" />}
+                      {business.subscription_status === 'inactive' && <XCircle className="w-3 h-3" />}
+                      {business.subscription_status === 'active' ? ' Actif' : business.subscription_status === 'trial' ? ' Essai' : ' Inactif'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {new Date(business.created_at).toLocaleDateString('fr-FR')}
@@ -373,18 +319,12 @@ export default function Admin() {
                       <button
                         onClick={() => updateSubscriptionStatus(business.id, business.subscription_status === 'active' ? 'inactive' : 'active')}
                         className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                        title={business.subscription_status === 'active' ? 'Désactiver' : 'Activer'}
                       >
-                        {business.subscription_status === 'active' ? (
-                          <XCircle className="w-5 h-5 text-slate-600" />
-                        ) : (
-                          <CheckCircle className="w-5 h-5 text-slate-600" />
-                        )}
+                        {business.subscription_status === 'active' ? <XCircle className="w-5 h-5 text-slate-600" /> : <CheckCircle className="w-5 h-5 text-slate-600" />}
                       </button>
                       <button
                         onClick={() => deleteBusiness(business.id)}
                         className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Supprimer"
                       >
                         <Trash2 className="w-5 h-5 text-red-600" />
                       </button>

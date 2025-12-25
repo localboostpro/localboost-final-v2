@@ -1,311 +1,188 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { canAccessFeature, getRequiredPlan, getPlanBadge } from '../lib/plans';
-import UpgradeModal from '../components/UpgradeModal';
 import { 
-  Star, 
-  TrendingUp, 
-  Users, 
-  MessageSquare, 
-  Calendar, 
-  MapPin,
-  Sparkles,
-  Globe,
-  Megaphone,
-  Lock,
-  ChevronRight
+  TrendingUp, Users, Star, ArrowUpRight, 
+  PlusCircle, Zap, MessageSquare, Share2 
 } from 'lucide-react';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer 
+} from 'recharts';
 
-export default function Dashboard({ stats, posts, profile }) {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [upgradeModal, setUpgradeModal] = useState({ 
-    isOpen: false, 
-    feature: null, 
-    requiredPlan: null 
+export default function Dashboard({ user }) {
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [stats, setStats] = useState({
+    totalReviews: 0,
+    avgRating: 0,
+    newCustomers: 0,
+    growth: 0
   });
+  const [chartData, setChartData] = useState([]);
 
-  // Si pas de stats passées en props, on affiche des valeurs par défaut
-  const displayStats = stats || {
-    clients: 0,
-    reviews: 0,
-    posts: 0
-  };
+  const loadDashboardData = useCallback(async () => {
+    if (!user?.id) return;
 
-  const recentReviews = posts?.filter(p => p.rating).slice(0, 5) || [];
-  const averageRating = recentReviews.length > 0
-    ? (recentReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / recentReviews.length).toFixed(1)
-    : 0;
+    try {
+      setLoading(true);
 
-  // Fonction pour gérer les clics sur les fonctionnalités premium
-  const handleFeatureClick = (feature, redirectPath) => {
-    if (!canAccessFeature(profile?.plan, feature)) {
-      setUpgradeModal({
-        isOpen: true,
-        feature: feature,
-        requiredPlan: getRequiredPlan(feature)
+      // 1. Récupérer le profil Business
+      const { data: bizProfile, error: profileError } = await supabase
+        .from('business_profile')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      if (!bizProfile) {
+        setLoading(false);
+        return;
+      }
+      setProfile(bizProfile);
+
+      // 2. Récupérer les données en parallèle (Avis et Stats)
+      const [reviewsRes] = await Promise.all([
+        supabase.from('reviews').select('*').eq('business_id', bizProfile.id)
+      ]);
+
+      const reviews = reviewsRes.data || [];
+      
+      // 3. Calcul des statistiques
+      const avg = reviews.length > 0 
+        ? (reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / reviews.length).toFixed(1)
+        : 0;
+
+      setStats({
+        totalReviews: reviews.length,
+        avgRating: avg,
+        newCustomers: Math.floor(reviews.length * 0.8), // Simulation pour le design
+        growth: 12.5
       });
-      return false;
-    }
-    navigate(redirectPath);
-    return true;
-  };
 
-  // Badge du plan actuel
-  const currentPlanBadge = getPlanBadge(profile?.plan || 'basic');
+      // 4. Données fictives pour le graphique (à remplacer par des données SQL réelles plus tard)
+      setChartData([
+        { name: 'Lun', val: 400 }, { name: 'Mar', val: 300 },
+        { name: 'Mer', val: 600 }, { name: 'Jeu', val: 800 },
+        { name: 'Ven', val: 500 }, { name: 'Sam', val: 900 },
+        { name: 'Dim', val: 700 },
+      ]);
+
+    } catch (err) {
+      console.error("Erreur Dashboard:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-600"></div>
+    </div>
+  );
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header avec badge du plan */}
-      <div className="mb-8 flex items-center justify-between">
+    <div className="max-w-7xl mx-auto space-y-8 pb-10">
+      {/* Header avec Message de Bienvenue */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-indigo-600 to-purple-700 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-indigo-200">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="mt-2 text-gray-600">
-            Bienvenue, {profile?.name || 'Utilisateur'}
-          </p>
+          <h1 className="text-3xl font-black mb-1">Bonjour, {profile?.name || 'Commerçant'} 👋</h1>
+          <p className="text-indigo-100 opacity-90 font-medium">Votre établissement se porte bien cette semaine.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 bg-gradient-to-r ${
-            currentPlanBadge.color === 'blue' ? 'from-blue-500 to-blue-600' :
-            currentPlanBadge.color === 'purple' ? 'from-purple-500 to-purple-600' :
-            'from-indigo-500 to-purple-600'
-          } text-white shadow-lg`}>
-            <span>{currentPlanBadge.icon}</span>
-            <span>{currentPlanBadge.name}</span>
+        <div className="flex gap-2">
+           <button className="bg-white/20 backdrop-blur-md px-4 py-2.5 rounded-xl font-bold hover:bg-white/30 transition flex items-center gap-2">
+             <Share2 size={18}/> Partager ma page
+           </button>
+        </div>
+      </div>
+
+      {/* Cartes d'impact */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {[
+          { label: "Note Google", value: `${stats.avgRating}/5`, icon: Star, color: "text-amber-500" },
+          { label: "Avis Clients", value: stats.totalReviews, icon: MessageSquare, color: "text-blue-500" },
+          { label: "Nouveaux Clients", value: `+${stats.newCustomers}`, icon: Users, color: "text-emerald-500" },
+          { label: "Croissance", value: `+${stats.growth}%`, icon: TrendingUp, color: "text-indigo-500" },
+        ].map((s, i) => (
+          <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 bg-slate-50 ${s.color}`}>
+              <s.icon size={24} />
+            </div>
+            <div className="text-3xl font-black text-slate-900">{s.value}</div>
+            <div className="text-sm font-bold text-slate-400 uppercase tracking-tighter">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Graphique de Performance & Actions Rapides */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Graphique */}
+        <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black text-slate-900">Visibilité Locale</h3>
+            <select className="bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-500 p-2">
+              <option>7 derniers jours</option>
+              <option>30 derniers jours</option>
+            </select>
+          </div>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 600}} dy={10} />
+                <YAxis hide />
+                <Tooltip contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                <Area type="monotone" dataKey="val" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorVal)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      {/* Business Info Card */}
-      {profile && (
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 mb-8 text-white">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">{profile.name}</h2>
-              <div className="flex items-center gap-2 text-blue-100">
-                <MapPin className="w-4 h-4" />
-                <span>{profile.address}</span>
+        {/* Actions Rapides */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+          <h3 className="text-xl font-black text-slate-900 mb-6">Actions Rapides</h3>
+          <div className="space-y-4">
+            <button className="w-full flex items-center gap-4 p-4 bg-slate-50 rounded-2xl hover:bg-indigo-50 group transition">
+              <div className="bg-white p-3 rounded-xl shadow-sm text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition">
+                <PlusCircle size={20}/>
               </div>
-              <p className="mt-2 text-blue-100">{profile.category}</p>
-            </div>
-            <div className="text-right">
-              <div className="flex items-center gap-2 mb-2">
-                <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
-                <span className="text-3xl font-bold">{averageRating}</span>
+              <div className="text-left">
+                <div className="font-bold text-slate-900">Nouveau Post</div>
+                <div className="text-xs text-slate-500">Générer un post IA</div>
               </div>
-              <p className="text-blue-100 text-sm">{displayStats.reviews} avis</p>
-            </div>
-          </div>
-        </div>
-      )}
+            </button>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Clients"
-          value={displayStats.clients}
-          icon={<Users className="w-6 h-6" />}
-          color="blue"
-          trend="+12%"
-        />
-        <StatCard
-          title="Note moyenne"
-          value={averageRating}
-          icon={<Star className="w-6 h-6" />}
-          color="yellow"
-          suffix="/5"
-        />
-        <StatCard
-          title="Avis reçus"
-          value={displayStats.reviews}
-          icon={<MessageSquare className="w-6 h-6" />}
-          color="green"
-          trend="+8%"
-        />
-        <StatCard
-          title="Publications"
-          value={displayStats.posts}
-          icon={<TrendingUp className="w-6 h-6" />}
-          color="purple"
-        />
-      </div>
+            <button className="w-full flex items-center gap-4 p-4 bg-slate-50 rounded-2xl hover:bg-amber-50 group transition">
+              <div className="bg-white p-3 rounded-xl shadow-sm text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition">
+                <Zap size={20}/>
+              </div>
+              <div className="text-left">
+                <div className="font-bold text-slate-900">Boost Promotion</div>
+                <div className="text-xs text-slate-500">Lancer une campagne SMS</div>
+              </div>
+            </button>
 
-      {/* Actions rapides avec système de paywall */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Studio Marketing */}
-        <ActionCard
-          title="Studio Marketing"
-          description="Créez des posts IA et publiez automatiquement"
-          icon={<Megaphone className="w-6 h-6" />}
-          color="purple"
-          locked={!canAccessFeature(profile?.plan, 'marketingStudio')}
-          badge={!canAccessFeature(profile?.plan, 'marketingStudio') ? 'PRO' : null}
-          onClick={() => handleFeatureClick('marketingStudio', '/marketing')}
-        />
-
-        {/* Page Établissement */}
-        <ActionCard
-          title="Page Établissement"
-          description="Gérez votre site web professionnel"
-          icon={<Globe className="w-6 h-6" />}
-          color="indigo"
-          locked={!canAccessFeature(profile?.plan, 'landingPage')}
-          badge={!canAccessFeature(profile?.plan, 'landingPage') ? 'PREMIUM' : null}
-          onClick={() => handleFeatureClick('landingPage', '/website')}
-        />
-      </div>
-
-      {/* Recent Reviews */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Avis récents</h3>
-          <button 
-            onClick={() => navigate('/reviews')}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
-          >
-            Voir tout <ChevronRight size={16} />
-          </button>
-        </div>
-
-        {recentReviews.length === 0 ? (
-          <div className="text-center py-12">
-            <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Aucun avis pour le moment</p>
-            <button 
-              onClick={() => navigate('/reviews')}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
-            >
-              Collecter mes premiers avis
+            <button className="w-full flex items-center gap-4 p-4 bg-slate-50 rounded-2xl hover:bg-blue-50 group transition">
+              <div className="bg-white p-3 rounded-xl shadow-sm text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition">
+                <ArrowUpRight size={20}/>
+              </div>
+              <div className="text-left">
+                <div className="font-bold text-slate-900">Demander Avis</div>
+                <div className="text-xs text-slate-500">Envoyer un lien Google</div>
+              </div>
             </button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {recentReviews.map((review) => (
-              <div key={review.id} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                    {review.customer_name?.[0]?.toUpperCase() || '?'}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-gray-900">
-                        {review.customer_name || 'Client anonyme'}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < (review.rating || 5)
-                                ? 'text-yellow-400 fill-yellow-400'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-2">
-                      {review.text || 'Pas de commentaire'}
-                    </p>
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(review.created_at).toLocaleDateString('fr-FR')}
-                      </div>
-                      {review.platform && (
-                        <span className="px-2 py-0.5 bg-gray-100 rounded text-gray-600">
-                          {review.platform}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modale d'upgrade */}
-      <UpgradeModal
-        isOpen={upgradeModal.isOpen}
-        onClose={() => setUpgradeModal({ isOpen: false, feature: null, requiredPlan: null })}
-        requiredPlan={upgradeModal.requiredPlan}
-        feature={upgradeModal.feature}
-      />
-    </div>
-  );
-}
-
-// Composant StatCard
-function StatCard({ title, value, icon, color, trend, suffix = '' }) {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600'
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          {icon}
         </div>
-        {trend && (
-          <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
-            <TrendingUp className="w-4 h-4" />
-            {trend}
-          </span>
-        )}
-      </div>
-      <div>
-        <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-gray-900">
-          {value}{suffix}
-        </p>
       </div>
     </div>
-  );
-}
-
-// Nouveau composant pour les actions rapides
-function ActionCard({ title, description, icon, color, locked, badge, onClick }) {
-  const colorClasses = {
-    purple: 'from-purple-500 to-purple-600',
-    indigo: 'from-indigo-500 to-indigo-600',
-    blue: 'from-blue-500 to-blue-600'
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`relative bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-left hover:shadow-md transition-all group ${
-        locked ? 'opacity-75' : ''
-      }`}
-    >
-      {/* Badge Premium/Pro */}
-      {badge && (
-        <div className="absolute top-4 right-4 px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
-          <Lock size={12} />
-          {badge}
-        </div>
-      )}
-
-      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-        {icon}
-      </div>
-
-      <h3 className="text-lg font-bold text-gray-900 mb-1">{title}</h3>
-      <p className="text-sm text-gray-600">{description}</p>
-
-      {locked && (
-        <div className="mt-3 flex items-center gap-2 text-xs text-amber-600 font-medium">
-          <Sparkles size={14} />
-          <span>Cliquez pour débloquer</span>
-        </div>
-      )}
-    </button>
   );
 }

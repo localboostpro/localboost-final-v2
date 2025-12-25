@@ -27,10 +27,12 @@ export default function App() {
   // ÉTAT DU MENU MOBILE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // ✅ CALCUL isAdmin
-  const isAdmin = session?.user?.email === "admin@demo.fr";
+  // ✅ STABILISER isAdmin AVEC useMemo (ne change que si l'email change)
+  const isAdmin = useMemo(() => {
+    return session?.user?.email === "admin@demo.fr";
+  }, [session?.user?.email]);
 
-  // ✅ FONCTION fetchAllData
+  // ✅ FONCTION fetchAllData (SANS isAdmin dans les dépendances)
   const fetchAllData = async (userId, email) => {
     try {
       const { data: profileData } = await supabase
@@ -39,9 +41,12 @@ export default function App() {
         .eq("user_id", userId)
         .maybeSingle();
 
+      // ✅ Calcul direct de is_admin (pas de dépendance externe)
+      const userIsAdmin = email === "admin@demo.fr";
+
       const finalProfile = profileData 
-        ? { ...profileData, email, is_admin: isAdmin } 
-        : { name: "Nouveau compte", email, is_admin: isAdmin };
+        ? { ...profileData, email, is_admin: userIsAdmin } 
+        : { name: "Nouveau compte", email, is_admin: userIsAdmin };
       
       setProfile(finalProfile);
       
@@ -61,19 +66,27 @@ export default function App() {
     }
   };
 
-  // AUTH
+  // ✅ AUTH (CHARGE UNE SEULE FOIS)
   useEffect(() => {
+    let isMounted = true;
+
     supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      
       setSession(data.session);
       setLoading(false);
+      
       if (data.session) {
         fetchAllData(data.session.user.id, data.session.user.email);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (!isMounted) return;
+      
       setSession(s);
       setLoading(false);
+      
       if (s) { 
         fetchAllData(s.user.id, s.user.email); 
       } else { 
@@ -84,8 +97,11 @@ export default function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []); // ← Dépendances VIDES = 1 seul chargement
 
   const upsertPostInState = (post) => {
     setPosts((prev) => {
@@ -103,7 +119,7 @@ export default function App() {
     clients: customers.length, 
     reviews: reviews.length, 
     posts: posts.length 
-  }), [customers, reviews, posts]);
+  }), [customers.length, reviews.length, posts.length]); // ✅ Dépendances optimisées
 
   // ✅ LOADING
   if (loading) {
@@ -201,13 +217,10 @@ export default function App() {
           <Route path="/reviews" element={<Reviews reviews={reviews} />} />
           <Route path="/customers" element={<Customers customers={customers} />} />
           <Route path="/webpage" element={<WebPage profile={profile} setProfile={setProfile} />} />
-          
-          {/* ✅ CORRECTION ICI : Passer user au lieu de profile */}
           <Route 
             path="/profile" 
             element={<Profile user={session?.user} profile={profile} setProfile={setProfile} />} 
           />
-          
           <Route path="/promotions" element={<Promotions />} />
           <Route path="/admin" element={<ProtectedAdmin />} />
           <Route path="*" element={<Navigate to="/" replace />} />

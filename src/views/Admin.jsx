@@ -21,25 +21,23 @@ export default function Admin() {
   const [filter, setFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
-  // ✅ ÉVITE LES RECHARGEMENTS MULTIPLES
+  // ✅ EMPÊCHE LES RECHARGEMENTS MULTIPLES
   const hasLoadedRef = useRef(false);
-  const isLoadingRef = useRef(false);
 
-  // ✅ CHARGE UNE SEULE FOIS AU MONTAGE
+  // ✅ CHARGE LES DONNÉES UNE SEULE FOIS AU MONTAGE
   useEffect(() => {
-    if (!hasLoadedRef.current && !isLoadingRef.current) {
+    if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
-      isLoadingRef.current = true;
       fetchData();
     }
-  }, []);
+  }, []); // ← Aucune dépendance = 1 seul chargement
 
-  // ✅ RECHARGE UNIQUEMENT SI L'ANNÉE CHANGE
+  // ✅ RECHARGE UNIQUEMENT LES DONNÉES MENSUELLES SI L'ANNÉE CHANGE
   useEffect(() => {
-    if (hasLoadedRef.current && !loading) {
+    if (hasLoadedRef.current) {
       fetchMonthlyData();
     }
-  }, [selectedYear]);
+  }, [selectedYear]); // ← Ne dépend QUE de selectedYear
 
   const fetchData = async () => {
     try {
@@ -83,7 +81,6 @@ export default function Admin() {
       console.error('❌ [Admin] Erreur fetchData:', error);
     } finally {
       setLoading(false);
-      isLoadingRef.current = false;
     }
   };
 

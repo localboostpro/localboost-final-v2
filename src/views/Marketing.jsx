@@ -4,7 +4,17 @@ import { Wand2, Calendar, Image, Send, Trash2, Edit } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Marketing() {
-  const { profile, posts, refreshPosts } = useData();
+  const { profile, posts, refreshPosts, loading } = useData();
+
+if (loading) {
+  return (
+    <div className="flex items-center justify-center h-96">
+      <Loader className="animate-spin w-12 h-12 text-indigo-600" />
+    </div>
+  );
+}
+
+const postList = posts || [];
   const [newPost, setNewPost] = useState({ content: '', platform: 'facebook', scheduled_at: '' });
   const [loading, setLoading] = useState(false);
 

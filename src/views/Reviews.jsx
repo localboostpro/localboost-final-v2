@@ -17,7 +17,6 @@ export default function Reviews() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
         <div className="flex items-center gap-3 mb-2">
           <div className="bg-green-100 p-3 rounded-xl">
@@ -28,7 +27,6 @@ export default function Reviews() {
         <p className="text-slate-600 ml-16">Gérez votre e-réputation</p>
       </div>
 
-      {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-[2.5rem] p-6 shadow-lg">
           <p className="text-sm font-bold text-slate-600 mb-2">Note Moyenne</p>
@@ -56,7 +54,6 @@ export default function Reviews() {
         </div>
       </div>
 
-      {/* Distribution */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
         <h2 className="text-2xl font-black text-slate-900 mb-6">Distribution des notes</h2>
         <div className="space-y-3">
@@ -78,7 +75,6 @@ export default function Reviews() {
         </div>
       </div>
 
-      {/* Liste des avis */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
         <h2 className="text-2xl font-black text-slate-900 mb-6">Tous les avis</h2>
         {reviews.length === 0 ? (

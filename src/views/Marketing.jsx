@@ -1,29 +1,19 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
-import { Wand2, Calendar, Image, Send, Trash2, Edit } from 'lucide-react';
+import { Wand2, Calendar, Send, Trash2, Loader } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Marketing() {
-  const { profile, posts, refreshPosts, loading } = useData();
-
-if (loading) {
-  return (
-    <div className="flex items-center justify-center h-96">
-      <Loader className="animate-spin w-12 h-12 text-indigo-600" />
-    </div>
-  );
-}
-
-const postList = posts || [];
+  const { profile, posts, refreshPosts, loading: dataLoading } = useData();
   const [newPost, setNewPost] = useState({ content: '', platform: 'facebook', scheduled_at: '' });
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
     if (!profile?.id || !newPost.content) return;
 
     try {
-      setLoading(true);
+      setSubmitting(true);
       const { error } = await supabase.from('posts').insert({
         business_id: profile.id,
         content: newPost.content,
@@ -40,7 +30,7 @@ const postList = posts || [];
       console.error('Erreur création post:', e);
       alert('Erreur lors de la création du post');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -56,9 +46,18 @@ const postList = posts || [];
     }
   };
 
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader className="animate-spin w-12 h-12 text-indigo-600" />
+      </div>
+    );
+  }
+
+  const postList = posts || [];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
         <div className="flex items-center gap-3 mb-2">
           <div className="bg-purple-100 p-3 rounded-xl">
@@ -69,7 +68,6 @@ const postList = posts || [];
         <p className="text-slate-600 ml-16">Créez et planifiez vos publications</p>
       </div>
 
-      {/* Formulaire création post */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
         <h2 className="text-2xl font-black text-slate-900 mb-6">Nouvelle publication</h2>
         <form onSubmit={handleCreatePost} className="space-y-4">
@@ -112,23 +110,22 @@ const postList = posts || [];
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Send size={18} />
-            {loading ? 'Création...' : 'Créer la publication'}
+            {submitting ? 'Création...' : 'Créer la publication'}
           </button>
         </form>
       </div>
 
-      {/* Liste des posts */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
         <h2 className="text-2xl font-black text-slate-900 mb-6">Publications récentes</h2>
-        {posts.length === 0 ? (
+        {postList.length === 0 ? (
           <p className="text-slate-500 text-center py-8">Aucune publication pour le moment</p>
         ) : (
           <div className="space-y-4">
-            {posts.map((post) => (
+            {postList.map((post) => (
               <div key={post.id} className="border border-slate-200 rounded-xl p-6 hover:border-indigo-300 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

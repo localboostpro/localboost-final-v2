@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useData } from '../contexts/DataContext';
 import { supabase } from '../lib/supabase';
 import { Tag, Plus, Trash2, Zap, Clock, X } from 'lucide-react';
 

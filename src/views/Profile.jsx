@@ -43,7 +43,6 @@ export default function Profile({ user }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
         <div className="flex items-center gap-3 mb-2">
           <div className="bg-indigo-100 p-3 rounded-xl">
@@ -54,14 +53,12 @@ export default function Profile({ user }) {
         <p className="text-slate-600 ml-16">Gérez les informations de votre commerce</p>
       </div>
 
-      {/* Formulaire */}
       <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] p-8 shadow-lg space-y-6">
-        {/* Informations légales */}
         <div>
           <h2 className="text-xl font-black text-slate-900 mb-4">Informations légales</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Nom de l'établissement *</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Nom de l'établissement</label>
               <input
                 type="text"
                 value={formData.name || ''}
@@ -82,7 +79,6 @@ export default function Profile({ user }) {
           </div>
         </div>
 
-        {/* Contact */}
         <div>
           <h2 className="text-xl font-black text-slate-900 mb-4">Contact</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -116,7 +112,6 @@ export default function Profile({ user }) {
           </div>
         </div>
 
-        {/* Adresse */}
         <div>
           <h2 className="text-xl font-black text-slate-900 mb-4">Localisation</h2>
           <div className="space-y-4">
@@ -152,7 +147,6 @@ export default function Profile({ user }) {
           </div>
         </div>
 
-        {/* Description */}
         <div>
           <h2 className="text-xl font-black text-slate-900 mb-4">Présentation</h2>
           <textarea
@@ -164,7 +158,6 @@ export default function Profile({ user }) {
           />
         </div>
 
-        {/* Réseaux sociaux */}
         <div>
           <h2 className="text-xl font-black text-slate-900 mb-4">Réseaux sociaux</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -191,7 +184,6 @@ export default function Profile({ user }) {
           </div>
         </div>
 
-        {/* Boutons */}
         <div className="flex gap-4 pt-4">
           <button
             type="submit"
@@ -214,7 +206,7 @@ export default function Profile({ user }) {
 
         {success && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-center font-bold">
-            ✅ Modifications enregistrées avec succès !
+            Modifications enregistrées avec succès !
           </div>
         )}
       </form>

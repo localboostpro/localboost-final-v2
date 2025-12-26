@@ -59,55 +59,58 @@ export default function AuthForm() {
   };
 
   // --- LOGIQUE D'INSCRIPTION COMPLÈTE (FINALE) ---
-  const handleSignUp = async () => {
-    setLoading(true);
-
+const handleSignUp = async () => {
+  setLoading(true);
+  
+  try {
+    // Vérifier si le SIRET existe
     const exists = await checkSiretExists(siret);
     if (exists) {
-      alert("Ce numéro SIRET est déjà utilisé par un autre compte.");
+      alert("❌ Ce numéro SIRET est déjà utilisé par un autre compte.");
       setLoading(false);
       return;
     }
 
-    // 1. Inscription Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({ 
-      email, 
+    // Créer le compte Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
       password,
-      options: { data: { business_name: businessName } }
     });
 
-    if (authError) {
-      alert("Erreur : " + authError.message);
-      setLoading(false);
-      return;
+    if (authError) throw authError;
+
+    if (!authData.user) {
+      throw new Error("Erreur lors de la création du compte");
     }
 
-// 2. Création du profil complet
-   if (authData?.user) {
-      const { error: profileError } = await supabase
-        .from("business_profile")
-        .insert([{
-          user_id: authData.user.id,
-          name: businessName,
-          email: email,
-          siret: siret,
-          website: website,
-          phone: phone,
-          plan: "basic",           // ✅ CORRECTION : on écrit dans 'plan'
-          // subscription_tier: "basic", // ❌ ANCIENNE LIGNE À SUPPRIMER
-          is_active: true,
-          subscription_status: "trial" // On initialise en période d'essai
-        }]);
+    // Créer le profil business
+    const { error: profileError } = await supabase
+      .from('business_profile')
+      .insert({
+        user_id: authData.user.id,
+        email: email,
+        business_name: businessName,
+        business_type: businessType,
+        siret: siret,
+        city: city,
+        plan: 'basic',
+        subscription_status: 'trial',
+        subscription_price: 0,
+        trial_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      });
 
-      if (profileError) {
-        alert("Erreur profil : " + profileError.message);
-      } else {
-        alert("Compte créé avec succès ! Bienvenue chez LocalBoost Pro.");
-        // Pas besoin de rediriger manuellement, le listener dans App.jsx le fera
-      }
-    }
+    if (profileError) throw profileError;
+
+    alert("✅ Compte créé avec succès ! Vérifiez vos emails.");
+    setMode("login");
+    
+  } catch (error) {
+    console.error("❌ Erreur inscription:", error);
+    alert(`❌ Erreur: ${error.message}`);
+  } finally {
     setLoading(false);
-  };
+  }
+};
 
   const nextStep = () => setStep(step + 1);
   const prevStep = () => setStep(step - 1);

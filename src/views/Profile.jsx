@@ -1,172 +1,223 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
-import { getPlanBadge } from "../lib/plans";
-import { 
-  Building, MapPin, Phone, Globe, Facebook, Instagram, 
-  Save, Clock, Fingerprint, Camera, Mail, Star
-} from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { useData } from '../contexts/DataContext';
+import { User, Save, Loader } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-export default function Profile({ user, profile, setProfile }) {
-  const [loading, setLoading] = useState(false);
+export default function Profile({ user }) {
+  const { profile, setProfile } = useData();
   const [formData, setFormData] = useState({});
-  const [hours, setHours] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (profile) {
-      setFormData({
-        name: profile.name || "",
-        type: profile.type || "",
-        description: profile.description || "",
-        siret: profile.siret || "",
-        phone: profile.phone || "",
-        address: profile.address || "",
-        city: profile.city || "",
-        zip_code: profile.zip_code || "",
-        website: profile.website || "",
-        email: profile.email || "",
-        facebook_url: profile.facebook_url || "",
-        instagram_url: profile.instagram_url || "",
-        google_url: profile.google_url || "",
-        google_review_url: profile.google_review_url || "",
-        logo_url: profile.logo_url || ""
-      });
-      try {
-        const h = typeof profile.opening_hours === 'string' ? JSON.parse(profile.opening_hours) : profile.opening_hours;
-        setHours(Array.isArray(h) ? h : []);
-      } catch (e) { setHours([]); }
+      setFormData(profile);
     }
   }, [profile]);
 
-  const handleUpdate = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (!profile?.id) return;
+
     try {
-      const { data, error } = await supabase
-        .from("business_profile")
-        .update({ ...formData, opening_hours: JSON.stringify(hours) })
-        .eq("user_id", user.id)
-        .select().single();
+      setLoading(true);
+      setSuccess(false);
+
+      const { error } = await supabase
+        .from('business_profile')
+        .update(formData)
+        .eq('id', profile.id);
+
       if (error) throw error;
-      setProfile(data);
-      alert("✅ Profil mis à jour !");
-    } catch (err) { alert("❌ Erreur: " + err.message); }
-    finally { setLoading(false); }
+
+      setProfile({ ...formData, email: user.email });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      console.error('Erreur mise à jour:', e);
+      alert('Erreur lors de la sauvegarde');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const currentPlan = getPlanBadge(profile?.plan || 'basic');
-
   return (
-    <form onSubmit={handleUpdate} className="max-w-6xl mx-auto space-y-8 pb-16">
-      <div className="flex justify-between items-center bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm gap-6">
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center border-2 border-slate-50 overflow-hidden text-slate-300">
-            {formData.logo_url ? <img src={formData.logo_url} alt="Logo" className="w-full h-full object-cover" /> : <Camera size={32} />}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-lg">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="bg-indigo-100 p-3 rounded-xl">
+            <User className="w-6 h-6 text-indigo-600" />
           </div>
-          <div>
-            <h1 className="text-3xl font-black text-slate-900">{formData.name || "Établissement"}</h1>
-            <div className={`mt-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${currentPlan.color}`}>
-              {currentPlan.icon} Forfait {currentPlan.name}
-            </div>
-          </div>
+          <h1 className="text-4xl font-black text-slate-900">Mon Établissement</h1>
         </div>
-        <button type="submit" disabled={loading} className="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black flex items-center gap-2 hover:bg-indigo-700 shadow-lg">
-          <Save size={20}/> {loading ? "Enregistrement..." : "Sauvegarder tout"}
-        </button>
+        <p className="text-slate-600 ml-16">Gérez les informations de votre commerce</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-            <h3 className="text-xl font-black flex items-center gap-3"><Building className="text-indigo-600" /> Informations Légales</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nom Commercial</label>
-                <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-indigo-500" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">SIRET</label>
-                <div className="relative">
-                  <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                  <input type="text" value={formData.siret} onChange={e => setFormData({...formData, siret: e.target.value})} className="w-full p-4 pl-12 bg-slate-50 border-none rounded-2xl font-bold" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Type d'activité</label>
-                <input type="text" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Email de contact</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                  <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-4 pl-12 bg-slate-50 border-none rounded-2xl font-bold" />
-                </div>
-              </div>
+      {/* Formulaire */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] p-8 shadow-lg space-y-6">
+        {/* Informations légales */}
+        <div>
+          <h2 className="text-xl font-black text-slate-900 mb-4">Informations légales</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Nom de l'établissement *</label>
+              <input
+                type="text"
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                required
+              />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Description / Bio IA</label>
-              <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-medium h-32 focus:ring-2 ring-indigo-500" />
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-            <h3 className="text-xl font-black flex items-center gap-3"><MapPin className="text-red-500" /> Localisation & Contact</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <input type="text" placeholder="Adresse complète" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="md:col-span-2 w-full p-4 bg-slate-50 border-none rounded-2xl font-bold" />
-               <input type="text" placeholder="Ville" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold" />
-               <input type="text" placeholder="Code Postal" value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold" />
-               <div className="md:col-span-2 relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                  <input type="text" placeholder="Téléphone commercial" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full p-4 pl-12 bg-slate-50 border-none rounded-2xl font-bold" />
-               </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">SIRET</label>
+              <input
+                type="text"
+                value={formData.siret || ''}
+                onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
           </div>
         </div>
 
-        <div className="space-y-8">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-            <h3 className="text-xl font-black flex items-center gap-3"><Globe className="text-blue-500" /> Présence Web</h3>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                <div className="bg-white p-2 rounded-xl shadow-sm text-indigo-600"><Globe size={18}/></div>
-                <input type="text" placeholder="Site Web" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} className="bg-transparent border-none w-full text-sm font-bold focus:ring-0" />
-              </div>
-              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                <div className="bg-white p-2 rounded-xl shadow-sm text-blue-600"><Facebook size={18}/></div>
-                <input type="text" placeholder="Facebook URL" value={formData.facebook_url} onChange={e => setFormData({...formData, facebook_url: e.target.value})} className="bg-transparent border-none w-full text-sm font-bold focus:ring-0" />
-              </div>
-              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                <div className="bg-white p-2 rounded-xl shadow-sm text-pink-600"><Instagram size={18}/></div>
-                <input type="text" placeholder="Instagram URL" value={formData.instagram_url} onChange={e => setFormData({...formData, instagram_url: e.target.value})} className="bg-transparent border-none w-full text-sm font-bold focus:ring-0" />
-              </div>
-              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                <div className="bg-white p-2 rounded-xl shadow-sm text-amber-500"><Star size={18}/></div>
-                <input type="text" placeholder="Lien Google Avis" value={formData.google_review_url} onChange={e => setFormData({...formData, google_review_url: e.target.value})} className="bg-transparent border-none w-full text-sm font-bold focus:ring-0" />
-              </div>
+        {/* Contact */}
+        <div>
+          <h2 className="text-xl font-black text-slate-900 mb-4">Contact</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Téléphone</label>
+              <input
+                type="tel"
+                value={formData.phone || ''}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-            <h3 className="text-xl font-black text-amber-600 flex items-center gap-3 mb-4"><Clock size={20}/> Horaires</h3>
-            <div className="space-y-3">
-              {hours.map((h, idx) => (
-                <div key={idx} className={`flex items-center justify-between p-3 rounded-xl transition-all ${h.closed ? 'bg-red-50 opacity-60' : 'bg-slate-50'}`}>
-                  <span className="font-black text-[10px] uppercase w-16">{h.day}</span>
-                  {!h.closed ? (
-                    <div className="flex items-center gap-1">
-                      <input type="time" value={h.open} onChange={e => { const newH = [...hours]; newH[idx].open = e.target.value; setHours(newH); }} className="p-1 rounded bg-white text-[10px] font-bold border-none" />
-                      <span className="text-slate-300">-</span>
-                      <input type="time" value={h.close} onChange={e => { const newH = [...hours]; newH[idx].close = e.target.value; setHours(newH); }} className="p-1 rounded bg-white text-[10px] font-bold border-none" />
-                    </div>
-                  ) : (
-                    <span className="text-[10px] font-black text-red-500 uppercase">Fermé</span>
-                  )}
-                  <input type="checkbox" checked={h.closed} onChange={e => { const newH = [...hours]; newH[idx].closed = e.target.checked; setHours(newH); }} className="accent-indigo-600" />
-                </div>
-              ))}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Site web</label>
+              <input
+                type="url"
+                value={formData.website || ''}
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
           </div>
         </div>
-      </div>
-    </form>
+
+        {/* Adresse */}
+        <div>
+          <h2 className="text-xl font-black text-slate-900 mb-4">Localisation</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Adresse</label>
+              <input
+                type="text"
+                value={formData.address || ''}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Ville</label>
+                <input
+                  type="text"
+                  value={formData.city || ''}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Code postal</label>
+                <input
+                  type="text"
+                  value={formData.zip_code || ''}
+                  onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div>
+          <h2 className="text-xl font-black text-slate-900 mb-4">Présentation</h2>
+          <textarea
+            value={formData.description || ''}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            rows="4"
+            placeholder="Décrivez votre établissement..."
+          />
+        </div>
+
+        {/* Réseaux sociaux */}
+        <div>
+          <h2 className="text-xl font-black text-slate-900 mb-4">Réseaux sociaux</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Facebook</label>
+              <input
+                type="url"
+                value={formData.facebook_url || ''}
+                onChange={(e) => setFormData({ ...formData, facebook_url: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                placeholder="https://facebook.com/..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Instagram</label>
+              <input
+                type="url"
+                value={formData.instagram_url || ''}
+                onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                placeholder="https://instagram.com/..."
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Boutons */}
+        <div className="flex gap-4 pt-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader className="animate-spin" size={18} />
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save size={18} />
+                Enregistrer les modifications
+              </>
+            )}
+          </button>
+        </div>
+
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-center font-bold">
+            ✅ Modifications enregistrées avec succès !
+          </div>
+        )}
+      </form>
+    </div>
   );
 }

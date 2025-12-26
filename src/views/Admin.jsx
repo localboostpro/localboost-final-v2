@@ -308,64 +308,51 @@ export default function Admin() {
                 <th className="px-6 py-4 text-right text-xs font-black text-slate-700 uppercase">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredBusinesses.map(business => (
-                <tr key={business.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="font-bold text-slate-900">{business.name}</div>
-                      <div className="text-sm text-slate-600">{business.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {/* ✅ MODIFICATION ICI : Sélecteur pour changer le forfait en temps réel */}
-                    <select
-                      value={business.plan || 'basic'}
-                      onChange={(e) => updateBusinessPlan(business.id, e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold p-1 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    >
-                      <option value="basic">Basic</option>
-                      <option value="pro">Pro</option>
-                      <option value="premium">Premium</option>
-                    </select>
-                    <div className="text-xs text-slate-500 mt-1">
-                      {getPlanPrice(business.plan).price}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
-                      business.subscription_status === 'active' ? 'bg-emerald-50 text-emerald-700' :
-                      business.subscription_status === 'trial' ? 'bg-amber-50 text-amber-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
-                      {business.subscription_status === 'active' && <CheckCircle className="w-3 h-3" />}
-                      {business.subscription_status === 'trial' && <Activity className="w-3 h-3" />}
-                      {business.subscription_status === 'inactive' && <XCircle className="w-3 h-3" />}
-                      {business.subscription_status === 'active' ? ' Actif' : business.subscription_status === 'trial' ? ' Essai' : ' Inactif'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {new Date(business.created_at).toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => updateSubscriptionStatus(business.id, business.subscription_status === 'active' ? 'inactive' : 'active')}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                      >
-                        {business.subscription_status === 'active' ? <XCircle className="w-5 h-5 text-slate-600" /> : <CheckCircle className="w-5 h-5 text-slate-600" />}
-                      </button>
-                      <button
-                        onClick={() => deleteBusiness(business.id)}
-                        className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5 text-red-600" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            // Dans votre composant Admin
+<tbody className="divide-y divide-slate-200">
+  {businesses.map((business) => (
+    <tr key={business.id} className="hover:bg-slate-50">
+      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+        {business.business_name || business.name || 'N/A'}
+      </td>
+      <td className="px-6 py-4 text-sm text-gray-500">
+        {business.business_type || business.category || 'N/A'}
+      </td>
+      <td className="px-6 py-4 text-sm text-gray-500">
+        {business.city || 'N/A'}
+      </td>
+      <td className="px-6 py-4">
+        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+          business.subscription_status === 'active' 
+            ? 'bg-green-100 text-green-800'
+            : business.subscription_status === 'trial'
+            ? 'bg-blue-100 text-blue-800'
+            : 'bg-orange-100 text-orange-800'
+        }`}>
+          {business.subscription_status === 'active' ? 'Actif' : 
+           business.subscription_status === 'trial' ? 'Essai' : 'En attente'}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+        {business.subscription_price ? `${business.subscription_price}€/mois` : 'Gratuit'}
+      </td>
+      <td className="px-6 py-4 text-sm space-x-2">
+        <button 
+          onClick={() => handleEdit(business)}
+          className="text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Modifier
+        </button>
+        <button 
+          onClick={() => handleDelete(business.id)}
+          className="text-red-600 hover:text-red-800 font-medium"
+        >
+          Supprimer
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
           </table>
         </div>
       </div>

@@ -4,10 +4,12 @@ import {
   LayoutDashboard, Wand2, MessageSquare, Users, Globe, Ticket, User, Shield, LogOut, X, Zap
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { useData } from '../contexts/DataContext';
 
-export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
+export default function Sidebar({ isAdmin, isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile } = useData(); // ✅ Récupération depuis le Context
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -59,12 +61,17 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
         </div>
         
         {mobile && (
-          <button onClick={onClose} className="p-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200">
+          <button 
+            onClick={onClose} 
+            className="p-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
+            aria-label="Fermer le menu"
+          >
             <X size={24} />
           </button>
         )}
       </div>
 
+      {/* MENU NAVIGATION */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
         {menuItems.map(({ to, label, icon: Icon }) => {
           const isActive = location.pathname === to;
@@ -75,7 +82,9 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
               to={to}
               onClick={mobile ? onClose : undefined}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                isActive ? "bg-indigo-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+                isActive 
+                  ? "bg-indigo-600 text-white shadow-md" 
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
               <Icon size={18} /> {label}
@@ -84,8 +93,24 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
         })}
       </nav>
 
+      {/* BADGE PLAN (Optionnel) */}
+      {profile?.plan && (
+        <div className="px-4 pb-4">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-3 text-center">
+            <p className="text-xs font-medium text-slate-600 mb-1">Votre plan</p>
+            <p className="text-sm font-black text-indigo-600 uppercase">
+              {profile.plan}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* FOOTER DÉCONNEXION */}
       <div className="p-4 border-t border-slate-100 bg-slate-50">
-        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-600 bg-white border border-rose-200 rounded-xl hover:bg-rose-50">
+        <button 
+          onClick={handleLogout} 
+          className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-rose-600 bg-white border border-rose-200 rounded-xl hover:bg-rose-50 transition-colors"
+        >
           <LogOut size={16} /> Déconnexion
         </button>
       </div>
@@ -94,15 +119,19 @@ export default function Sidebar({ profile, isAdmin, isOpen, onClose }) {
 
   return (
     <>
-      {/* BUREAU */}
+      {/* VERSION BUREAU */}
       <aside className="hidden md:flex h-screen w-72 flex-col border-r border-slate-200 sticky top-0 bg-white z-30">
         <MenuContent />
       </aside>
 
-      {/* MOBILE */}
+      {/* VERSION MOBILE (Overlay) */}
       {isOpen && (
         <div className="fixed inset-0 z-[9999] flex md:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            onClick={onClose}
+            aria-label="Fermer le menu"
+          />
           <aside className="relative w-[85%] max-w-sm h-full shadow-2xl bg-white animate-in slide-in-from-left duration-200">
             <MenuContent mobile={true} />
           </aside>

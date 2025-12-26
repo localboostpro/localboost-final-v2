@@ -12,60 +12,49 @@ export const DataProvider = ({ children, session }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const loadAllData = useCallback(async (userId, email) => {
-    try {
-      setLoading(true);
-      setError(null);
+const loadAllData = useCallback(async (userId, email) => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('business_profile')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+    // Charger le profil
+    const { data: profileData, error: profileError } = await supabase
+      .from('business_profile')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-      if (profileError) throw profileError;
+    if (profileError) throw profileError;
 
-      if (!profileData) {
-        setProfile({ name: 'Nouveau compte', email, plan: 'basic', user_id: userId });
-        setLoading(false);
-        return;
-      }
-
-      const [reviewsRes, customersRes, postsRes, promotionsRes] = await Promise.all([
-        supabase
-          .from('reviews')
-          .select('*')
-          .eq('business_id', profileData.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('customers')
-          .select('*')
-          .eq('business_id', profileData.id),
-        supabase
-          .from('posts')
-          .select('*')
-          .eq('business_id', profileData.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('promotions')
-          .select('*')
-          .eq('business_id', profileData.id)
-          .order('created_at', { ascending: false }),
-      ]);
-
-      setProfile({ ...profileData, email });
-      setReviews(reviewsRes.data || []);
-      setCustomers(customersRes.data || []);
-      setPosts(postsRes.data || []);
-      setPromotions(promotionsRes.data || []);
-
-    } catch (e) {
-      console.error('Erreur loadAllData:', e);
-      setError('Impossible de charger les donnees. Veuillez reessayer.');
-    } finally {
+    if (!profileData) {
+      setProfile({ name: 'Nouveau compte', email, plan: 'basic', user_id: userId });
       setLoading(false);
+      return;
     }
-  }, []);
+
+    setProfile(profileData);
+
+    // Charger les autres données en parallèle
+    const [reviewsRes, customersRes, postsRes, promotionsRes] = await Promise.all([
+      supabase.from('reviews').select('*').eq('business_id', profileData.id),
+      supabase.from('customers').select('*').eq('business_id', profileData.id),
+      supabase.from('posts').select('*').eq('business_id', profileData.id),
+      supabase.from('promotions').select('*').eq('business_id', profileData.id)
+    ]);
+
+    setReviews(reviewsRes.data || []);
+    setCustomers(customersRes.data || []);
+    setPosts(postsRes.data || []);
+    setPromotions(promotionsRes.data || []);
+
+  } catch (error) {
+    console.error('❌ Erreur loadAllData:', error);
+    setError(error.message);
+  } finally {
+    setLoading(false);
+  }
+}, []);
+
 
   const refreshReviews = useCallback(async (businessId) => {
     try {

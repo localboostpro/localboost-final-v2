@@ -1,41 +1,64 @@
 export const PLANS = {
   basic: {
     name: "Basic",
-    price: "Essai 7 jours gratuit",
+    price: "Gratuit 7 jours",
     priceValue: 0,
     trialDays: 7,
-    features: ["✅ Essai Premium 7 jours gratuit", "✅ Page vitrine basique", "✅ Gestion des avis clients", "✅ Tableau de bord", "✅ Support email"]
+    features: [
+      "✅ Essai Premium 7 jours gratuit",
+      "✅ Page vitrine basique",
+      "✅ Gestion des avis clients",
+      "✅ Tableau de bord",
+      "✅ Support email"
+    ]
   },
   pro: {
     name: "Pro",
-    price: "59€/mois",
+    price: "59€",
     priceValue: 59,
     trialDays: 0,
-    features: ["✅ Tout du Basic", "✅ Accès Marketing Studio", "✅ Campagnes SMS automatisées", "✅ Analytics avancées", "✅ Collecte d'avis automatisée", "✅ Support prioritaire"]
+    features: [
+      "✅ Tout du Basic",
+      "✅ Accès Marketing Studio",
+      "✅ Campagnes SMS automatisées",
+      "✅ Analytics avancées",
+      "✅ Collecte d'avis automatisée",
+      "✅ Support prioritaire"
+    ]
   },
   premium: {
-    name: "Premium", 
-    price: "99€/mois",
+    name: "Premium",
+    price: "99€",
     priceValue: 99,
     trialDays: 0,
-    features: ["✅ Tout du Pro", "✅ Page établissement personnalisée", "✅ Outils marketing complets", "✅ Centre d'appels automatisé", "✅ Intégrations avancées", "✅ API complète", "✅ Support VIP 24/7"]
+    features: [
+      "✅ Tout du Pro",
+      "✅ Page établissement personnalisée",
+      "✅ Outils marketing complets",
+      "✅ Centre d'appels automatisé",
+      "✅ Intégrations avancées",
+      "✅ API complète",
+      "✅ Support VIP 24/7"
+    ]
   }
 };
 
-export function getPlanPrice(planName) {
+// Fonction utilitaire pour obtenir le plan avec fallback
+export function getPlan(planName) {
   const safeName = (planName || 'basic').toLowerCase();
-  const plan = PLANS[safeName] || PLANS.basic;
+  return PLANS[safeName] || PLANS.basic;
+}
+
+export function getPlanPrice(planName) {
+  const plan = getPlan(planName);
   return { price: plan.price, value: plan.priceValue };
 }
 
 export function getPlanLabel(planName) {
-  const safeName = (planName || 'basic').toLowerCase();
-  return (PLANS[safeName] || PLANS.basic).name;
+  return getPlan(planName).name;
 }
 
-export function getPlanBadge(plan) {
-  const safePlan = (plan || 'basic').toLowerCase();
-  const planData = PLANS[safePlan] || PLANS.basic;
-  const colors = { basic: 'bg-slate-100 text-slate-700', pro: 'bg-blue-100 text-blue-700', premium: 'bg-amber-100 text-amber-700' };
-  return { ...planData, color: colors[safePlan] || colors.basic };
+// Vérifier si un plan est valide
+export function isValidPlan(planName) {
+  return Object.keys(PLANS).includes((planName || '').toLowerCase());
 }
